@@ -11,12 +11,13 @@ that `SUM(signed_amount) = 0` across append-only ledger entries.
 - Java 17 `ledger-service` domain model.
 - Java 17 `payment-service` saga core.
 - Java 17 `identity-service`, `compliance-service`, and `fraud-service` cores.
+- Shared event backbone with in-memory outbox relay.
 - PostgreSQL schema migration for signed, append-only ledger entries.
 - In-memory repository for deterministic local tests.
 - Repair API domain stub requiring a justification payload.
 - Lightweight Java test runner covering reconciliation, idempotency, repairs,
-  concurrent overdraft prevention, payment saga transitions, and trust-layer
-  checks.
+  concurrent overdraft prevention, payment saga transitions, trust-layer
+  checks, and event-envelope behavior.
 
 ## Run Tests
 

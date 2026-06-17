@@ -1,5 +1,8 @@
 package com.voicesecure.ledger;
 
+import com.voicesecure.events.EventEnvelope;
+import com.voicesecure.events.EventEnvelopeFactory;
+import com.voicesecure.events.EventTopic;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -32,5 +35,31 @@ public record LedgerEntry(
             throw new LedgerException("positive signed_amount must use a credit entry type");
         }
     }
-}
 
+    public EventEnvelope toEnvelope(String traceId) {
+        return EventEnvelopeFactory.create(
+                EventTopic.LEDGER,
+                accountId,
+                "LedgerEntry",
+                "ledger.entry_posted",
+                createdAt,
+                traceId,
+                payloadJson()
+        );
+    }
+
+    private String payloadJson() {
+        return "{"
+                + "\"accountId\":\"" + escape(accountId.toString()) + "\","
+                + "\"signedAmount\":" + signedAmount + ","
+                + "\"currency\":\"" + escape(currency) + "\","
+                + "\"sagaId\":\"" + escape(sagaId.toString()) + "\","
+                + "\"entryType\":\"" + escape(entryType.name()) + "\","
+                + "\"idempotencyKey\":\"" + escape(idempotencyKey.toString()) + "\""
+                + "}";
+    }
+
+    private String escape(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+}
