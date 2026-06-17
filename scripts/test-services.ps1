@@ -23,3 +23,15 @@ foreach ($testFile in $TestFiles) {
     Write-Host "Running $className"
     java -cp $BuildDir $className
 }
+
+$PythonTestFiles = Get-ChildItem -Path $ServiceRoot -Recurse -Filter test_*.py | Sort-Object FullName
+foreach ($pythonTest in $PythonTestFiles) {
+    Write-Host "Running Python $($pythonTest.FullName)"
+    Push-Location $pythonTest.Directory.FullName
+    try {
+        python $pythonTest.Name
+    }
+    finally {
+        Pop-Location
+    }
+}
