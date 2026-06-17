@@ -18,5 +18,5 @@ and tests are present before HTTP, Kafka, or persistence adapters are added.
 ## Local Test Command
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File ..\..\scripts\test-ledger-service.ps1
+powershell -ExecutionPolicy Bypass -File ..\..\scripts\test-services.ps1
 ```
