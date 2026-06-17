@@ -9,14 +9,15 @@ that `SUM(signed_amount) = 0` across append-only ledger entries.
 ## Current Slice
 
 - Java 17 `ledger-service` domain model.
+- Java 17 `payment-service` saga core.
 - PostgreSQL schema migration for signed, append-only ledger entries.
 - In-memory repository for deterministic local tests.
 - Repair API domain stub requiring a justification payload.
 - Lightweight Java test runner covering reconciliation, idempotency, repairs,
-  and concurrent overdraft prevention.
+  concurrent overdraft prevention, and payment saga transitions.
 
 ## Run Tests
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\test-ledger-service.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\test-services.ps1
 ```
