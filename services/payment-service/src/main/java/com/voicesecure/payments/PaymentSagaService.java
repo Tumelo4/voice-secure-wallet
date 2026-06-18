@@ -66,6 +66,13 @@ public final class PaymentSagaService {
         return saga;
     }
 
+    public PaymentSaga failFundsReservation(UUID sagaId, String reason) {
+        PaymentSaga saga = requireSaga(sagaId);
+        saga.fundsReservationFailed(reason);
+        repository.save(saga);
+        return saga;
+    }
+
     public PaymentSaga startLedgerCommit(UUID sagaId) {
         PaymentSaga saga = requireSaga(sagaId);
         saga.ledgerCommitStarted();
@@ -113,4 +120,3 @@ public final class PaymentSagaService {
                 .orElseThrow(() -> new PaymentException("saga not found: " + sagaId));
     }
 }
-

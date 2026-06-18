@@ -9,6 +9,7 @@ public final class PaymentSagaTests {
                 new TestCase("happy path reaches COMPLETED with expected events", PaymentSagaTests::happyPathCompletes),
                 new TestCase("voice timeout falls back to OTP", PaymentSagaTests::voiceTimeoutFallsBackToOtp),
                 new TestCase("fraud rejection stops the saga early", PaymentSagaTests::fraudRejectionStopsEarly),
+                new TestCase("funds reservation failure becomes terminal", PaymentSagaTests::fundsReservationFailureBecomesTerminal),
                 new TestCase("ledger failure triggers compensation", PaymentSagaTests::ledgerFailureTriggersCompensation),
                 new TestCase("compensation failure becomes critical", PaymentSagaTests::compensationFailureBecomesCritical),
                 new TestCase("idempotent start returns the original saga", PaymentSagaTests::idempotentStartReturnsOriginalSaga)
@@ -65,6 +66,17 @@ public final class PaymentSagaTests {
 
         assertEquals(PaymentSagaState.FRAUD_REJECTED, saga.state(), "fraud rejection should be terminal");
         assertNotContains(saga.events().stream().map(PaymentEvent::eventType).toList(), "payment.funds_reserved", "no funds should move after fraud rejection");
+    }
+
+    private static void fundsReservationFailureBecomesTerminal() {
+        Fixture fixture = fixture();
+        PaymentSaga saga = fixture.service.start(fixture.request, new FraudDecision(0.08, AuthPolicy.VOICE_ONLY, true, ""));
+        fixture.service.recordVoiceOutcome(saga.sagaId(), new VoiceOutcome(VoiceOutcomeStatus.APPROVED, 0.99, "voice matched"));
+        fixture.service.failFundsReservation(saga.sagaId(), "insufficient available funds");
+
+        assertEquals(PaymentSagaState.FUNDS_RESERVATION_FAILED, saga.state(), "funds reservation failure should be terminal");
+        assertContains(saga.events().stream().map(PaymentEvent::eventType).toList(), "payment.funds_reservation_failed", "funds reservation failure event");
+        assertEquals(true, saga.isTerminal(), "funds reservation failure should be terminal");
     }
 
     private static void ledgerFailureTriggersCompensation() {
