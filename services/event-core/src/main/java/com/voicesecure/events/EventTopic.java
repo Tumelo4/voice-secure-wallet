@@ -6,7 +6,9 @@ public enum EventTopic {
     FRAUD("fraud", "user_id"),
     VOICE("voice", "user_id"),
     COMPLIANCE("compliance", "user_id"),
-    IDENTITY("identity", "user_id");
+    IDENTITY("identity", "user_id"),
+    SUPPORT("support", "case_id"),
+    RECOVERY("recovery", "recovery_id");
 
     private final String topicName;
     private final String partitionKeyField;
@@ -24,4 +26,3 @@ public enum EventTopic {
         return partitionKeyField;
     }
 }
-
