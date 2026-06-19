@@ -15,13 +15,15 @@ that `SUM(signed_amount) = 0` across append-only ledger entries.
 - Python `voice-service` biometrics core.
 - Java 17 `support-service` and `recovery-service` cores for support workflows.
 - Java 17 `ops-service` plan validator for observability and disaster recovery.
+- Java 17 `launch-service` readiness validator for hardening and launch gates.
 - PostgreSQL schema migration for signed, append-only ledger entries.
 - In-memory repository for deterministic local tests.
 - Repair API domain stub requiring a justification payload.
 - Lightweight Java test runner covering reconciliation, idempotency, repairs,
   concurrent overdraft prevention, payment saga transitions, trust-layer
   checks, event-envelope behavior, recovery flows, support workflows,
-  observability/DR plan validation, and voice verification flows.
+  observability/DR plan validation, launch readiness, and voice verification
+  flows.
 
 ## Run Tests
 
