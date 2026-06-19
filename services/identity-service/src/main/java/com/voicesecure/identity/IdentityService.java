@@ -23,6 +23,14 @@ public final class IdentityService {
         return registration;
     }
 
+    public DeviceRegistration reissueDeviceCertificate(UUID userId, UUID deviceId, PublicKey publicKey) {
+        repository.findDevice(userId, deviceId)
+                .orElseThrow(() -> new IdentityException("device not registered"));
+        DeviceRegistration registration = new DeviceRegistration(userId, deviceId, publicKey, Instant.now(), true);
+        repository.saveDevice(registration);
+        return registration;
+    }
+
     public SessionGrant createSession(UUID userId, UUID deviceId, String scope, Duration accessTokenTtl, Duration refreshTokenTtl) {
         DeviceRegistration device = repository.findDevice(userId, deviceId)
                 .orElseThrow(() -> new IdentityException("device not registered"));

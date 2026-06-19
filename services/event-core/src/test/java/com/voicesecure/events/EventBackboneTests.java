@@ -13,6 +13,7 @@ public final class EventBackboneTests {
                 new TestCase("payment events map to the payments topic envelope", EventBackboneTests::paymentEventsMapToEnvelope),
                 new TestCase("ledger entries map to the ledger topic envelope", EventBackboneTests::ledgerEntriesMapToEnvelope),
                 new TestCase("outbox relay publishes pending events in order", EventBackboneTests::outboxRelayPublishesInOrder),
+                new TestCase("in-memory publisher records published envelopes", EventBackboneTests::inMemoryPublisherRecordsPublishedEnvelopes),
                 new TestCase("topic catalog exposes the plan topics", EventBackboneTests::topicCatalogExposesPlanTopics)
         };
 
@@ -97,6 +98,24 @@ public final class EventBackboneTests {
         assertEquals(0, store.pending().size(), "pending count");
     }
 
+    private static void inMemoryPublisherRecordsPublishedEnvelopes() {
+        InMemoryEventPublisher publisher = new InMemoryEventPublisher();
+        EventEnvelope envelope = EventEnvelopeFactory.create(
+                EventTopic.RECOVERY,
+                UUID.randomUUID(),
+                "RecoveryCase",
+                "recovery.completed",
+                Instant.parse("2026-06-18T10:00:00Z"),
+                "trace-recovery-1",
+                "{\"status\":\"COMPLETED\"}"
+        );
+
+        publisher.publish(envelope);
+
+        assertEquals(1, publisher.published().size(), "publisher count");
+        assertEquals(envelope.eventId(), publisher.published().get(0).eventId(), "published event");
+    }
+
     private static void topicCatalogExposesPlanTopics() {
         assertEquals("payments", EventTopic.PAYMENTS.topicName(), "payments topic");
         assertEquals("ledger", EventTopic.LEDGER.topicName(), "ledger topic");
@@ -104,6 +123,8 @@ public final class EventBackboneTests {
         assertEquals("voice", EventTopic.VOICE.topicName(), "voice topic");
         assertEquals("compliance", EventTopic.COMPLIANCE.topicName(), "compliance topic");
         assertEquals("identity", EventTopic.IDENTITY.topicName(), "identity topic");
+        assertEquals("support", EventTopic.SUPPORT.topicName(), "support topic");
+        assertEquals("recovery", EventTopic.RECOVERY.topicName(), "recovery topic");
     }
 
     private static void assertEquals(Object expected, Object actual, String message) {
@@ -135,4 +156,3 @@ public final class EventBackboneTests {
         }
     }
 }
-
