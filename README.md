@@ -53,6 +53,11 @@ authentication, recovery workflows, operational validation, and launch gates.
   observability/DR plan validation, launch readiness, and voice verification
   flows.
 
+## Delivery Docs
+
+- [Release runbook](docs/release-runbook.md): launch checklist, rollout flow,
+  validation gates, and rollback steps.
+
 ## Run Tests
 
 ```powershell
