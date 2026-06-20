@@ -27,6 +27,32 @@ checks, fallback volume, performance, and the remaining sign-off criteria.
 - Chaos testing and fallback thresholds are enforced.
 - Security scanning, pen testing, and launch readiness must all be clean before
   the plan reports GO.
+- Launch thresholds are configured through `LaunchReadinessPolicy`.
+- Benchmark evidence is modeled separately from pass/fail assertions.
+
+## Benchmark
+
+- Voice shadow mode must run for 48 hours with a false-positive rate below
+  0.1%.
+- Performance testing must reach 10x load and keep p99 latency within SLO.
+- Voice OTP fallback must complete 100 of 100 intentionally degraded test
+  payments.
+- Launch evidence must include a test run id, measured p99 latency, load
+  multiplier, false-positive sample size, RTO/RPO minutes, CVE scan source, and
+  pen-test report reference.
+
+## How To Use It
+
+Build a readiness plan with policy evidence, then validate it:
+
+```java
+LaunchReadinessPolicy policy = LaunchReadinessPolicy.defaults();
+LaunchReadinessValidator validator = new LaunchReadinessValidator(policy);
+LaunchReadinessReport report = validator.validate(plan);
+```
+
+Use `report.blockers()` as the go/no-go list. A ready report means every gate
+and the supporting benchmark evidence satisfy the policy.
 
 ## Local Test Command
 

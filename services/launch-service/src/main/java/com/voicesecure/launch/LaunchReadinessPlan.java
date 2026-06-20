@@ -15,6 +15,7 @@ public record LaunchReadinessPlan(
         VoiceShadowModeValidation voiceShadowModeValidation,
         PerformanceTestResult performanceTestResult,
         VoiceFallbackExercise voiceFallbackExercise,
+        LaunchEvidence launchEvidence,
         boolean adminRepairDrillPassed,
         boolean deviceBindingPassed,
         boolean complianceAuditPassed,
@@ -27,5 +28,6 @@ public record LaunchReadinessPlan(
         Objects.requireNonNull(voiceShadowModeValidation, "voiceShadowModeValidation");
         Objects.requireNonNull(performanceTestResult, "performanceTestResult");
         Objects.requireNonNull(voiceFallbackExercise, "voiceFallbackExercise");
+        Objects.requireNonNull(launchEvidence, "launchEvidence");
     }
 }

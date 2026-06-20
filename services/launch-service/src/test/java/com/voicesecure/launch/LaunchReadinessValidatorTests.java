@@ -7,7 +7,8 @@ public final class LaunchReadinessValidatorTests {
         TestCase[] tests = {
                 new TestCase("fully signed-off launch plan passes", LaunchReadinessValidatorTests::fullySignedOffLaunchPlanPasses),
                 new TestCase("missing chaos scenario and CVEs are blocked", LaunchReadinessValidatorTests::missingChaosScenarioAndCvesAreBlocked),
-                new TestCase("shadow mode and fallback thresholds are enforced", LaunchReadinessValidatorTests::shadowModeAndFallbackThresholdsAreEnforced)
+                new TestCase("shadow mode and fallback thresholds are enforced", LaunchReadinessValidatorTests::shadowModeAndFallbackThresholdsAreEnforced),
+                new TestCase("benchmark evidence is required", LaunchReadinessValidatorTests::benchmarkEvidenceIsRequired)
         };
 
         for (TestCase test : tests) {
@@ -48,6 +49,7 @@ public final class LaunchReadinessValidatorTests {
                 new VoiceShadowModeValidation(48, 0.0005),
                 new PerformanceTestResult(10, true),
                 new VoiceFallbackExercise(100, 100, true),
+                validEvidence(),
                 true,
                 true,
                 true,
@@ -76,6 +78,7 @@ public final class LaunchReadinessValidatorTests {
                 new VoiceShadowModeValidation(24, 0.01),
                 new PerformanceTestResult(10, true),
                 new VoiceFallbackExercise(100, 99, true),
+                validEvidence(),
                 true,
                 true,
                 true,
@@ -88,6 +91,35 @@ public final class LaunchReadinessValidatorTests {
         assertTrue(report.blockers().contains("voice shadow mode must run for 48 hours"), "shadow duration should be enforced");
         assertTrue(report.blockers().contains("voice shadow mode false positive rate must stay below 0.1%"), "shadow false positive rate should be enforced");
         assertTrue(report.blockers().contains("voice OTP fallback must succeed for 100 of 100 test payments"), "fallback volume should be enforced");
+    }
+
+    private static void benchmarkEvidenceIsRequired() {
+        LaunchReadinessPlan plan = new LaunchReadinessPlan(
+                true,
+                validChaosSuite(),
+                true,
+                new PenTestResult(true, 0, 0),
+                true,
+                true,
+                true,
+                new SecurityScanResult(true, 0, 0, true),
+                true,
+                new VoiceShadowModeValidation(48, 0.0008),
+                new PerformanceTestResult(10, true),
+                new VoiceFallbackExercise(100, 100, true),
+                new LaunchEvidence("", 0, 1.0, 0, 0, 0, "", ""),
+                true,
+                true,
+                true,
+                true
+        );
+
+        LaunchReadinessReport report = new LaunchReadinessValidator().validate(plan);
+
+        assertTrue(!report.ready(), "missing evidence should block launch");
+        assertTrue(report.blockers().contains("benchmark evidence must include a test run id"), "test run evidence should be required");
+        assertTrue(report.blockers().contains("benchmark evidence must include measured p99 latency"), "p99 evidence should be required");
+        assertTrue(report.blockers().contains("benchmark evidence must include CVE scan source"), "scan evidence should be required");
     }
 
     private static LaunchReadinessPlan validPlan() {
@@ -104,6 +136,7 @@ public final class LaunchReadinessValidatorTests {
                 new VoiceShadowModeValidation(48, 0.0008),
                 new PerformanceTestResult(10, true),
                 new VoiceFallbackExercise(100, 100, true),
+                validEvidence(),
                 true,
                 true,
                 true,
@@ -121,6 +154,19 @@ public final class LaunchReadinessValidatorTests {
                         ChaosScenario.REGION_FAILOVER
                 ),
                 true
+        );
+    }
+
+    private static LaunchEvidence validEvidence() {
+        return new LaunchEvidence(
+                "launch-drill-2026-06-18",
+                220,
+                10.0,
+                100_000,
+                15,
+                5,
+                "trivy-container-scan-2026-06-18",
+                "pentest-report-2026-q2"
         );
     }
 
