@@ -12,6 +12,7 @@ public final class LedgerServiceTests {
                 new TestCase("double-entry transfer keeps signed ledger balanced", LedgerServiceTests::transferBalancesLedger),
                 new TestCase("zero and unbalanced postings are rejected", LedgerServiceTests::rejectsInvalidPostings),
                 new TestCase("idempotency returns the original accepted batch", LedgerServiceTests::idempotencyPreventsDuplicates),
+                new TestCase("idempotency rejects conflicting commands", LedgerServiceTests::idempotencyRejectsConflictingCommands),
                 new TestCase("concurrent transfers cannot overdraft", LedgerServiceTests::concurrentTransfersCannotOverdraft),
                 new TestCase("repair requires justification and appends audit-backed entries", LedgerServiceTests::repairFlowIsBalancedAndAudited)
         };
@@ -75,6 +76,43 @@ public final class LedgerServiceTests {
         assertEquals(2, fixture.repository.entries().size(), "retry must not append duplicate entries");
         assertEquals(875L, fixture.repository.balances().get(fixture.source).balance(), "source balance after retry");
         assertEquals(125L, fixture.repository.balances().get(fixture.destination).balance(), "destination balance after retry");
+    }
+
+    private static void idempotencyRejectsConflictingCommands() {
+        Fixture fixture = fixture(1_000, 0);
+        UUID idempotencyKey = UUID.randomUUID();
+        fixture.service.transfer(UUID.randomUUID(), idempotencyKey, fixture.source, fixture.destination, 125, "ZAR");
+
+        assertThrows(
+                LedgerException.class,
+                () -> fixture.service.transfer(UUID.randomUUID(), idempotencyKey, fixture.source, fixture.destination, 300, "ZAR"),
+                "same idempotency key with different amount should fail"
+        );
+
+        RepairRequest repair = new RepairRequest(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "ZAR",
+                List.of(Posting.repairDebit(fixture.destination, 25), Posting.repairCredit(fixture.source, 25)),
+                "COMPENSATION_FAILED drill corrective entry",
+                "sre@example.com"
+        );
+        fixture.service.repair(repair);
+
+        assertThrows(
+                LedgerException.class,
+                () -> fixture.service.repair(new RepairRequest(
+                        UUID.randomUUID(),
+                        repair.sagaId(),
+                        repair.idempotencyKey(),
+                        "ZAR",
+                        repair.postings(),
+                        repair.justification(),
+                        repair.requestedBy()
+                )),
+                "same repair idempotency key with different repair id should fail"
+        );
     }
 
     private static void concurrentTransfersCannotOverdraft() throws Exception {

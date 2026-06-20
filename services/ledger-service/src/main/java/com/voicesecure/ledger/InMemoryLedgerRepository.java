@@ -13,7 +13,7 @@ public final class InMemoryLedgerRepository implements LedgerRepository {
     private final List<LedgerEntry> entries = new ArrayList<>();
     private final List<OutboxEvent> outboxEvents = new ArrayList<>();
     private final Map<UUID, AccountState> accounts = new LinkedHashMap<>();
-    private final Map<UUID, LedgerBatch> idempotencyCache = new HashMap<>();
+    private final Map<UUID, IdempotencyRecord> idempotencyCache = new HashMap<>();
     private final List<RepairRequest> repairAudit = new ArrayList<>();
 
     @Override
@@ -29,18 +29,22 @@ public final class InMemoryLedgerRepository implements LedgerRepository {
 
     @Override
     public synchronized LedgerBatch append(LedgerTransaction transaction) {
-        Optional<LedgerBatch> cached = findByIdempotencyKey(transaction.idempotencyKey());
-        if (cached.isPresent()) {
-            return cached.get();
+        LedgerCommand command = LedgerCommand.from(transaction);
+        IdempotencyRecord cached = idempotencyCache.get(transaction.idempotencyKey());
+        if (cached != null) {
+            cached.ensureMatches(command);
+            return cached.batch();
         }
-        return appendNew(transaction);
+        return appendNew(transaction, command);
     }
 
     @Override
     public synchronized LedgerBatch appendRepair(RepairRequest repairRequest) {
-        Optional<LedgerBatch> cached = findByIdempotencyKey(repairRequest.idempotencyKey());
-        if (cached.isPresent()) {
-            return cached.get();
+        LedgerCommand command = LedgerCommand.from(repairRequest);
+        IdempotencyRecord cached = idempotencyCache.get(repairRequest.idempotencyKey());
+        if (cached != null) {
+            cached.ensureMatches(command);
+            return cached.batch();
         }
         LedgerTransaction transaction = new LedgerTransaction(
                 repairRequest.sagaId(),
@@ -48,12 +52,12 @@ public final class InMemoryLedgerRepository implements LedgerRepository {
                 repairRequest.currency(),
                 repairRequest.postings()
         );
-        LedgerBatch batch = appendNew(transaction);
+        LedgerBatch batch = appendNew(transaction, command);
         repairAudit.add(repairRequest);
         return batch;
     }
 
-    private LedgerBatch appendNew(LedgerTransaction transaction) {
+    private LedgerBatch appendNew(LedgerTransaction transaction, LedgerCommand command) {
         validateAccounts(transaction);
         Map<UUID, Long> projectedBalances = projectBalances(transaction);
         List<LedgerEntry> batchEntries = createEntries(transaction);
@@ -73,13 +77,13 @@ public final class InMemoryLedgerRepository implements LedgerRepository {
         }
 
         LedgerBatch batch = new LedgerBatch(batchEntries, batchEvents, reconciliation);
-        idempotencyCache.put(transaction.idempotencyKey(), batch);
+        idempotencyCache.put(transaction.idempotencyKey(), new IdempotencyRecord(command, batch));
         return batch;
     }
 
     @Override
     public synchronized Optional<LedgerBatch> findByIdempotencyKey(UUID idempotencyKey) {
-        return Optional.ofNullable(idempotencyCache.get(idempotencyKey));
+        return Optional.ofNullable(idempotencyCache.get(idempotencyKey)).map(IdempotencyRecord::batch);
     }
 
     @Override
@@ -161,5 +165,51 @@ public final class InMemoryLedgerRepository implements LedgerRepository {
     }
 
     private record AccountState(long balance, String currency, long version, Instant updatedAt) {
+    }
+
+    private record IdempotencyRecord(LedgerCommand command, LedgerBatch batch) {
+        private void ensureMatches(LedgerCommand candidate) {
+            if (!command.equals(candidate)) {
+                throw new LedgerException("idempotency key reused with different ledger command");
+            }
+        }
+    }
+
+    private record LedgerCommand(
+            String kind,
+            UUID sagaId,
+            String currency,
+            List<Posting> postings,
+            UUID repairId,
+            String justification,
+            String requestedBy
+    ) {
+        private LedgerCommand {
+            postings = List.copyOf(postings);
+        }
+
+        private static LedgerCommand from(LedgerTransaction transaction) {
+            return new LedgerCommand(
+                    "transaction",
+                    transaction.sagaId(),
+                    transaction.currency(),
+                    transaction.postings(),
+                    null,
+                    "",
+                    ""
+            );
+        }
+
+        private static LedgerCommand from(RepairRequest repairRequest) {
+            return new LedgerCommand(
+                    "repair",
+                    repairRequest.sagaId(),
+                    repairRequest.currency(),
+                    repairRequest.postings(),
+                    repairRequest.repairId(),
+                    repairRequest.justification(),
+                    repairRequest.requestedBy()
+            );
+        }
     }
 }
