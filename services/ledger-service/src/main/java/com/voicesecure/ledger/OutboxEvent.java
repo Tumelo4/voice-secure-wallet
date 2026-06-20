@@ -19,4 +19,3 @@ public record OutboxEvent(
         Objects.requireNonNull(payload, "payload");
     }
 }
-

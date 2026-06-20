@@ -9,4 +9,3 @@ public record JwksDocument(List<JsonWebKey> keys) {
         keys = List.copyOf(keys);
     }
 }
-

@@ -22,4 +22,3 @@ public enum AuthPolicy {
         return fallbackMethod;
     }
 }
-

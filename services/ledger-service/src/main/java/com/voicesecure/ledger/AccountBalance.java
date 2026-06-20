@@ -23,4 +23,3 @@ public record AccountBalance(
         }
     }
 }
-

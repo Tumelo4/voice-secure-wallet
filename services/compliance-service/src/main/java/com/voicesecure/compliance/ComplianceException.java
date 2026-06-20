@@ -7,4 +7,3 @@ public class ComplianceException extends RuntimeException {
         super(message);
     }
 }
-

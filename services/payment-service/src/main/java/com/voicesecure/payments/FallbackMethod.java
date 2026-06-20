@@ -5,4 +5,3 @@ public enum FallbackMethod {
     PIN,
     HARDWARE_KEY
 }
-

@@ -12,4 +12,3 @@ public record ReconciliationReport(long totalSignedAmount, int entryCount) {
         return new ReconciliationReport(total, entries.size());
     }
 }
-

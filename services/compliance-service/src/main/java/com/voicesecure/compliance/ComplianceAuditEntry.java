@@ -21,4 +21,3 @@ public record ComplianceAuditEntry(
         Objects.requireNonNull(screenedAt, "screenedAt");
     }
 }
-

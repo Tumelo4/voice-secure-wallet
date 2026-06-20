@@ -7,4 +7,3 @@ public class IdentityException extends RuntimeException {
         super(message);
     }
 }
-

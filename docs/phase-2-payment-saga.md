@@ -33,4 +33,3 @@ compensation.
 The saga is written as a deterministic in-memory implementation with an
 append-only event trail. That keeps the branch testable while we layer in the
 event bus and persistence adapters later.
-

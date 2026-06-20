@@ -83,4 +83,3 @@ CREATE TRIGGER ledger_entries_append_only_update
 CREATE TRIGGER ledger_entries_append_only_delete
     BEFORE DELETE ON ledger_entries
     FOR EACH ROW EXECUTE FUNCTION prevent_ledger_entry_mutation();
-

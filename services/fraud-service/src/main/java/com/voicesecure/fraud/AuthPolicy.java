@@ -5,4 +5,3 @@ public enum AuthPolicy {
     VOICE_OTP,
     DEVICE_PIN
 }
-

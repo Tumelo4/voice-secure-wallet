@@ -10,4 +10,3 @@ public interface PaymentSagaRepository {
 
     void save(PaymentSaga saga);
 }
-

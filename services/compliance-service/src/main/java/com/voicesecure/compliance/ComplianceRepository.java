@@ -20,4 +20,3 @@ public interface ComplianceRepository {
 
     void appendAudit(ComplianceAuditEntry auditEntry);
 }
-

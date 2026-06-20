@@ -29,4 +29,3 @@ existing ledger rows are never updated or deleted.
 - Repair flows preserve audit history.
 - Services that display balances must consume ledger events or read approved
   projections rather than writing financial state themselves.
-

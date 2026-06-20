@@ -21,4 +21,3 @@ public final class VelocityTracker {
         return userEvents.size();
     }
 }
-

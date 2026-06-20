@@ -11,4 +11,3 @@ public record VoiceOutcome(VoiceOutcomeStatus status, double confidence, String 
         }
     }
 }
-

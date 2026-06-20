@@ -6,4 +6,3 @@ public enum EntryType {
     REPAIR_DEBIT,
     REPAIR_CREDIT
 }
-

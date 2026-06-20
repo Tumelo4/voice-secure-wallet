@@ -11,4 +11,3 @@ This slice adds the voice verification core described in the build plan:
 
 The implementation is pure Python for now so the biometric logic can be tested
 without wiring FastAPI or external audio libraries into this branch yet.
-

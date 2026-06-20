@@ -7,4 +7,3 @@ public class PaymentException extends RuntimeException {
         super(message);
     }
 }
-

@@ -32,4 +32,3 @@ public enum PaymentSagaState {
         return terminal;
     }
 }
-

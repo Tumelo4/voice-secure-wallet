@@ -7,4 +7,3 @@ public class FraudException extends RuntimeException {
         super(message);
     }
 }
-

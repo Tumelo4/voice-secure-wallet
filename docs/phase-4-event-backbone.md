@@ -11,4 +11,3 @@ This slice captures the shared event language described in the build plan:
 
 The relay is in-memory for now, but it preserves the append-only semantics and
 ordering expectations the Kafka layer will need later.
-

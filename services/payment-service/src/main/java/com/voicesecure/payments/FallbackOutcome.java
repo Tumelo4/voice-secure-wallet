@@ -11,4 +11,3 @@ public record FallbackOutcome(FallbackMethod method, boolean verified, String re
         }
     }
 }
-

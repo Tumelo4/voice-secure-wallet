@@ -22,4 +22,3 @@ public record ComplianceScreeningResult(
         Objects.requireNonNull(screenedAt, "screenedAt");
     }
 }
-

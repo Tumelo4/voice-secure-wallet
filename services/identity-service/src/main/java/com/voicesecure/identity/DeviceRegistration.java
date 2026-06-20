@@ -19,4 +19,3 @@ public record DeviceRegistration(
         Objects.requireNonNull(registeredAt, "registeredAt");
     }
 }
-

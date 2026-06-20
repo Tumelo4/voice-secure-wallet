@@ -6,4 +6,3 @@ public enum VoiceOutcomeStatus {
     TIMEOUT,
     SPOOF_DETECTED
 }
-

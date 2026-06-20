@@ -40,4 +40,3 @@ public record Posting(UUID accountId, long signedAmount, EntryType entryType) {
         return new Posting(accountId, amount, EntryType.REPAIR_CREDIT);
     }
 }
-

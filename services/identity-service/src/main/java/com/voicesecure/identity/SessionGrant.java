@@ -10,4 +10,3 @@ public record SessionGrant(JwtToken accessToken, String refreshToken, AccessToke
         Objects.requireNonNull(familyState, "familyState");
     }
 }
-

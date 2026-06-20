@@ -25,4 +25,3 @@ public final class InMemoryPaymentSagaRepository implements PaymentSagaRepositor
         byIdempotencyKey.put(saga.idempotencyKey(), saga);
     }
 }
-

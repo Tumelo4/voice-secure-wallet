@@ -56,4 +56,3 @@ public final class InMemoryComplianceRepository implements ComplianceRepository 
         return value.trim().toLowerCase(Locale.ROOT);
     }
 }
-

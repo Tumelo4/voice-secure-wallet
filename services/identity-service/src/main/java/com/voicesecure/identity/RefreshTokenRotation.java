@@ -8,4 +8,3 @@ public record RefreshTokenRotation(String refreshToken, String previousRefreshTo
         Objects.requireNonNull(previousRefreshToken, "previousRefreshToken");
     }
 }
-

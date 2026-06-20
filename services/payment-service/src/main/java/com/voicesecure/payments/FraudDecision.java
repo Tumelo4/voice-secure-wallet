@@ -14,4 +14,3 @@ public record FraudDecision(double score, AuthPolicy authPolicy, boolean approve
         }
     }
 }
-

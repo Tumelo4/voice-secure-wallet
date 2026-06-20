@@ -11,4 +11,3 @@ This slice covers the trust layer described in the build plan:
 The implementation is intentionally in-memory for now, but it keeps the service
 boundaries and invariants explicit so the adapters can be added later without
 changing the domain behavior.
-

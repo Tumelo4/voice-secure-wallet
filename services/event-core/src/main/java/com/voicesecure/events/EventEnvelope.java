@@ -61,4 +61,3 @@ public record EventEnvelope(
         return topic.equals(topicDefinition.topicName());
     }
 }
-

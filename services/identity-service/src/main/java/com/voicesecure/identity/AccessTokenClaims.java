@@ -23,4 +23,3 @@ public record AccessTokenClaims(
         Objects.requireNonNull(expiresAt, "expiresAt");
     }
 }
-

@@ -7,4 +7,3 @@ public class EventEnvelopeException extends RuntimeException {
         super(message);
     }
 }
-

@@ -8,4 +8,3 @@ public record JwtToken(String token, AccessTokenClaims claims) {
         Objects.requireNonNull(claims, "claims");
     }
 }
-

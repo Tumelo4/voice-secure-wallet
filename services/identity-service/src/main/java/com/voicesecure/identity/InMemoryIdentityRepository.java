@@ -36,4 +36,3 @@ public final class InMemoryIdentityRepository implements IdentityRepository {
         return Optional.ofNullable(family == null ? null : family.copy());
     }
 }
-

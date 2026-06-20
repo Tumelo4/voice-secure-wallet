@@ -6,4 +6,3 @@ public enum ComplianceHitType {
     SANCTIONS_MATCH,
     AML_FLAG
 }
-

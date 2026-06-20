@@ -12,4 +12,3 @@ public record JsonWebKey(String keyId, String keyType, String algorithm, String 
         Objects.requireNonNull(exponent, "exponent");
     }
 }
-
