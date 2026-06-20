@@ -13,6 +13,7 @@ public final class IdentityServiceTests {
     public static void main(String[] args) throws Exception {
         TestCase[] tests = {
                 new TestCase("issues and verifies RS256 access tokens", IdentityServiceTests::issuesAndVerifiesAccessTokens),
+                new TestCase("rejects access tokens with unknown key id", IdentityServiceTests::rejectsUnknownKeyId),
                 new TestCase("device signatures are validated on critical requests", IdentityServiceTests::validatesCriticalRequestSignatures),
                 new TestCase("refresh token reuse revokes the family", IdentityServiceTests::refreshTokenReuseRevokesFamily),
                 new TestCase("device certificates can be reissued", IdentityServiceTests::reissuesDeviceCertificates)
@@ -39,6 +40,24 @@ public final class IdentityServiceTests {
         assertEquals(grant.familyState().familyId(), verified.familyId(), "family id");
         assertEquals("wallet:payment", verified.scope(), "scope");
         assertTrue(!fixture.service.jwks().keys().isEmpty(), "jwks should contain the signing key");
+    }
+
+    private static void rejectsUnknownKeyId() throws Exception {
+        Fixture fixture = fixture();
+        UUID userId = UUID.randomUUID();
+        UUID deviceId = UUID.randomUUID();
+        fixture.service.registerDevice(userId, deviceId, fixture.deviceKeys.getPublic());
+
+        SessionGrant grant = fixture.service.createSession(userId, deviceId, "wallet:payment", Duration.ofMinutes(15), Duration.ofDays(7));
+        String[] parts = grant.accessToken().token().split("\\.");
+        String unknownKidHeader = JwtEncoding.base64Url("{\"alg\":\"RS256\",\"typ\":\"JWT\",\"kid\":\"unknown\"}");
+        String tokenWithUnknownKid = unknownKidHeader + "." + parts[1] + "." + parts[2];
+
+        assertThrows(
+                IdentityException.class,
+                () -> fixture.service.verifyAccessToken(tokenWithUnknownKid),
+                "unknown kid should fail verification"
+        );
     }
 
     private static void validatesCriticalRequestSignatures() throws Exception {

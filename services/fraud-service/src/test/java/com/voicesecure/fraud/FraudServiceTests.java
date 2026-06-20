@@ -1,12 +1,15 @@
 package com.voicesecure.fraud;
 
 import com.voicesecure.compliance.ComplianceProfile;
+import com.voicesecure.compliance.ComplianceScreeningResult;
 import com.voicesecure.compliance.ComplianceService;
+import com.voicesecure.compliance.ComplianceHitType;
 import com.voicesecure.compliance.InMemoryComplianceRepository;
 import com.voicesecure.payments.FraudDecision;
 import com.voicesecure.payments.PaymentSaga;
 import com.voicesecure.payments.PaymentSagaService;
 import com.voicesecure.payments.InMemoryPaymentSagaRepository;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -15,7 +18,8 @@ public final class FraudServiceTests {
         TestCase[] tests = {
                 new TestCase("pep hit blocks payment and maps into payment saga rejection", FraudServiceTests::pepHitBlocksPayment),
                 new TestCase("high value payment escalates to voice otp", FraudServiceTests::highValuePaymentEscalatesToVoiceOtp),
-                new TestCase("low trust and velocity escalate to device pin", FraudServiceTests::lowTrustAndVelocityEscalate)
+                new TestCase("low trust and velocity escalate to device pin", FraudServiceTests::lowTrustAndVelocityEscalate),
+                new TestCase("custom policy and compliance port drive fraud decisions", FraudServiceTests::customPolicyAndPortDriveDecision)
         };
 
         for (TestCase test : tests) {
@@ -87,6 +91,55 @@ public final class FraudServiceTests {
         assertTrue(assessment.score() > 0.25, "risk score should be elevated");
     }
 
+    private static void customPolicyAndPortDriveDecision() {
+        FraudPolicy policy = new FraudPolicy(
+                Duration.ofMinutes(1),
+                0.20,
+                0.05,
+                0.10,
+                100000.0,
+                10,
+                0.01,
+                0.10,
+                0.10,
+                0.10,
+                1,
+                0.05,
+                0.50,
+                0.90,
+                0.10,
+                0.10,
+                0.95,
+                0.55,
+                0.90
+        );
+        ComplianceScreeningPort clearCompliance = profile -> new ComplianceScreeningResult(
+                UUID.randomUUID(),
+                profile.userId(),
+                ComplianceHitType.NONE,
+                false,
+                profile.fullName(),
+                "clear",
+                Instant.parse("2026-06-18T10:00:00Z")
+        );
+        FraudService fraudService = new FraudService(clearCompliance, new VelocityTracker(), policy);
+
+        FraudAssessment assessment = fraudService.evaluate(new FraudTransactionRequest(
+                UUID.randomUUID(),
+                new ComplianceProfile(UUID.randomUUID(), "John Citizen", "8001015009087", "ZA", 100),
+                100,
+                "ZAR",
+                UUID.randomUUID(),
+                0.95,
+                48,
+                5000,
+                Instant.parse("2026-06-18T10:00:00Z")
+        ));
+
+        assertTrue(assessment.approved(), "custom policy should approve the low risk request");
+        assertEquals(com.voicesecure.fraud.AuthPolicy.VOICE_ONLY, assessment.authPolicy(), "custom policy auth");
+    }
+
     private static void assertTrue(boolean value, String message) {
         if (!value) {
             throw new AssertionError(message);
@@ -105,4 +158,3 @@ public final class FraudServiceTests {
         }
     }
 }
-
