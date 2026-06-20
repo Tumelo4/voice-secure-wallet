@@ -5,14 +5,15 @@ import java.util.List;
 import java.util.Set;
 
 public final class OpsPlanValidator {
-    private static final List<String> REQUIRED_LOG_FIELDS = List.of("timestamp", "level", "service", "trace_id", "message");
-    private static final List<DeploymentStage> REQUIRED_STAGES = List.of(
-            DeploymentStage.BUILD_TEST,
-            DeploymentStage.CONTAINER_BUILD,
-            DeploymentStage.INTEGRATION_TESTS,
-            DeploymentStage.DEPLOY_STAGING,
-            DeploymentStage.DEPLOY_PRODUCTION
-    );
+    private final OpsReadinessPolicy policy;
+
+    public OpsPlanValidator() {
+        this(OpsReadinessPolicy.defaults());
+    }
+
+    public OpsPlanValidator(OpsReadinessPolicy policy) {
+        this.policy = java.util.Objects.requireNonNull(policy, "policy");
+    }
 
     public OpsPlanValidationReport validate(OperationsPlan plan) {
         List<String> blockers = new ArrayList<>();
@@ -37,19 +38,23 @@ public final class OpsPlanValidator {
             if (!"trace_id".equals(spec.traceHeader())) {
                 blockers.add(spec.serviceName() + " must propagate the trace_id header");
             }
-            if (spec.goldenSignals().size() != 4) {
-                blockers.add(spec.serviceName() + " must define four golden signals");
+            if (spec.goldenSignals().size() != policy.requiredGoldenSignalCount()) {
+                blockers.add(spec.serviceName() + " must define " + policy.requiredGoldenSignalCount() + " golden signals");
             }
-            if (!spec.structuredLogFields().containsAll(REQUIRED_LOG_FIELDS)) {
+            if (!spec.structuredLogFields().containsAll(policy.requiredLogFields())) {
                 blockers.add(spec.serviceName() + " must emit the required structured log fields");
             }
         }
     }
 
     private void validateDashboards(OperationsPlan plan, List<String> blockers) {
-        if (plan.dashboards().size() != 4) {
-            blockers.add("exactly four SLO dashboards are required");
-            return;
+        Set<String> dashboardServices = plan.dashboards().stream()
+                .map(SloDashboardSpec::serviceName)
+                .collect(java.util.stream.Collectors.toSet());
+        for (String serviceName : policy.requiredDashboardServices()) {
+            if (!dashboardServices.contains(serviceName)) {
+                blockers.add(serviceName + " must have an SLO dashboard");
+            }
         }
         for (SloDashboardSpec dashboard : plan.dashboards()) {
             if (dashboard.errorBudgetHours() <= 0) {
@@ -75,7 +80,7 @@ public final class OpsPlanValidator {
     }
 
     private void validatePipeline(OperationsPlan plan, List<String> blockers) {
-        if (!plan.pipeline().stages().equals(REQUIRED_STAGES)) {
+        if (!plan.pipeline().stages().equals(policy.requiredStages())) {
             blockers.add("the five-stage release pipeline must be modeled in order");
         }
         if (!plan.pipeline().manualApprovalRequired()) {
@@ -115,8 +120,8 @@ public final class OpsPlanValidator {
     }
 
     private void validateReconciliationSchedule(OperationsPlan plan, List<String> blockers) {
-        if (plan.reconciliationScheduleHours() != 6) {
-            blockers.add("reconciliation must run every 6 hours");
+        if (plan.reconciliationScheduleHours() != policy.reconciliationScheduleHours()) {
+            blockers.add("reconciliation must run every " + policy.reconciliationScheduleHours() + " hours");
         }
     }
 }
