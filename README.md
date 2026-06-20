@@ -1,5 +1,7 @@
 # VoiceSecure Wallet
 
+## What Is This App?
+
 VoiceSecure Wallet is a staged fintech platform for regulated payments,
 identity, fraud, support, recovery, operations, and launch readiness.
 
@@ -7,7 +9,7 @@ The program is organized as small, testable service slices because every later
 capability depends on a trusted money movement core, a controlled identity
 surface, and enough operational discipline to keep the system safe under load.
 
-## Platform Problem Statement
+## Problem Statement
 
 Financial platforms fail when their ledger, authorization, identity, support,
 and recovery paths drift apart. That creates duplicate payments, impossible
@@ -53,12 +55,66 @@ authentication, recovery workflows, operational validation, and launch gates.
   observability/DR plan validation, launch readiness, and voice verification
   flows.
 
+## Benchmark
+
+The current benchmark is deterministic service-level readiness. Each benchmark
+is executable through the local test suite or represented as launch evidence:
+
+| Area | Target |
+| --- | --- |
+| Ledger | Balanced reconciliation, no overdraft under concurrent debit attempts, idempotent retries in constant time, and conflicting idempotency keys rejected before append. |
+| Payment | Happy path reaches `COMPLETED`; fraud, voice, reservation, ledger, and compensation failures reach explicit terminal states. |
+| Identity | RS256 access-token verification, unknown `kid` rejection, refresh-token reuse revocation, and device-signature validation. |
+| Fraud and compliance | PEP/sanctions/AML screening writes one audit trail entry and fraud policy changes happen through `FraudPolicy`. |
+| Event backbone | Pending outbox messages relay in order, publish failures remain pending, and failed attempts retain last-error evidence. |
+| Voice | Enrollment requires three samples, verification uses Python 3.10+, challenges are single-use, and score ranges are enforced. |
+| Support and recovery | Repair cases are persisted before ledger mutation; duplicate recovery transitions are rejected before external ports are called. |
+| Ops | Required dashboards, alert tiers, release stages, log fields, and reconciliation cadence are policy-driven through `OpsReadinessPolicy`. |
+| Launch | Chaos, security, pen test, shadow mode, 10x load, 100/100 fallback, RTO/RPO, CVE scan source, and pen-test report evidence are validated. |
+
+## How To Use It
+
+Prerequisites:
+
+- Java 17 with `javac` and `java` on `PATH`.
+- Python 3.10+ for `voice-service`, because it uses `dataclass(slots=True)`.
+- PowerShell for the provided Windows-first test script.
+
+Run the full suite on Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\test-services.ps1
+```
+
+Run the Java suite on macOS or Linux:
+
+```sh
+mkdir -p .codex_tmp/services-classes
+javac -Xlint:all -d .codex_tmp/services-classes $(find services -name '*.java')
+for test_file in $(find services -path '*/src/test/java/*Tests.java' | sort); do
+  class_name=${test_file#*/src/test/java/}
+  class_name=${class_name%.java}
+  class_name=${class_name//\//.}
+  java -cp .codex_tmp/services-classes "$class_name"
+done
+```
+
+Run the voice tests with Python 3.10+:
+
+```sh
+python3 services/voice-service/test_voice_service.py
+```
+
+Use each service README for the smallest code example for that service. The
+phase PR stack remains the review path for incremental merges; the
+`service-level-phases` PR is the draft rollup showing the combined result.
+
 ## Delivery Docs
 
 - [Release runbook](docs/release-runbook.md): launch checklist, rollout flow,
   validation gates, and rollback steps.
 
-## Run Tests
+## Quick Test Command
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\test-services.ps1
