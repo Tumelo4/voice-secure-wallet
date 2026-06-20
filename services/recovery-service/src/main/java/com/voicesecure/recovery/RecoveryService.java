@@ -13,7 +13,7 @@ import java.util.UUID;
 
 public final class RecoveryService {
     private final RecoveryRepository repository;
-    private final IdentityService identityService;
+    private final DeviceCertificatePort deviceCertificatePort;
     private final VoiceReenrollmentPort voiceReenrollmentPort;
     private final EventPublisher eventPublisher;
 
@@ -23,8 +23,17 @@ public final class RecoveryService {
             VoiceReenrollmentPort voiceReenrollmentPort,
             EventPublisher eventPublisher
     ) {
+        this(repository, new IdentityDeviceCertificatePort(identityService), voiceReenrollmentPort, eventPublisher);
+    }
+
+    public RecoveryService(
+            RecoveryRepository repository,
+            DeviceCertificatePort deviceCertificatePort,
+            VoiceReenrollmentPort voiceReenrollmentPort,
+            EventPublisher eventPublisher
+    ) {
         this.repository = Objects.requireNonNull(repository, "repository");
-        this.identityService = Objects.requireNonNull(identityService, "identityService");
+        this.deviceCertificatePort = Objects.requireNonNull(deviceCertificatePort, "deviceCertificatePort");
         this.voiceReenrollmentPort = Objects.requireNonNull(voiceReenrollmentPort, "voiceReenrollmentPort");
         this.eventPublisher = Objects.requireNonNull(eventPublisher, "eventPublisher");
     }
@@ -52,6 +61,9 @@ public final class RecoveryService {
     public VoiceReenrollmentReceipt requestVoiceReenrollment(UUID recoveryId) {
         RecoveryCase recoveryCase = requireRecovery(recoveryId);
         ensureApproved(recoveryCase);
+        if (recoveryCase.voiceReenrollmentCompleted()) {
+            throw new RecoveryException("voice reenrollment already completed");
+        }
         VoiceReenrollmentReceipt receipt = voiceReenrollmentPort.reenroll(recoveryCase.userId(), recoveryId);
         if (!receipt.completed()) {
             throw new RecoveryException("voice reenrollment did not complete");
@@ -64,7 +76,10 @@ public final class RecoveryService {
     public DeviceRegistration reissueDeviceCertificate(UUID recoveryId, UUID deviceId, PublicKey publicKey) {
         RecoveryCase recoveryCase = requireRecovery(recoveryId);
         ensureApproved(recoveryCase);
-        DeviceRegistration registration = identityService.reissueDeviceCertificate(recoveryCase.userId(), deviceId, publicKey);
+        if (recoveryCase.deviceCertificateReissued()) {
+            throw new RecoveryException("device certificate already reissued");
+        }
+        DeviceRegistration registration = deviceCertificatePort.reissueDeviceCertificate(recoveryCase.userId(), deviceId, publicKey);
         recoveryCase = recoveryCase.withDeviceCertificateReissued(Instant.now());
         repository.save(recoveryCase);
         return registration;

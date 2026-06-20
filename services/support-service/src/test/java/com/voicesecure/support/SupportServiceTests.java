@@ -13,7 +13,8 @@ public final class SupportServiceTests {
         TestCase[] tests = {
                 new TestCase("searches the projected ledger replica", SupportServiceTests::searchesProjectedLedgerReplica),
                 new TestCase("freeze and dispute actions are audited", SupportServiceTests::freezeAndDisputeActionsAreAudited),
-                new TestCase("repair requests link support to the ledger repair path", SupportServiceTests::repairRequestsLinkToLedgerRepair)
+                new TestCase("repair requests link support to the ledger repair path", SupportServiceTests::repairRequestsLinkToLedgerRepair),
+                new TestCase("repair case is persisted before ledger mutation", SupportServiceTests::repairCaseIsPersistedBeforeLedgerMutation)
         };
 
         for (TestCase test : tests) {
@@ -89,6 +90,29 @@ public final class SupportServiceTests {
         assertEquals(2, fixture.service.searchTransactions(fixture.destination, "ZAR").size(), "destination replica should include repair entry");
     }
 
+    private static void repairCaseIsPersistedBeforeLedgerMutation() {
+        InMemorySupportRepository repository = new InMemorySupportRepository();
+        SupportService service = new SupportService(repository, repairRequest -> {
+            throw new SupportException("ledger unavailable");
+        });
+        RepairRequest repairRequest = new RepairRequest(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "ZAR",
+                List.of(
+                        Posting.repairDebit(UUID.randomUUID(), 50),
+                        Posting.repairCredit(UUID.randomUUID(), 50)
+                ),
+                "COMPENSATION_FAILED drill corrective entry",
+                "sre@example.com"
+        );
+
+        assertThrows(SupportException.class, () -> service.requestRepair(repairRequest), "ledger failure should bubble up");
+        assertEquals(1, repository.cases().size(), "repair case should be saved before ledger repair");
+        assertEquals(1L, repository.auditLog().stream().filter(entry -> entry.action().equals("support.repair_requested")).count(), "repair request audit should be stored");
+    }
+
     private static Fixture fixture() {
         InMemoryLedgerRepository ledgerRepository = new InMemoryLedgerRepository();
         LedgerService ledgerService = new LedgerService(ledgerRepository);
@@ -105,6 +129,18 @@ public final class SupportServiceTests {
         if (!expected.equals(actual)) {
             throw new AssertionError(message + ": expected " + expected + " but got " + actual);
         }
+    }
+
+    private static void assertThrows(Class<? extends Throwable> expected, Runnable runnable, String message) {
+        try {
+            runnable.run();
+        } catch (Throwable actual) {
+            if (expected.isInstance(actual)) {
+                return;
+            }
+            throw new AssertionError(message + ": expected " + expected.getSimpleName() + " but got " + actual, actual);
+        }
+        throw new AssertionError(message + ": expected " + expected.getSimpleName());
     }
 
     private record Fixture(
