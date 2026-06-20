@@ -140,6 +140,17 @@ public final class PaymentSaga {
         return authPolicy != null && authPolicy.permitsFallback();
     }
 
+    public boolean matchesRequest(PaymentRequest request) {
+        return sagaId.equals(request.sagaId())
+                && idempotencyKey.equals(request.idempotencyKey())
+                && userId.equals(request.userId())
+                && fromAccountId.equals(request.fromAccountId())
+                && toAccountId.equals(request.toAccountId())
+                && amount == request.amount()
+                && currency.equals(request.currency())
+                && traceId.equals(request.traceId());
+    }
+
     public void approveFraud(FraudDecision decision) {
         ensureState(PaymentSagaState.FRAUD_CHECK_PENDING, "fraud approval");
         this.fraudScore = decision.score();
@@ -267,14 +278,7 @@ public final class PaymentSaga {
     }
 
     private void emit(String eventType, String payload) {
-        events.add(new PaymentEvent(
-                UUID.randomUUID(),
-                sagaId,
-                eventType,
-                Instant.now(),
-                traceId,
-                payload == null ? "" : payload
-        ));
+        events.add(PaymentEventFactory.create(sagaId, traceId, eventType, payload));
     }
 
     private void ensureState(PaymentSagaState expected, String action) {
@@ -284,12 +288,7 @@ public final class PaymentSaga {
     }
 
     private String payload(String key, String value) {
-        return "{\"" + key + "\":\"" + escape(value) + "\",\"userId\":\"" + userId + "\",\"fromAccountId\":\""
-                + fromAccountId + "\",\"toAccountId\":\"" + toAccountId + "\"}";
-    }
-
-    private String escape(String value) {
-        return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
+        return PaymentEventFactory.payload(key, value, userId, fromAccountId, toAccountId);
     }
 
     private String authPolicyName() {

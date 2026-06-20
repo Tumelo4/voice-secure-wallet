@@ -13,6 +13,9 @@ public final class PaymentSagaService {
     public PaymentSaga start(PaymentRequest request, FraudDecision decision) {
         PaymentSaga existing = repository.findByIdempotencyKey(request.idempotencyKey()).orElse(null);
         if (existing != null) {
+            if (!existing.matchesRequest(request)) {
+                throw new PaymentException("idempotency key reused with different payment request");
+            }
             return existing;
         }
 

@@ -12,7 +12,9 @@ public final class PaymentSagaTests {
                 new TestCase("funds reservation failure becomes terminal", PaymentSagaTests::fundsReservationFailureBecomesTerminal),
                 new TestCase("ledger failure triggers compensation", PaymentSagaTests::ledgerFailureTriggersCompensation),
                 new TestCase("compensation failure becomes critical", PaymentSagaTests::compensationFailureBecomesCritical),
-                new TestCase("idempotent start returns the original saga", PaymentSagaTests::idempotentStartReturnsOriginalSaga)
+                new TestCase("idempotent start returns the original saga", PaymentSagaTests::idempotentStartReturnsOriginalSaga),
+                new TestCase("idempotent start rejects conflicting request", PaymentSagaTests::idempotentStartRejectsConflictingRequest),
+                new TestCase("payment request requires trace id", PaymentSagaTests::paymentRequestRequiresTraceId)
         };
 
         for (TestCase test : tests) {
@@ -115,6 +117,44 @@ public final class PaymentSagaTests {
         assertEquals(1L, fixture.repository.findByIdempotencyKey(fixture.request.idempotencyKey()).stream().count(), "repository should hold one saga");
     }
 
+    private static void idempotentStartRejectsConflictingRequest() {
+        Fixture fixture = fixture();
+        fixture.service.start(fixture.request, new FraudDecision(0.10, AuthPolicy.VOICE_ONLY, true, ""));
+        PaymentRequest conflicting = new PaymentRequest(
+                fixture.request.sagaId(),
+                fixture.request.idempotencyKey(),
+                fixture.request.userId(),
+                fixture.request.fromAccountId(),
+                fixture.request.toAccountId(),
+                fixture.request.amount() + 1,
+                fixture.request.currency(),
+                fixture.request.traceId()
+        );
+
+        assertThrows(
+                PaymentException.class,
+                () -> fixture.service.start(conflicting, new FraudDecision(0.10, AuthPolicy.VOICE_ONLY, true, "")),
+                "same idempotency key with different amount should fail"
+        );
+    }
+
+    private static void paymentRequestRequiresTraceId() {
+        assertThrows(
+                PaymentException.class,
+                () -> new PaymentRequest(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        500,
+                        "ZAR",
+                        " "
+                ),
+                "blank trace id should fail"
+        );
+    }
+
     private static Fixture fixture() {
         InMemoryPaymentSagaRepository repository = new InMemoryPaymentSagaRepository();
         PaymentSagaService service = new PaymentSagaService(repository);
@@ -153,6 +193,18 @@ public final class PaymentSagaTests {
         if (events.contains(unexpected)) {
             throw new AssertionError(message + ": unexpected " + unexpected + " in " + events);
         }
+    }
+
+    private static void assertThrows(Class<? extends Throwable> expected, Runnable runnable, String message) {
+        try {
+            runnable.run();
+        } catch (Throwable actual) {
+            if (expected.isInstance(actual)) {
+                return;
+            }
+            throw new AssertionError(message + ": expected " + expected.getSimpleName() + " but got " + actual, actual);
+        }
+        throw new AssertionError(message + ": expected " + expected.getSimpleName());
     }
 
     private record Fixture(PaymentSagaService service, InMemoryPaymentSagaRepository repository, PaymentRequest request) {
