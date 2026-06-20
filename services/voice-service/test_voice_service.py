@@ -116,6 +116,77 @@ class VoiceServiceTests(unittest.TestCase):
         self.assertEqual(VoiceStatus.SPOOF_DETECTED, second_result.status)
         self.assertEqual(FallbackMethod.PIN, second_result.fallback_method)
 
+    def test_challenge_cannot_be_reused_with_new_fingerprint(self) -> None:
+        first_result = self.service.verify(
+            VoiceVerificationRequest(
+                user_id=self.user_id,
+                challenge_id=self.challenge.challenge_id,
+                transcript=self.challenge_phrase,
+                embedding=(0.91, 0.19, 0.30, 0.40),
+                liveness_score=0.96,
+                spoof_score=0.05,
+                audio_fingerprint_hash="fingerprint-3a",
+                auth_policy=AuthPolicy.VOICE_OTP,
+                transaction_amount=2000,
+                voice_threshold=0.75,
+                captured_at=datetime.now(timezone.utc),
+            )
+        )
+        second_result = self.service.verify(
+            VoiceVerificationRequest(
+                user_id=self.user_id,
+                challenge_id=self.challenge.challenge_id,
+                transcript=self.challenge_phrase,
+                embedding=(0.91, 0.19, 0.30, 0.40),
+                liveness_score=0.96,
+                spoof_score=0.05,
+                audio_fingerprint_hash="fingerprint-3b",
+                auth_policy=AuthPolicy.VOICE_OTP,
+                transaction_amount=2000,
+                voice_threshold=0.75,
+                captured_at=datetime.now(timezone.utc),
+            )
+        )
+
+        self.assertEqual(VoiceStatus.VERIFIED, first_result.status)
+        self.assertEqual(VoiceStatus.SPOOF_DETECTED, second_result.status)
+        self.assertEqual("challenge already used", second_result.reason)
+
+    def test_verification_scores_must_be_valid_ranges(self) -> None:
+        with self.assertRaises(VoiceServiceError):
+            self.service.verify(
+                VoiceVerificationRequest(
+                    user_id=self.user_id,
+                    challenge_id=self.challenge.challenge_id,
+                    transcript=self.challenge_phrase,
+                    embedding=(0.91, 0.19, 0.30, 0.40),
+                    liveness_score=1.20,
+                    spoof_score=0.05,
+                    audio_fingerprint_hash="fingerprint-range",
+                    auth_policy=AuthPolicy.VOICE_ONLY,
+                    transaction_amount=2000,
+                    voice_threshold=0.75,
+                    captured_at=datetime.now(timezone.utc),
+                )
+            )
+
+        with self.assertRaises(VoiceServiceError):
+            self.service.verify(
+                VoiceVerificationRequest(
+                    user_id=self.user_id,
+                    challenge_id=self.challenge.challenge_id,
+                    transcript=self.challenge_phrase,
+                    embedding=(),
+                    liveness_score=0.96,
+                    spoof_score=0.05,
+                    audio_fingerprint_hash="fingerprint-empty",
+                    auth_policy=AuthPolicy.VOICE_ONLY,
+                    transaction_amount=2000,
+                    voice_threshold=0.75,
+                    captured_at=datetime.now(timezone.utc),
+                )
+            )
+
     def test_phrase_mismatch_uses_policy_fallback(self) -> None:
         result = self.service.verify(
             VoiceVerificationRequest(
@@ -145,4 +216,3 @@ class VoiceServiceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

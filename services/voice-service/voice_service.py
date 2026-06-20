@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from math import sqrt
-from typing import Iterable, Sequence
+from typing import Iterable, Protocol, Sequence
 from uuid import UUID, uuid4
 
 
@@ -76,10 +76,43 @@ class VoiceServiceError(RuntimeError):
     pass
 
 
+class VoiceRepository(Protocol):
+    def save_profile(self, profile: VoiceProfile) -> None:
+        ...
+
+    def get_profile(self, user_id: UUID) -> VoiceProfile | None:
+        ...
+
+    def save_challenge(self, challenge: VoiceChallenge) -> None:
+        ...
+
+    def get_challenge(self, challenge_id: UUID) -> VoiceChallenge | None:
+        ...
+
+    def mark_challenge_attempted(self, challenge_id: UUID) -> None:
+        ...
+
+    def challenge_attempted(self, challenge_id: UUID) -> bool:
+        ...
+
+    def remember_fingerprint(self, user_id: UUID, audio_fingerprint_hash: str) -> None:
+        ...
+
+    def fingerprint_seen(self, user_id: UUID, audio_fingerprint_hash: str) -> bool:
+        ...
+
+    def save_session(self, result: VoiceVerificationResult) -> None:
+        ...
+
+    def sessions(self) -> list[VoiceVerificationResult]:
+        ...
+
+
 class InMemoryVoiceRepository:
     def __init__(self) -> None:
         self._profiles: dict[UUID, VoiceProfile] = {}
         self._challenges: dict[UUID, VoiceChallenge] = {}
+        self._attempted_challenges: set[UUID] = set()
         self._audio_fingerprints: dict[UUID, set[str]] = {}
         self._verification_sessions: list[VoiceVerificationResult] = []
 
@@ -95,6 +128,12 @@ class InMemoryVoiceRepository:
     def get_challenge(self, challenge_id: UUID) -> VoiceChallenge | None:
         return self._challenges.get(challenge_id)
 
+    def mark_challenge_attempted(self, challenge_id: UUID) -> None:
+        self._attempted_challenges.add(challenge_id)
+
+    def challenge_attempted(self, challenge_id: UUID) -> bool:
+        return challenge_id in self._attempted_challenges
+
     def remember_fingerprint(self, user_id: UUID, audio_fingerprint_hash: str) -> None:
         self._audio_fingerprints.setdefault(user_id, set()).add(audio_fingerprint_hash)
 
@@ -109,13 +148,15 @@ class InMemoryVoiceRepository:
 
 
 class VoiceService:
-    def __init__(self, repository: InMemoryVoiceRepository) -> None:
+    def __init__(self, repository: VoiceRepository) -> None:
         self._repository = repository
 
     def enroll(self, user_id: UUID, samples: Sequence[Sequence[float]]) -> VoiceProfile:
         if len(samples) != 3:
             raise VoiceServiceError("voice enrollment requires exactly 3 samples")
         vectors = [tuple(float(value) for value in sample) for sample in samples]
+        for vector in vectors:
+            _validate_embedding(vector, "enrollment sample")
         embedding = _average_vectors(vectors)
         profile = VoiceProfile(
             user_id=user_id,
@@ -143,6 +184,7 @@ class VoiceService:
         return challenge
 
     def verify(self, request: VoiceVerificationRequest) -> VoiceVerificationResult:
+        _validate_verification_request(request)
         profile = self._repository.get_profile(request.user_id)
         if profile is None:
             return self._reject(request, "voice profile not enrolled", VoiceStatus.REJECTED)
@@ -156,6 +198,10 @@ class VoiceService:
 
         if challenge.user_id != request.user_id:
             return self._reject(request, "challenge does not belong to user", VoiceStatus.REJECTED)
+
+        if self._repository.challenge_attempted(request.challenge_id):
+            return self._reject(request, "challenge already used", VoiceStatus.SPOOF_DETECTED)
+        self._repository.mark_challenge_attempted(request.challenge_id)
 
         if self._repository.fingerprint_seen(request.user_id, request.audio_fingerprint_hash):
             return self._reject(request, "audio fingerprint replay detected", VoiceStatus.SPOOF_DETECTED)
@@ -245,3 +291,23 @@ def _confidence(similarity: float, liveness_score: float, spoof_score: float) ->
 def _normalize(value: str) -> str:
     return " ".join(value.lower().strip().split())
 
+
+def _validate_verification_request(request: VoiceVerificationRequest) -> None:
+    _validate_embedding(request.embedding, "verification embedding")
+    _require_unit_interval(request.liveness_score, "liveness_score")
+    _require_unit_interval(request.spoof_score, "spoof_score")
+    _require_unit_interval(request.voice_threshold, "voice_threshold")
+    if request.transaction_amount < 0:
+        raise VoiceServiceError("transaction amount cannot be negative")
+    if not request.audio_fingerprint_hash.strip():
+        raise VoiceServiceError("audio fingerprint hash is required")
+
+
+def _validate_embedding(embedding: Sequence[float], label: str) -> None:
+    if len(embedding) == 0:
+        raise VoiceServiceError(f"{label} cannot be empty")
+
+
+def _require_unit_interval(value: float, label: str) -> None:
+    if value < 0.0 or value > 1.0:
+        raise VoiceServiceError(f"{label} must be between 0.0 and 1.0")
