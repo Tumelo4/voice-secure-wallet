@@ -1,13 +1,16 @@
 package com.voicesecure.ops;
 
 import java.util.List;
+import java.util.Set;
 
 public final class OpsPlanValidatorTests {
     public static void main(String[] args) {
         TestCase[] tests = {
                 new TestCase("valid phase six plan passes readiness checks", OpsPlanValidatorTests::validPhaseSixPlanPassesReadinessChecks),
                 new TestCase("missing DR restore coverage is blocked", OpsPlanValidatorTests::missingDrRestoreCoverageIsBlocked),
-                new TestCase("telemetry must define four golden signals", OpsPlanValidatorTests::telemetryMustDefineFourGoldenSignals)
+                new TestCase("telemetry must define four golden signals", OpsPlanValidatorTests::telemetryMustDefineFourGoldenSignals),
+                new TestCase("dashboard coverage is required by service", OpsPlanValidatorTests::dashboardCoverageIsRequiredByService),
+                new TestCase("custom policy controls cadence and dashboards", OpsPlanValidatorTests::customPolicyControlsCadenceAndDashboards)
         };
 
         for (TestCase test : tests) {
@@ -74,7 +77,51 @@ public final class OpsPlanValidatorTests {
         OpsPlanValidationReport report = validator.validate(plan);
 
         assertTrue(!report.ready(), "plan should be blocked");
-        assertTrue(report.blockers().contains("ledger-service must define four golden signals"), "telemetry blocker should be reported");
+        assertTrue(report.blockers().contains("ledger-service must define 4 golden signals"), "telemetry blocker should be reported");
+    }
+
+    private static void dashboardCoverageIsRequiredByService() {
+        OperationsPlan plan = new OperationsPlan(
+                "VoiceSecure Wallet",
+                telemetrySpecs(),
+                List.of(
+                        new SloDashboardSpec("ledger-service", 24, 2.0),
+                        new SloDashboardSpec("payment-service", 24, 2.5),
+                        new SloDashboardSpec("identity-service", 24, 1.8)
+                ),
+                alertSpecs(),
+                pipelineSpec(),
+                drSpec(),
+                6
+        );
+
+        OpsPlanValidationReport report = new OpsPlanValidator().validate(plan);
+
+        assertTrue(!report.ready(), "plan should be blocked");
+        assertTrue(report.blockers().contains("support-service must have an SLO dashboard"), "missing dashboard should be reported");
+    }
+
+    private static void customPolicyControlsCadenceAndDashboards() {
+        OpsReadinessPolicy policy = new OpsReadinessPolicy(
+                requiredLogFields(),
+                4,
+                Set.of("ledger-service", "payment-service"),
+                pipelineSpec().stages(),
+                12
+        );
+        OperationsPlan plan = new OperationsPlan(
+                "VoiceSecure Wallet",
+                telemetrySpecs(),
+                dashboardSpecs(),
+                alertSpecs(),
+                pipelineSpec(),
+                drSpec(),
+                12
+        );
+
+        OpsPlanValidationReport report = new OpsPlanValidator(policy).validate(plan);
+
+        assertTrue(report.ready(), "custom policy should accept two required dashboards and twelve-hour cadence");
     }
 
     private static OperationsPlan validPlan() {
