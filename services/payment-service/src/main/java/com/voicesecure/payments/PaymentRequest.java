@@ -21,6 +21,9 @@ public record PaymentRequest(
         Objects.requireNonNull(toAccountId, "toAccountId");
         Objects.requireNonNull(currency, "currency");
         traceId = traceId == null ? "" : traceId.trim();
+        if (traceId.isEmpty()) {
+            throw new PaymentException("trace id is required");
+        }
         if (amount <= 0) {
             throw new PaymentException("payment amount must be positive");
         }
@@ -29,4 +32,3 @@ public record PaymentRequest(
         }
     }
 }
-
