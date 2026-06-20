@@ -13,6 +13,7 @@ public final class EventBackboneTests {
                 new TestCase("payment events map to the payments topic envelope", EventBackboneTests::paymentEventsMapToEnvelope),
                 new TestCase("ledger entries map to the ledger topic envelope", EventBackboneTests::ledgerEntriesMapToEnvelope),
                 new TestCase("outbox relay publishes pending events in order", EventBackboneTests::outboxRelayPublishesInOrder),
+                new TestCase("outbox relay records publish failures for retry", EventBackboneTests::outboxRelayRecordsPublishFailures),
                 new TestCase("in-memory publisher records published envelopes", EventBackboneTests::inMemoryPublisherRecordsPublishedEnvelopes),
                 new TestCase("topic catalog exposes the plan topics", EventBackboneTests::topicCatalogExposesPlanTopics)
         };
@@ -92,10 +93,36 @@ public final class EventBackboneTests {
         InMemoryOutboxRelay.RelayResult result = relay.relayPending();
 
         assertEquals(2, result.publishedCount(), "published count");
+        assertEquals(0, result.failedCount(), "failed count");
         assertEquals(2, publisher.published().size(), "publisher count");
         assertEquals(first.eventId(), publisher.published().get(0).eventId(), "first published");
         assertEquals(second.eventId(), publisher.published().get(1).eventId(), "second published");
         assertEquals(0, store.pending().size(), "pending count");
+    }
+
+    private static void outboxRelayRecordsPublishFailures() {
+        InMemoryOutboxStore store = new InMemoryOutboxStore();
+        EventEnvelope envelope = EventEnvelopeFactory.create(
+                EventTopic.PAYMENTS,
+                UUID.randomUUID(),
+                "Payment",
+                "payment.failed",
+                Instant.parse("2026-06-18T10:00:00Z"),
+                "trace-1",
+                "{\"seq\":1}"
+        );
+        store.append(envelope);
+        InMemoryOutboxRelay relay = new InMemoryOutboxRelay(store, ignored -> {
+            throw new EventEnvelopeException("broker unavailable");
+        });
+
+        InMemoryOutboxRelay.RelayResult result = relay.relayPending();
+
+        assertEquals(0, result.publishedCount(), "published count");
+        assertEquals(1, result.failedCount(), "failed count");
+        assertEquals(1, result.pendingCount(), "pending count");
+        assertEquals(1, store.all().get(0).publishAttempts(), "attempt count");
+        assertEquals("broker unavailable", store.all().get(0).lastError(), "last error");
     }
 
     private static void inMemoryPublisherRecordsPublishedEnvelopes() {

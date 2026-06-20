@@ -8,9 +8,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-public final class InMemoryOutboxStore {
+public final class InMemoryOutboxStore implements OutboxStore {
     private final Map<UUID, OutboxMessage> messages = new LinkedHashMap<>();
 
+    @Override
     public synchronized void append(EventEnvelope envelope) {
         Objects.requireNonNull(envelope, "envelope");
         if (messages.containsKey(envelope.eventId())) {
@@ -19,6 +20,7 @@ public final class InMemoryOutboxStore {
         messages.put(envelope.eventId(), new OutboxMessage(envelope, Instant.now(), null));
     }
 
+    @Override
     public synchronized List<OutboxMessage> pending() {
         List<OutboxMessage> pending = new ArrayList<>();
         for (OutboxMessage message : messages.values()) {
@@ -29,6 +31,7 @@ public final class InMemoryOutboxStore {
         return List.copyOf(pending);
     }
 
+    @Override
     public synchronized void markPublished(UUID eventId, Instant publishedAt) {
         OutboxMessage existing = messages.get(eventId);
         if (existing == null) {
@@ -37,12 +40,22 @@ public final class InMemoryOutboxStore {
         messages.put(eventId, existing.withPublishedAt(publishedAt));
     }
 
+    @Override
+    public synchronized void markFailed(UUID eventId, String error) {
+        OutboxMessage existing = messages.get(eventId);
+        if (existing == null) {
+            throw new EventEnvelopeException("unknown event id: " + eventId);
+        }
+        messages.put(eventId, existing.withFailure(error));
+    }
+
+    @Override
     public synchronized int size() {
         return messages.size();
     }
 
+    @Override
     public synchronized List<OutboxMessage> all() {
         return List.copyOf(messages.values());
     }
 }
-
