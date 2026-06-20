@@ -11,11 +11,15 @@ import java.util.UUID;
 
 public final class SupportService {
     private final SupportRepository repository;
-    private final LedgerService ledgerService;
+    private final LedgerRepairPort ledgerRepairPort;
 
     public SupportService(SupportRepository repository, LedgerService ledgerService) {
+        this(repository, new LedgerServiceRepairPort(ledgerService));
+    }
+
+    public SupportService(SupportRepository repository, LedgerRepairPort ledgerRepairPort) {
         this.repository = Objects.requireNonNull(repository, "repository");
-        this.ledgerService = Objects.requireNonNull(ledgerService, "ledgerService");
+        this.ledgerRepairPort = Objects.requireNonNull(ledgerRepairPort, "ledgerRepairPort");
     }
 
     public void ingestLedgerBatch(LedgerBatch batch) {
@@ -55,8 +59,6 @@ public final class SupportService {
     }
 
     public LedgerBatch requestRepair(RepairRequest repairRequest) {
-        LedgerBatch batch = ledgerService.repair(repairRequest);
-        repository.ingestLedgerBatch(batch);
         SupportCase supportCase = SupportCase.repairEscalation(
                 UUID.randomUUID(),
                 repairRequest.repairId(),
@@ -66,6 +68,16 @@ public final class SupportService {
                 Instant.now()
         );
         repository.saveCase(supportCase);
+        repository.appendAudit(new SupportAuditEntry(
+                UUID.randomUUID(),
+                supportCase.caseId(),
+                "support.repair_requested",
+                repairRequest.requestedBy(),
+                "repair=" + repairRequest.repairId() + ", saga=" + repairRequest.sagaId(),
+                supportCase.updatedAt()
+        ));
+        LedgerBatch batch = ledgerRepairPort.repair(repairRequest);
+        repository.ingestLedgerBatch(batch);
         repository.appendAudit(new SupportAuditEntry(
                 UUID.randomUUID(),
                 supportCase.caseId(),

@@ -14,7 +14,8 @@ public final class RecoveryServiceTests {
     public static void main(String[] args) throws Exception {
         TestCase[] tests = {
                 new TestCase("recovery flow reissues the device certificate and publishes completion", RecoveryServiceTests::recoveryFlowReissuesDeviceCertificateAndPublishesCompletion),
-                new TestCase("recovery completion is blocked until the flow is ready", RecoveryServiceTests::recoveryCompletionIsBlockedUntilReady)
+                new TestCase("recovery completion is blocked until the flow is ready", RecoveryServiceTests::recoveryCompletionIsBlockedUntilReady),
+                new TestCase("recovery rejects duplicate reenrollment and certificate reissue", RecoveryServiceTests::recoveryRejectsDuplicateTransitions)
         };
 
         for (TestCase test : tests) {
@@ -61,6 +62,31 @@ public final class RecoveryServiceTests {
         fixture.service.completeVideoKyc(recoveryCase.recoveryId(), true);
 
         assertThrows(RecoveryException.class, () -> fixture.service.completeRecovery(recoveryCase.recoveryId(), "trace-recovery-2"), "completion should be blocked before reenrollment and reissue");
+    }
+
+    private static void recoveryRejectsDuplicateTransitions() throws Exception {
+        Fixture fixture = fixture();
+        UUID userId = UUID.randomUUID();
+        UUID deviceId = UUID.randomUUID();
+        fixture.identityService.registerDevice(userId, deviceId, fixture.originalDeviceKey.getPublic());
+
+        RecoveryCase recoveryCase = fixture.service.startRecovery(userId);
+        fixture.service.uploadIdentityDocument(recoveryCase.recoveryId(), "passport", "sha256:doc-789");
+        fixture.service.completeVideoKyc(recoveryCase.recoveryId(), true);
+        fixture.service.requestVoiceReenrollment(recoveryCase.recoveryId());
+        fixture.service.reissueDeviceCertificate(recoveryCase.recoveryId(), deviceId, fixture.replacementDeviceKey.getPublic());
+
+        assertThrows(
+                RecoveryException.class,
+                () -> fixture.service.requestVoiceReenrollment(recoveryCase.recoveryId()),
+                "duplicate voice reenrollment should fail"
+        );
+        assertThrows(
+                RecoveryException.class,
+                () -> fixture.service.reissueDeviceCertificate(recoveryCase.recoveryId(), deviceId, fixture.originalDeviceKey.getPublic()),
+                "duplicate device certificate reissue should fail"
+        );
+        assertEquals(1, fixture.voicePort.receipts().size(), "voice reenrollment should be requested once");
     }
 
     private static Fixture fixture() throws Exception {
