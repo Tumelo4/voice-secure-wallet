@@ -33,3 +33,10 @@ compensation.
 The saga is written as a deterministic in-memory implementation with an
 append-only event trail. That keeps the branch testable while we layer in the
 event bus and persistence adapters later.
+
+## Notification Boundary
+
+`notification-service` now owns payment receipt, failure, compensation, and OTP
+fallback delivery decisions from events. Payment orchestration does not call it
+synchronously, preserving the build-plan rule that notification delivery cannot
+block legitimate payment flow.
