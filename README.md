@@ -114,6 +114,10 @@ Run the voice tests with Python 3.10+:
 python3 services/voice-service/test_voice_service.py
 ```
 
+The first CI slice is defined in `.github/workflows/service-ci.yml`. It runs the
+same direct Java compile/test loop, Python voice tests, and whitespace check on
+pull requests and pushes to `main`.
+
 Use each service README for the smallest code example for that service. The
 remaining production plan still requires HTTP adapters, durable infrastructure,
 CI/CD, contract tests, chaos tests, and launch evidence before the PDF launch

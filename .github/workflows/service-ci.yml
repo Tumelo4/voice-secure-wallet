@@ -1,0 +1,59 @@
+name: Service CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  service-tests:
+    name: Compile and test service slices
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile Java services
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .codex_tmp/ci-classes
+          javac -Xlint:all -d .codex_tmp/ci-classes $(find services -name '*.java')
+
+      - name: Run Java service tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r test_file; do
+            class_name=${test_file#*/src/test/java/}
+            class_name=${class_name%.java}
+            class_name=${class_name//\//.}
+            echo "Running ${class_name}"
+            java -cp .codex_tmp/ci-classes "${class_name}"
+          done < <(find services -path '*/src/test/java/*Tests.java' | sort)
+
+      - name: Run Python voice tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python services/voice-service/test_voice_service.py
+
+      - name: Check whitespace
+        shell: bash
+        run: git diff --check

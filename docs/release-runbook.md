@@ -36,6 +36,7 @@ incident response, rollback, or customer recovery.
   README updates.
 - [ ] `powershell -ExecutionPolicy Bypass -File .\scripts\test-services.ps1`
   passes on a clean working tree.
+- [ ] The `Service CI` GitHub Actions workflow passes for the release PR.
 - [ ] Open pull requests are reviewed in stack order.
 - [ ] No service README is missing a problem statement or impact section.
 - [ ] Release notes call out user-visible and company-facing impact.
