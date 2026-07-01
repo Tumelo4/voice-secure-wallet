@@ -10,6 +10,15 @@ The program is organized as small, testable service slices because every later
 capability depends on a trusted money movement core, a controlled identity
 surface, and enough operational discipline to keep the system safe under load.
 
+The implementation uses three complementary engineering styles:
+
+- **TDD:** every new behavior starts with a failing test, then the smallest
+  green implementation, then refactor.
+- **BDD:** cross-service behaviors are captured as scenario tests in product
+  language.
+- **DDD:** each service owns a bounded context and communicates through ports,
+  events, or explicit adapters.
+
 ## Problem Statement
 
 Financial platforms fail when their ledger, authorization, identity, support,
@@ -59,8 +68,9 @@ a product microservice.
 - Lightweight Java test runner covering reconciliation, idempotency, repairs,
   concurrent overdraft prevention, payment saga transitions, trust-layer
   checks, wallet projections, event-envelope behavior, notification dispatch
-  decisions, recovery flows, support workflows, observability/DR plan
-  validation, launch readiness, and voice verification flows.
+  decisions, BDD acceptance scenarios, recovery flows, support workflows,
+  observability/DR plan validation, launch readiness, and voice verification
+  flows.
 
 ## Benchmark
 
@@ -77,6 +87,7 @@ is executable through the local test suite or represented as launch evidence:
 | Event backbone | Pending outbox messages relay in order, publish failures remain pending, and failed attempts retain last-error evidence. |
 | Voice | Enrollment requires three samples, verification uses Python 3.10+, challenges are single-use, and score ranges are enforced. |
 | Notifications | Payment receipts, payment failure/compensation notices, and voice OTP fallback are event-driven and idempotent by source event ID. |
+| Acceptance | BDD scenarios prove that voice fallback can complete payment, compliance hits block funds movement, and wallet projections follow ledger truth. |
 | Support and recovery | Repair cases are persisted before ledger mutation; duplicate recovery transitions are rejected before external ports are called. |
 | Ops | Required dashboards, alert tiers, release stages, log fields, and reconciliation cadence are policy-driven through `OpsReadinessPolicy`. |
 | Launch | Chaos, security, pen test, shadow mode, 10x load, 100/100 fallback, RTO/RPO, CVE scan source, and pen-test report evidence are validated. |
@@ -125,6 +136,8 @@ criteria can be marked complete.
 
 ## Delivery Docs
 
+- [Ubiquitous language](docs/ubiquitous-language.md): DDD bounded contexts,
+  domain terms, and TDD/BDD/DDD testing language.
 - [Release runbook](docs/release-runbook.md): launch checklist, rollout flow,
   validation gates, and rollback steps.
 

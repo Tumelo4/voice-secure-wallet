@@ -23,6 +23,18 @@ public final class WalletService {
         return account;
     }
 
+    public WalletBalance applyBalanceSnapshot(UUID accountId, String currency, long balance, Instant updatedAt) {
+        WalletAccount account = repository.findAccount(accountId)
+                .orElseThrow(() -> new WalletException("wallet account not found: " + accountId));
+        String normalizedCurrency = currency.trim().toUpperCase(java.util.Locale.ROOT);
+        if (!account.currency().equals(normalizedCurrency)) {
+            throw new WalletException("snapshot currency does not match wallet currency");
+        }
+        WalletBalance snapshot = new WalletBalance(accountId, account.currency(), balance, 0, updatedAt);
+        repository.saveBalance(snapshot);
+        return snapshot;
+    }
+
     public WalletBalance projectLedgerEntry(EventEnvelope envelope) {
         requireLedgerEntry(envelope);
         if (repository.hasProcessedEvent(envelope.eventId())) {

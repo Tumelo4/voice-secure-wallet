@@ -34,6 +34,8 @@ incident response, rollback, or customer recovery.
 
 - [ ] The current branch includes the full implementation stack and the latest
   README updates.
+- [ ] The ubiquitous language doc reflects any new bounded contexts or domain
+  terms introduced by the release.
 - [ ] `powershell -ExecutionPolicy Bypass -File .\scripts\test-services.ps1`
   passes on a clean working tree.
 - [ ] The `Service CI` GitHub Actions workflow passes for the release PR.
