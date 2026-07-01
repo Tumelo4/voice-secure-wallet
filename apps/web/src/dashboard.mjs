@@ -11,6 +11,7 @@ const services = [
   "recovery-service",
   "ops-service",
   "launch-service",
+  "api-adapter-service",
 ];
 
 const phases = [
@@ -26,7 +27,7 @@ const phases = [
   },
   {
     name: "Identity, Fraud & Compliance",
-    status: "active",
+    status: "complete",
     evidence: "Device identity, fraud policy, compliance hit contracts",
   },
   {
@@ -49,12 +50,21 @@ const phases = [
     status: "modeled",
     evidence: "Launch evidence model, real staging evidence still pending",
   },
+  {
+    name: "API Adapters",
+    status: "active",
+    evidence: "HTTP payment commands and wallet balance reads mapped to domain services",
+  },
 ];
 
 const blockers = [
   {
-    title: "Durable adapters",
+    title: "Durable infrastructure adapters",
     detail: "PostgreSQL, Kafka, Redis, and pgvector adapters still need real integration tests.",
+  },
+  {
+    title: "HTTP runtime",
+    detail: "Framework-free API adapter contracts exist; production server, auth middleware, rate limits, and mTLS are still pending.",
   },
   {
     title: "Terraform",
@@ -71,6 +81,7 @@ const blockers = [
 ];
 
 const testSuites = [
+  { name: "API adapters", passing: 5 },
   { name: "Acceptance", passing: 3 },
   { name: "Compliance", passing: 2 },
   { name: "Contracts", passing: 3 },

@@ -28,6 +28,7 @@ infrastructure adapters.
 | Recovery | `recovery-service` | ID/video KYC recovery, voice reenrollment request, device certificate reissue. | Primary identity session lifecycle. |
 | Operations | `ops-service` | SLO/alert/runbook/release/DR readiness policy. | Runtime alert delivery infrastructure. |
 | Launch | `launch-service` | Launch gate evidence and go/no-go validation. | Producing the evidence itself. |
+| API Adapter | `api-adapter-service` | HTTP-style request validation, route selection, response shaping, and error mapping. | Payment, ledger, wallet, fraud, or identity business decisions. |
 
 `event-core` is shared infrastructure for domain events and outbox behavior. It
 is not a bounded context with business ownership.
@@ -35,6 +36,9 @@ is not a bounded context with business ownership.
 `apps/web` is a readiness dashboard. It is a presentation surface over build
 evidence, not a bounded context that owns payment, ledger, risk, or launch
 decisions.
+
+`api-adapter-service` is a boundary adapter. It protects domain services from
+HTTP and JSON details, but it does not own business policy.
 
 ## Terms
 
@@ -54,6 +58,7 @@ decisions.
 | Token family revocation | Revocation of all refresh tokens in a family after reuse is detected. |
 | Launch evidence | Measured proof for reconciliation, chaos, security, shadow mode, performance, DR, and documentation gates. |
 | Readiness dashboard | UI surface that summarizes service slices, tests, phase status, and remaining production blockers. |
+| API adapter | Boundary layer that translates HTTP-style requests into domain service calls and maps domain outcomes back to stable JSON responses. |
 
 ## Testing Style
 

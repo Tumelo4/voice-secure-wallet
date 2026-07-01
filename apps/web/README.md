@@ -26,8 +26,8 @@ surface later.
 
 - Dashboard model should summarize all current validation evidence.
 - Phase timeline should preserve the PDF phase order.
-- Risk panel should highlight durable adapters, Terraform, Pact, and launch
-  evidence as remaining blockers.
+- Risk panel should highlight durable infrastructure adapters, HTTP runtime,
+  Terraform, Pact, and launch evidence as remaining blockers.
 - Summary cards should render accessible labels.
 
 ## How To Use It
