@@ -29,6 +29,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Compile Java services
         shell: bash
         run: |
@@ -53,6 +58,12 @@ jobs:
         run: |
           set -euo pipefail
           python services/voice-service/test_voice_service.py
+
+      - name: Run web UI tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test apps/web/test/dashboard.test.mjs
 
       - name: Check whitespace
         shell: bash

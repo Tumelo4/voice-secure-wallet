@@ -62,6 +62,7 @@ a product microservice.
 - Java 17 `support-service` and `recovery-service` cores for support workflows.
 - Java 17 `ops-service` plan validator for observability and disaster recovery.
 - Java 17 `launch-service` readiness validator for hardening and launch gates.
+- Dependency-free `apps/web` readiness dashboard UI.
 - PostgreSQL schema migration for signed, append-only ledger entries.
 - In-memory repository for deterministic local tests.
 - Repair API domain stub requiring a justification payload.
@@ -70,7 +71,7 @@ a product microservice.
   checks, wallet projections, event-envelope behavior, notification dispatch
   decisions, fraud/compliance event contracts, BDD acceptance scenarios,
   recovery flows, support workflows, observability/DR plan validation, launch
-  readiness, and voice verification flows.
+  readiness, voice verification flows, and web dashboard checks.
 
 ## Benchmark
 
@@ -92,6 +93,7 @@ is executable through the local test suite or represented as launch evidence:
 | Support and recovery | Repair cases are persisted before ledger mutation; duplicate recovery transitions are rejected before external ports are called. |
 | Ops | Required dashboards, alert tiers, release stages, log fields, and reconciliation cadence are policy-driven through `OpsReadinessPolicy`. |
 | Launch | Chaos, security, pen test, shadow mode, 10x load, 100/100 fallback, RTO/RPO, CVE scan source, and pen-test report evidence are validated. |
+| Web UI | Dashboard model, phase order, risk blockers, accessible summary cards, and visible validation counts are covered by Node tests. |
 
 ## How To Use It
 
@@ -126,9 +128,15 @@ Run the voice tests with Python 3.10+:
 python3 services/voice-service/test_voice_service.py
 ```
 
+Run the web UI tests:
+
+```sh
+node --test apps/web/test/dashboard.test.mjs
+```
+
 The first CI slice is defined in `.github/workflows/service-ci.yml`. It runs the
-same direct Java compile/test loop, Python voice tests, and whitespace check on
-pull requests and pushes to `main`.
+same direct Java compile/test loop, Python voice tests, web UI tests, and
+whitespace check on pull requests and pushes to `main`.
 
 Use each service README for the smallest code example for that service. The
 remaining production plan still requires HTTP adapters, durable infrastructure,

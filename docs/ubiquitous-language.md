@@ -32,6 +32,10 @@ infrastructure adapters.
 `event-core` is shared infrastructure for domain events and outbox behavior. It
 is not a bounded context with business ownership.
 
+`apps/web` is a readiness dashboard. It is a presentation surface over build
+evidence, not a bounded context that owns payment, ledger, risk, or launch
+decisions.
+
 ## Terms
 
 | Term | Meaning |
@@ -49,6 +53,7 @@ is not a bounded context with business ownership.
 | Device binding | A registered device key used to sign critical requests. |
 | Token family revocation | Revocation of all refresh tokens in a family after reuse is detected. |
 | Launch evidence | Measured proof for reconciliation, chaos, security, shadow mode, performance, DR, and documentation gates. |
+| Readiness dashboard | UI surface that summarizes service slices, tests, phase status, and remaining production blockers. |
 
 ## Testing Style
 
