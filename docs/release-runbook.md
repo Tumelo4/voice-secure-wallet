@@ -21,11 +21,11 @@ incident response, rollback, or customer recovery.
 
 | Phase | What Must Be True | Evidence |
 | --- | --- | --- |
-| Phase 1: Ledger Core | Ledger writes are balanced, append-only, and repair-backed. | `scripts/test-services.ps1` and ledger tests. |
-| Phase 2: Payment Saga | Payment orchestration is idempotent and compensating. | Saga transition tests. |
+| Phase 1: Ledger Core | Ledger writes are balanced, append-only, repair-backed, and projected into wallet balances. | `scripts/test-services.ps1`, ledger tests, and wallet projection tests. |
+| Phase 2: Payment Saga | Payment orchestration is idempotent, compensating, and notification-decoupled. | Saga transition tests and notification consumer tests. |
 | Phase 3: Identity, Fraud, Compliance | Identity, risk, and screening gates behave consistently. | Identity, fraud, and compliance tests. |
 | Phase 4: Event Backbone | Events share one contract and publish reliably. | Event envelope and relay tests. |
-| Phase 5: Voice Biometrics | Enrollment, liveness, replay detection, and fallback are covered. | Voice service tests. |
+| Phase 5: Voice Biometrics | Enrollment, liveness, replay detection, fallback, and OTP notification boundary are covered. | Voice service tests and notification fallback tests. |
 | Phase 6: Support and Recovery | Support search, freezes, disputes, and recovery workflows are traceable. | Support and recovery tests. |
 | Phase 7: Observability and DR | Telemetry, SLOs, alerts, and restore gates are modeled. | Ops plan validator tests. |
 | Phase 8: Hardening and Launch | Chaos, pen test, security scan, performance, and shadow mode are green. | Launch readiness tests. |
