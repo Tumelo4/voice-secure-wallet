@@ -52,8 +52,13 @@ const phases = [
   },
   {
     name: "API Adapters",
-    status: "active",
+    status: "complete",
     evidence: "HTTP payment commands and wallet balance reads mapped to domain services",
+  },
+  {
+    name: "API Runtime Boundary",
+    status: "active",
+    evidence: "Bearer auth, trace IDs, rate limits, and request logs guard API adapters",
   },
 ];
 
@@ -63,8 +68,8 @@ const blockers = [
     detail: "PostgreSQL, Kafka, Redis, and pgvector adapters still need real integration tests.",
   },
   {
-    title: "HTTP runtime",
-    detail: "Framework-free API adapter contracts exist; production server, auth middleware, rate limits, and mTLS are still pending.",
+    title: "Network server integration",
+    detail: "Framework-free runtime guards exist; production listener, external auth provider, distributed rate limits, and mTLS are still pending.",
   },
   {
     title: "Terraform",
@@ -82,6 +87,7 @@ const blockers = [
 
 const testSuites = [
   { name: "API adapters", passing: 5 },
+  { name: "API runtime", passing: 5 },
   { name: "Acceptance", passing: 3 },
   { name: "Compliance", passing: 2 },
   { name: "Contracts", passing: 3 },

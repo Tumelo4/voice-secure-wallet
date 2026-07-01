@@ -46,7 +46,7 @@ authentication, recovery workflows, operational validation, and launch gates.
 | `recovery-service` | Rebuilds trust after compromise through document upload, video KYC, reenrollment, and certificate reissue. | Lets legitimate users regain access safely instead of abandoning the account. |
 | `ops-service` | Models telemetry, dashboards, alerts, release gates, and disaster recovery requirements. | Improves uptime, incident response, and leadership visibility into operational risk. |
 | `launch-service` | Validates chaos, pen test, security, performance, and fallback gates before release. | Prevents unsafe releases and protects reputation, revenue, and customer trust. |
-| `api-adapter-service` | Translates HTTP-style payment commands and wallet balance reads into domain service calls. | Gives clients stable JSON contracts while keeping domain services framework-independent. |
+| `api-adapter-service` | Translates HTTP-style payment commands and wallet balance reads into domain service calls, with runtime guards for auth, traceability, rate limiting, and request logging. | Gives clients stable JSON contracts while keeping domain services framework-independent. |
 
 `event-core` is shared event infrastructure used by those services rather than
 a product microservice.
@@ -63,8 +63,9 @@ a product microservice.
 - Java 17 `support-service` and `recovery-service` cores for support workflows.
 - Java 17 `ops-service` plan validator for observability and disaster recovery.
 - Java 17 `launch-service` readiness validator for hardening and launch gates.
-- Java 17 `api-adapter-service` contracts for payment commands and wallet
-  balance reads.
+- Java 17 `api-adapter-service` contracts and runtime boundary for payment
+  commands, wallet balance reads, auth, traceability, rate limiting, and
+  request logging.
 - Dependency-free `apps/web` readiness dashboard UI.
 - PostgreSQL schema migration for signed, append-only ledger entries.
 - In-memory repository for deterministic local tests.
@@ -73,8 +74,9 @@ a product microservice.
   concurrent overdraft prevention, payment saga transitions, trust-layer
   checks, wallet projections, event-envelope behavior, notification dispatch
   decisions, fraud/compliance event contracts, BDD acceptance scenarios,
-  recovery flows, support workflows, observability/DR plan validation, launch
-  readiness, voice verification flows, and web dashboard checks.
+  recovery flows, support workflows, API adapter/runtime guards,
+  observability/DR plan validation, launch readiness, voice verification flows,
+  and web dashboard checks.
 
 ## Benchmark
 
@@ -97,6 +99,7 @@ is executable through the local test suite or represented as launch evidence:
 | Ops | Required dashboards, alert tiers, release stages, log fields, and reconciliation cadence are policy-driven through `OpsReadinessPolicy`. |
 | Launch | Chaos, security, pen test, shadow mode, 10x load, 100/100 fallback, RTO/RPO, CVE scan source, and pen-test report evidence are validated. |
 | API adapters | Payment POST validates idempotency and trace headers, maps conflicts to `409`, wallet balance reads return JSON, and unknown routes return JSON `404`. |
+| API runtime | Protected routes require bearer tokens, invalid tokens return `403`, trace IDs are required before routing, rate limits return `429`, and request outcomes are logged. |
 | Web UI | Dashboard model, phase order, risk blockers, accessible summary cards, and visible validation counts are covered by Node tests. |
 
 ## How To Use It
@@ -143,7 +146,7 @@ same direct Java compile/test loop, Python voice tests, web UI tests, and
 whitespace check on pull requests and pushes to `main`.
 
 Use each service README for the smallest code example for that service. The
-remaining production plan still requires a real HTTP runtime, durable
+remaining production plan still requires a production network server, durable
 infrastructure, full Pact/Schema Registry checks, chaos tests, and launch
 evidence before the PDF launch criteria can be marked complete.
 

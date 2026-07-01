@@ -3,7 +3,7 @@ package com.voicesecure.api;
 import java.util.List;
 import java.util.Objects;
 
-public final class ApiRouter {
+public final class ApiRouter implements ApiEndpoint {
     private final List<ApiEndpoint> endpoints;
 
     public ApiRouter(PaymentApiAdapter paymentApiAdapter, WalletApiAdapter walletApiAdapter) {
@@ -18,6 +18,12 @@ public final class ApiRouter {
         }
     }
 
+    @Override
+    public boolean supports(ApiRequest request) {
+        return true;
+    }
+
+    @Override
     public ApiResponse handle(ApiRequest request) {
         Objects.requireNonNull(request, "request");
         for (ApiEndpoint endpoint : endpoints) {
