@@ -23,7 +23,7 @@ incident response, rollback, or customer recovery.
 | --- | --- | --- |
 | Phase 1: Ledger Core | Ledger writes are balanced, append-only, repair-backed, and projected into wallet balances. | `scripts/test-services.ps1`, ledger tests, and wallet projection tests. |
 | Phase 2: Payment Saga | Payment orchestration is idempotent, compensating, and notification-decoupled. | Saga transition tests and notification consumer tests. |
-| Phase 3: Identity, Fraud, Compliance | Identity, risk, and screening gates behave consistently. | Identity, fraud, and compliance tests. |
+| Phase 3: Identity, Fraud, Compliance | Identity, risk, screening gates, and fraud/compliance event contracts behave consistently. | Identity, fraud, compliance, and contract tests. |
 | Phase 4: Event Backbone | Events share one contract and publish reliably. | Event envelope and relay tests. |
 | Phase 5: Voice Biometrics | Enrollment, liveness, replay detection, fallback, and OTP notification boundary are covered. | Voice service tests and notification fallback tests. |
 | Phase 6: Support and Recovery | Support search, freezes, disputes, and recovery workflows are traceable. | Support and recovery tests. |
@@ -38,7 +38,8 @@ incident response, rollback, or customer recovery.
   terms introduced by the release.
 - [ ] `powershell -ExecutionPolicy Bypass -File .\scripts\test-services.ps1`
   passes on a clean working tree.
-- [ ] The `Service CI` GitHub Actions workflow passes for the release PR.
+- [ ] The `Service CI` GitHub Actions workflow passes for the release PR,
+  including local event contract tests.
 - [ ] Open pull requests are reviewed in stack order.
 - [ ] No service README is missing a problem statement or impact section.
 - [ ] Release notes call out user-visible and company-facing impact.

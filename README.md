@@ -68,9 +68,9 @@ a product microservice.
 - Lightweight Java test runner covering reconciliation, idempotency, repairs,
   concurrent overdraft prevention, payment saga transitions, trust-layer
   checks, wallet projections, event-envelope behavior, notification dispatch
-  decisions, BDD acceptance scenarios, recovery flows, support workflows,
-  observability/DR plan validation, launch readiness, and voice verification
-  flows.
+  decisions, fraud/compliance event contracts, BDD acceptance scenarios,
+  recovery flows, support workflows, observability/DR plan validation, launch
+  readiness, and voice verification flows.
 
 ## Benchmark
 
@@ -84,6 +84,7 @@ is executable through the local test suite or represented as launch evidence:
 | Payment | Happy path reaches `COMPLETED`; fraud, voice, reservation, ledger, and compensation failures reach explicit terminal states. |
 | Identity | RS256 access-token verification, unknown `kid` rejection, refresh-token reuse revocation, and device-signature validation. |
 | Fraud and compliance | PEP/sanctions/AML screening writes one audit trail entry and fraud policy changes happen through `FraudPolicy`. |
+| Event contracts | `fraud.scored` carries auth policy and voice threshold; `compliance.hit` carries hit evidence and cannot be emitted for clear screening results. |
 | Event backbone | Pending outbox messages relay in order, publish failures remain pending, and failed attempts retain last-error evidence. |
 | Voice | Enrollment requires three samples, verification uses Python 3.10+, challenges are single-use, and score ranges are enforced. |
 | Notifications | Payment receipts, payment failure/compensation notices, and voice OTP fallback are event-driven and idempotent by source event ID. |
@@ -131,8 +132,8 @@ pull requests and pushes to `main`.
 
 Use each service README for the smallest code example for that service. The
 remaining production plan still requires HTTP adapters, durable infrastructure,
-CI/CD, contract tests, chaos tests, and launch evidence before the PDF launch
-criteria can be marked complete.
+full Pact/Schema Registry checks, chaos tests, and launch evidence before the
+PDF launch criteria can be marked complete.
 
 ## Delivery Docs
 
