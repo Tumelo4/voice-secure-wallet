@@ -29,6 +29,7 @@ incident response, rollback, or customer recovery.
 | Phase 6: Support and Recovery | Support search, freezes, disputes, and recovery workflows are traceable. | Support and recovery tests. |
 | Phase 7: Observability and DR | Telemetry, SLOs, alerts, and restore gates are modeled. | Ops plan validator tests. |
 | Phase 8: Hardening and Launch | Chaos, pen test, security scan, performance, and shadow mode are green. | Launch readiness tests. |
+| Phase 9: API Adapters | HTTP-style payment commands and wallet balance reads map safely into domain services. | API adapter tests. |
 
 ## Pre-Release Checklist
 
