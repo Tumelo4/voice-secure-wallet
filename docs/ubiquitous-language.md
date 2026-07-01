@@ -28,7 +28,7 @@ infrastructure adapters.
 | Recovery | `recovery-service` | ID/video KYC recovery, voice reenrollment request, device certificate reissue. | Primary identity session lifecycle. |
 | Operations | `ops-service` | SLO/alert/runbook/release/DR readiness policy. | Runtime alert delivery infrastructure. |
 | Launch | `launch-service` | Launch gate evidence and go/no-go validation. | Producing the evidence itself. |
-| API Adapter | `api-adapter-service` | HTTP-style request validation, route selection, response shaping, and error mapping. | Payment, ledger, wallet, fraud, or identity business decisions. |
+| API Adapter | `api-adapter-service` | HTTP-style request validation, route selection, response shaping, error mapping, runtime auth, trace, rate-limit, and request-log guards. | Payment, ledger, wallet, fraud, or identity business decisions. |
 
 `event-core` is shared infrastructure for domain events and outbox behavior. It
 is not a bounded context with business ownership.
@@ -38,7 +38,8 @@ evidence, not a bounded context that owns payment, ledger, risk, or launch
 decisions.
 
 `api-adapter-service` is a boundary adapter. It protects domain services from
-HTTP and JSON details, but it does not own business policy.
+HTTP, JSON, authentication, traceability, rate-limit, and request-log details,
+but it does not own business policy.
 
 ## Terms
 
@@ -59,6 +60,7 @@ HTTP and JSON details, but it does not own business policy.
 | Launch evidence | Measured proof for reconciliation, chaos, security, shadow mode, performance, DR, and documentation gates. |
 | Readiness dashboard | UI surface that summarizes service slices, tests, phase status, and remaining production blockers. |
 | API adapter | Boundary layer that translates HTTP-style requests into domain service calls and maps domain outcomes back to stable JSON responses. |
+| API runtime boundary | Guard layer that verifies bearer tokens, requires trace IDs, rate-limits authenticated principals, forwards valid requests, and records request outcomes. |
 
 ## Testing Style
 

@@ -30,6 +30,7 @@ incident response, rollback, or customer recovery.
 | Phase 7: Observability and DR | Telemetry, SLOs, alerts, and restore gates are modeled. | Ops plan validator tests. |
 | Phase 8: Hardening and Launch | Chaos, pen test, security scan, performance, and shadow mode are green. | Launch readiness tests. |
 | Phase 9: API Adapters | HTTP-style payment commands and wallet balance reads map safely into domain services. | API adapter tests. |
+| Phase 10: API Runtime Boundary | Auth, trace, rate-limit, and request-log guards wrap API adapters before a production server is added. | API runtime tests. |
 
 ## Pre-Release Checklist
 

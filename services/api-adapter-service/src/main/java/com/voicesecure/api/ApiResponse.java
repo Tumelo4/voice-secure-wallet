@@ -2,6 +2,7 @@ package com.voicesecure.api;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 
 public record ApiResponse(int status, Map<String, String> headers, String body) {
     public ApiResponse {
@@ -22,5 +23,11 @@ public record ApiResponse(int status, Map<String, String> headers, String body) 
                 + "\"message\":" + ApiJson.quote(message)
                 + "}";
         return json(status, body);
+    }
+
+    public ApiResponse withHeader(String name, String value) {
+        TreeMap<String, String> nextHeaders = new TreeMap<>(headers);
+        nextHeaders.put(Objects.requireNonNull(name, "name"), Objects.requireNonNull(value, "value"));
+        return new ApiResponse(status, nextHeaders, body);
     }
 }
