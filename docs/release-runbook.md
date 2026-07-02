@@ -31,6 +31,7 @@ incident response, rollback, or customer recovery.
 | Phase 8: Hardening and Launch | Chaos, pen test, security scan, performance, and shadow mode are green. | Launch readiness tests. |
 | Phase 9: API Adapters | HTTP-style payment commands and wallet balance reads map safely into domain services. | API adapter tests. |
 | Phase 10: API Runtime Boundary | Auth, trace, rate-limit, and request-log guards wrap API adapters before a production server is added. | API runtime tests. |
+| Phase 11: Mobile UI Stack | The readiness UI uses React Native, NativeWind/Tailwind CSS, and Redux Toolkit. | Mobile UI state-model tests. |
 
 ## Pre-Release Checklist
 
@@ -41,7 +42,7 @@ incident response, rollback, or customer recovery.
 - [ ] `powershell -ExecutionPolicy Bypass -File .\scripts\test-services.ps1`
   passes on a clean working tree.
 - [ ] The `Service CI` GitHub Actions workflow passes for the release PR,
-  including local event contract tests and web dashboard tests.
+  including local event contract tests and mobile dashboard tests.
 - [ ] Open pull requests are reviewed in stack order.
 - [ ] No service README is missing a problem statement or impact section.
 - [ ] Release notes call out user-visible and company-facing impact.

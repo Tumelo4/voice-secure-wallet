@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "VoiceSecure Wallet",
+    "slug": "voicesecure-wallet",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": ["**/*"]
+  }
+}

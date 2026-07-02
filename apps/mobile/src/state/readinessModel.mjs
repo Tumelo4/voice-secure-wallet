@@ -1,0 +1,147 @@
+export const uiStack = {
+  platform: "react-native",
+  styling: "nativewind-tailwind-css",
+  state: "redux-toolkit",
+};
+
+const services = [
+  "ledger-service",
+  "wallet-service",
+  "payment-service",
+  "identity-service",
+  "fraud-service",
+  "compliance-service",
+  "voice-service",
+  "notification-service",
+  "support-service",
+  "recovery-service",
+  "ops-service",
+  "launch-service",
+  "api-adapter-service",
+];
+
+const phases = [
+  { name: "Ledger Core", status: "complete", evidence: "Signed ledger, repair flow, wallet projection" },
+  { name: "Payment Saga", status: "complete", evidence: "18-state saga, notification boundary, compensation branches" },
+  { name: "Identity, Fraud & Compliance", status: "complete", evidence: "Device identity, fraud policy, compliance hit contracts" },
+  { name: "Voice & Fallback", status: "complete", evidence: "Voice challenge, replay checks, OTP fallback scenario" },
+  { name: "Admin, Support & Recovery", status: "complete", evidence: "Repair escalation, recovery reenrollment, audit flow" },
+  { name: "Observability & DR", status: "modeled", evidence: "Policy validators and CI gate, infra still pending" },
+  { name: "Hardening & Launch", status: "modeled", evidence: "Launch evidence model, real staging evidence still pending" },
+  { name: "API Adapters", status: "complete", evidence: "HTTP payment commands and wallet balance reads mapped to domain services" },
+  { name: "API Runtime Boundary", status: "active", evidence: "Bearer auth, trace IDs, rate limits, and request logs guard API adapters" },
+];
+
+const blockers = [
+  {
+    title: "Durable infrastructure adapters",
+    detail: "PostgreSQL, Kafka, Redis, and pgvector adapters still need real integration tests.",
+  },
+  {
+    title: "Network server integration",
+    detail: "Framework-free runtime guards exist; production listener, external auth provider, distributed rate limits, and mTLS are still pending.",
+  },
+  {
+    title: "Terraform",
+    detail: "VPC, ECS/Fargate, RDS/MSK/ElastiCache, mTLS, and object-lock storage are not provisioned.",
+  },
+  {
+    title: "Pact",
+    detail: "Local event contracts exist; Pact and Schema Registry compatibility are still pending.",
+  },
+  {
+    title: "Launch evidence",
+    detail: "Chaos, load, security scanning, DR restore, and 48-hour staging runs still need measured proof.",
+  },
+];
+
+const testSuites = [
+  { name: "API adapters", passing: 5 },
+  { name: "API runtime", passing: 5 },
+  { name: "Acceptance", passing: 3 },
+  { name: "Compliance", passing: 2 },
+  { name: "Contracts", passing: 3 },
+  { name: "Events", passing: 6 },
+  { name: "Fraud", passing: 4 },
+  { name: "Identity", passing: 5 },
+  { name: "Launch", passing: 4 },
+  { name: "Ledger", passing: 6 },
+  { name: "Mobile UI", passing: 5 },
+  { name: "Notifications", passing: 4 },
+  { name: "Ops", passing: 5 },
+  { name: "Payments", passing: 9 },
+  { name: "Recovery", passing: 3 },
+  { name: "Support", passing: 4 },
+  { name: "Wallet", passing: 4 },
+  { name: "Voice Python", passing: 8 },
+];
+
+export const dashboardSections = [
+  { key: "summary", title: "Readiness summary" },
+  { key: "phases", title: "PDF phase progress" },
+  { key: "risks", title: "Risks to burn down next" },
+  { key: "evidence", title: "Passing local suites" },
+];
+
+export function createReadinessState() {
+  const testsPassing = readinessSelectors.totalPassingTests({ testSuites });
+  return {
+    generatedAt: "2026-07-02T09:00:00+02:00",
+    stack: uiStack,
+    services,
+    phases,
+    blockers,
+    testSuites,
+    summary: {
+      services: { ready: services.length, total: services.length },
+      tests: { passing: testsPassing, total: testsPassing },
+      ci: { status: "passing", label: "Service CI passing" },
+      launchGates: { complete: 4, total: 16 },
+    },
+  };
+}
+
+export const readinessSelectors = {
+  totalPassingTests(state) {
+    return state.testSuites.reduce((total, suite) => total + suite.passing, 0);
+  },
+  activePhase(state) {
+    return state.phases.find((phase) => phase.status === "active");
+  },
+  summaryCards(state) {
+    return [
+      {
+        label: "Services ready",
+        value: `${state.summary.services.ready} / ${state.summary.services.total}`,
+        detail: "Bounded contexts modeled",
+        accessibilityLabel: `Services ready ${state.summary.services.ready} of ${state.summary.services.total}`,
+      },
+      {
+        label: "Tests passing",
+        value: `${state.summary.tests.passing} / ${state.summary.tests.total}`,
+        detail: "Unit, BDD, contract, and mobile checks",
+        accessibilityLabel: `Tests passing ${state.summary.tests.passing} of ${state.summary.tests.total}`,
+      },
+      {
+        label: "CI status",
+        value: state.summary.ci.label,
+        detail: "GitHub Actions evidence",
+        accessibilityLabel: `CI status ${state.summary.ci.label}`,
+      },
+      {
+        label: "Launch gates",
+        value: `${state.summary.launchGates.complete} / ${state.summary.launchGates.total}`,
+        detail: "Production evidence still growing",
+        accessibilityLabel: `Launch gates ${state.summary.launchGates.complete} of ${state.summary.launchGates.total}`,
+      },
+    ];
+  },
+  mobileClassNames() {
+    return {
+      screen: "flex-1 bg-amber-50",
+      card: "rounded-3xl border border-stone-200 bg-white/80 p-5 shadow-sm",
+      activePhase: "border-orange-500 bg-amber-100",
+      metricGrid: "flex-row flex-wrap",
+    };
+  },
+};

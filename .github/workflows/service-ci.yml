@@ -59,11 +59,11 @@ jobs:
           set -euo pipefail
           python services/voice-service/test_voice_service.py
 
-      - name: Run web UI tests
+      - name: Run mobile UI tests
         shell: bash
         run: |
           set -euo pipefail
-          node --test apps/web/test/dashboard.test.mjs
+          node --test apps/mobile/test/readinessDashboard.test.mjs
 
       - name: Check whitespace
         shell: bash
