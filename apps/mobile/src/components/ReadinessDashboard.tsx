@@ -1,5 +1,9 @@
 import { SafeAreaView, ScrollView, Text, View } from "react-native";
 import {
+  selectPaymentStartStatus,
+  selectWalletBalanceStatus,
+} from "../state/mobileApiSlice";
+import {
   selectActivePhase,
   selectMobileClassNames,
   selectReadiness,
@@ -12,6 +16,8 @@ export function ReadinessDashboard() {
   const activePhase = useAppSelector(selectActivePhase);
   const cards = useAppSelector(selectSummaryCards);
   const classes = useAppSelector(selectMobileClassNames);
+  const walletBalanceStatus = useAppSelector(selectWalletBalanceStatus);
+  const paymentStartStatus = useAppSelector(selectPaymentStartStatus);
 
   return (
     <SafeAreaView className={classes.screen}>
@@ -44,6 +50,24 @@ export function ReadinessDashboard() {
           <Text className="text-xs font-black uppercase tracking-[3px] text-orange-700">Active phase</Text>
           <Text className="mt-2 text-3xl font-black tracking-[-2px] text-emerald-950">{activePhase.name}</Text>
           <Text className="mt-3 text-base leading-7 text-stone-600">{activePhase.evidence}</Text>
+        </View>
+
+        <View className={`${classes.card} mt-4`}>
+          <Text className="text-xs font-black uppercase tracking-[3px] text-orange-700">Live mobile API flows</Text>
+          <View className="mt-4 flex-row flex-wrap">
+            <View className="mb-3 mr-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+              <Text className="text-[10px] font-black uppercase tracking-[2px] text-emerald-700">Wallet balance</Text>
+              <Text className="mt-2 text-2xl font-black text-emerald-950">{walletBalanceStatus}</Text>
+            </View>
+            <View className="mb-3 rounded-2xl border border-orange-100 bg-orange-50 p-4">
+              <Text className="text-[10px] font-black uppercase tracking-[2px] text-orange-700">Payment start</Text>
+              <Text className="mt-2 text-2xl font-black text-emerald-950">{paymentStartStatus}</Text>
+            </View>
+          </View>
+          <Text className="text-sm leading-6 text-stone-600">
+            Redux thunk flows now bridge mobile screens to the typed wallet and
+            payment API client while preserving request-state evidence.
+          </Text>
         </View>
 
         <View className="mt-4">

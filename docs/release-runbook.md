@@ -36,6 +36,7 @@ incident response, rollback, or customer recovery.
 | Phase 13: Mobile API Client Boundary | Mobile payment and wallet reads use typed API clients, transport ports, and Redux-friendly request state. | Mobile API client tests. |
 | Phase 14: Mobile Fetch Transport | React Native fetch is isolated behind `ApiTransport`, network failures are deterministic, and access tokens come from a provider port. | Mobile fetch transport tests. |
 | Phase 15: Mobile Token Session | Token sessions are stored behind a vault port and refreshed before stale bearer tokens reach the API runtime. | Mobile token session tests. |
+| Phase 16: Mobile Redux API Flows | Wallet-balance and payment-start commands dispatch loading, success, and failure branches into Redux request state. | Mobile Redux API flow tests. |
 
 ## Pre-Release Checklist
 
