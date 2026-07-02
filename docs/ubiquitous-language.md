@@ -59,7 +59,7 @@ but it does not own business policy.
 | Token family revocation | Revocation of all refresh tokens in a family after reuse is detected. |
 | Launch evidence | Measured proof for reconciliation, chaos, security, shadow mode, performance, DR, and documentation gates. |
 | Readiness dashboard | UI surface that summarizes service slices, tests, phase status, and remaining production blockers. |
-| Mobile UI stack | React Native app surface styled with NativeWind/Tailwind CSS and backed by Redux Toolkit state. |
+| Mobile UI stack | React Native TypeScript app surface styled with NativeWind/Tailwind CSS and backed by Redux Toolkit state. |
 | API adapter | Boundary layer that translates HTTP-style requests into domain service calls and maps domain outcomes back to stable JSON responses. |
 | API runtime boundary | Guard layer that verifies bearer tokens, requires trace IDs, rate-limits authenticated principals, forwards valid requests, and records request outcomes. |
 

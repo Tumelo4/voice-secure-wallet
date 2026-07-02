@@ -1,10 +1,80 @@
-export const uiStack = {
+export interface UiStack {
+  platform: "react-native";
+  styling: "nativewind-tailwind-css";
+  state: "redux-toolkit";
+}
+
+export interface Phase {
+  name: string;
+  status: "complete" | "modeled" | "active";
+  evidence: string;
+}
+
+export interface Blocker {
+  title: string;
+  detail: string;
+}
+
+export interface TestSuiteEvidence {
+  name: string;
+  passing: number;
+}
+
+export interface DashboardSection {
+  key: "summary" | "phases" | "risks" | "evidence";
+  title: string;
+}
+
+export interface ReadinessSummary {
+  services: {
+    ready: number;
+    total: number;
+  };
+  tests: {
+    passing: number;
+    total: number;
+  };
+  ci: {
+    status: "passing" | "failing" | "unknown";
+    label: string;
+  };
+  launchGates: {
+    complete: number;
+    total: number;
+  };
+}
+
+export interface ReadinessState {
+  generatedAt: string;
+  stack: UiStack;
+  services: string[];
+  phases: Phase[];
+  blockers: Blocker[];
+  testSuites: TestSuiteEvidence[];
+  summary: ReadinessSummary;
+}
+
+export interface SummaryCard {
+  label: string;
+  value: string;
+  detail: string;
+  accessibilityLabel: string;
+}
+
+export interface MobileClassNames {
+  screen: string;
+  card: string;
+  activePhase: string;
+  metricGrid: string;
+}
+
+export const uiStack: UiStack = {
   platform: "react-native",
   styling: "nativewind-tailwind-css",
   state: "redux-toolkit",
 };
 
-const services = [
+const services: string[] = [
   "ledger-service",
   "wallet-service",
   "payment-service",
@@ -20,7 +90,7 @@ const services = [
   "api-adapter-service",
 ];
 
-const phases = [
+const phases: Phase[] = [
   { name: "Ledger Core", status: "complete", evidence: "Signed ledger, repair flow, wallet projection" },
   { name: "Payment Saga", status: "complete", evidence: "18-state saga, notification boundary, compensation branches" },
   { name: "Identity, Fraud & Compliance", status: "complete", evidence: "Device identity, fraud policy, compliance hit contracts" },
@@ -32,7 +102,7 @@ const phases = [
   { name: "API Runtime Boundary", status: "active", evidence: "Bearer auth, trace IDs, rate limits, and request logs guard API adapters" },
 ];
 
-const blockers = [
+const blockers: Blocker[] = [
   {
     title: "Durable infrastructure adapters",
     detail: "PostgreSQL, Kafka, Redis, and pgvector adapters still need real integration tests.",
@@ -55,7 +125,7 @@ const blockers = [
   },
 ];
 
-const testSuites = [
+const testSuites: TestSuiteEvidence[] = [
   { name: "API adapters", passing: 5 },
   { name: "API runtime", passing: 5 },
   { name: "Acceptance", passing: 3 },
@@ -76,14 +146,14 @@ const testSuites = [
   { name: "Voice Python", passing: 8 },
 ];
 
-export const dashboardSections = [
+export const dashboardSections: DashboardSection[] = [
   { key: "summary", title: "Readiness summary" },
   { key: "phases", title: "PDF phase progress" },
   { key: "risks", title: "Risks to burn down next" },
   { key: "evidence", title: "Passing local suites" },
 ];
 
-export function createReadinessState() {
+export function createReadinessState(): ReadinessState {
   const testsPassing = readinessSelectors.totalPassingTests({ testSuites });
   return {
     generatedAt: "2026-07-02T09:00:00+02:00",
@@ -102,13 +172,17 @@ export function createReadinessState() {
 }
 
 export const readinessSelectors = {
-  totalPassingTests(state) {
+  totalPassingTests(state: Pick<ReadinessState, "testSuites">): number {
     return state.testSuites.reduce((total, suite) => total + suite.passing, 0);
   },
-  activePhase(state) {
-    return state.phases.find((phase) => phase.status === "active");
+  activePhase(state: Pick<ReadinessState, "phases">): Phase {
+    const active = state.phases.find((phase) => phase.status === "active");
+    if (!active) {
+      throw new Error("active phase is required");
+    }
+    return active;
   },
-  summaryCards(state) {
+  summaryCards(state: Pick<ReadinessState, "summary">): SummaryCard[] {
     return [
       {
         label: "Services ready",
@@ -136,7 +210,7 @@ export const readinessSelectors = {
       },
     ];
   },
-  mobileClassNames() {
+  mobileClassNames(): MobileClassNames {
     return {
       screen: "flex-1 bg-amber-50",
       card: "rounded-3xl border border-stone-200 bg-white/80 p-5 shadow-sm",

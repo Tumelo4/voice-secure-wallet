@@ -32,7 +32,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
 
       - name: Compile Java services
         shell: bash
@@ -63,7 +63,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --test apps/mobile/test/readinessDashboard.test.mjs
+          node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test apps/mobile/test/readinessDashboard.test.ts
 
       - name: Check whitespace
         shell: bash

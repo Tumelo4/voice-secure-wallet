@@ -2,7 +2,7 @@ import { createSlice } from "@reduxjs/toolkit";
 import {
   createReadinessState,
   readinessSelectors as modelSelectors,
-} from "./readinessModel.mjs";
+} from "./readinessModel";
 import type { RootState } from "./store";
 
 const readinessSlice = createSlice({

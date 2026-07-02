@@ -6,7 +6,7 @@ import {
   dashboardSections,
   readinessSelectors,
   uiStack,
-} from "../src/state/readinessModel.mjs";
+} from "../src/state/readinessModel.ts";
 
 test("mobile UI declares the requested React Native, Tailwind, and Redux stack", () => {
   assert.equal(uiStack.platform, "react-native");

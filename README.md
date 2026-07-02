@@ -66,8 +66,8 @@ a product microservice.
 - Java 17 `api-adapter-service` contracts and runtime boundary for payment
   commands, wallet balance reads, auth, traceability, rate limiting, and
   request logging.
-- React Native `apps/mobile` readiness dashboard using NativeWind/Tailwind CSS
-  and Redux Toolkit.
+- React Native TypeScript `apps/mobile` readiness dashboard using
+  NativeWind/Tailwind CSS and Redux Toolkit.
 - PostgreSQL schema migration for signed, append-only ledger entries.
 - In-memory repository for deterministic local tests.
 - Repair API domain stub requiring a justification payload.
@@ -101,7 +101,7 @@ is executable through the local test suite or represented as launch evidence:
 | Launch | Chaos, security, pen test, shadow mode, 10x load, 100/100 fallback, RTO/RPO, CVE scan source, and pen-test report evidence are validated. |
 | API adapters | Payment POST validates idempotency and trace headers, maps conflicts to `409`, wallet balance reads return JSON, and unknown routes return JSON `404`. |
 | API runtime | Protected routes require bearer tokens, invalid tokens return `403`, trace IDs are required before routing, rate limits return `429`, and request outcomes are logged. |
-| Mobile UI | React Native stack declaration, Redux readiness state, mobile accessibility labels, dashboard section order, and NativeWind/Tailwind class tokens are covered by Node tests. |
+| Mobile UI | React Native TypeScript stack declaration, Redux readiness state, mobile accessibility labels, dashboard section order, and NativeWind/Tailwind class tokens are covered by Node tests. |
 
 ## How To Use It
 
@@ -139,7 +139,7 @@ python services/voice-service/test_voice_service.py
 Run the mobile UI tests:
 
 ```sh
-node --test apps/mobile/test/readinessDashboard.test.mjs
+node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test apps/mobile/test/readinessDashboard.test.ts
 ```
 
 The first CI slice is defined in `.github/workflows/service-ci.yml`. It runs the
