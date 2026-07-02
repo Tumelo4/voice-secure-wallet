@@ -68,7 +68,8 @@ a product microservice.
   request logging.
 - React Native TypeScript `apps/mobile` readiness dashboard using
   NativeWind/Tailwind CSS and Redux Toolkit, with typed API client and fetch
-  transport boundaries, mobile token-session ports, and Redux API flows.
+  transport boundaries, mobile token-session ports, Redux API flows, and
+  local resilience policy.
 - PostgreSQL schema migration for signed, append-only ledger entries.
 - In-memory repository for deterministic local tests.
 - Repair API domain stub requiring a justification payload.
@@ -107,6 +108,7 @@ is executable through the local test suite or represented as launch evidence:
 | Mobile fetch transport | React Native fetch calls are isolated behind `ApiTransport`, base URLs and paths join safely, response headers/body are preserved, network failures map to typed `503` errors, and a token-provider port supports rotating credentials. |
 | Mobile token session | Secure token sessions are stored behind a vault port, corrupt sessions are cleared, cached access tokens are reused before the refresh window, expiring tokens are refreshed, and failed refresh clears stored credentials. |
 | Mobile Redux API flows | Wallet-balance and payment-start thunks dispatch loading, success, and failure branches into Redux request state while preserving trace IDs, previous data, API errors, and auth-session failures. |
+| Mobile resilience policy | Retryable transport failures use capped exponential backoff, auth/validation failures do not retry, offline payment commands enqueue idempotently, local queue depth is capped, and queued payments drain in order. |
 
 ## How To Use It
 
@@ -155,7 +157,8 @@ Use each service README for the smallest code example for that service. The
 remaining production plan still requires a production network server, durable
 infrastructure, native mobile keystore wiring, screen-level mobile command
 forms, full Pact/Schema Registry checks, chaos tests, and launch evidence before
-the PDF launch criteria can be marked complete.
+the PDF launch criteria can be marked complete. Kafka and AWS are intentionally
+deferred until the durable adapter and infrastructure phases.
 
 ## Delivery Docs
 

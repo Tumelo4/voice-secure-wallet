@@ -36,8 +36,8 @@ is not a bounded context with business ownership.
 `apps/mobile` is the React Native readiness dashboard. It is a presentation
 surface over build evidence, not a bounded context that owns payment, ledger,
 risk, or launch decisions. Its API access remains behind client, transport, and
-token-session, and Redux-flow ports so mobile screens do not own HTTP, auth, or
-retry policy.
+token-session, Redux-flow, and resilience-policy ports so mobile screens do not
+own HTTP, auth, retry, or offline queue policy.
 
 `api-adapter-service` is a boundary adapter. It protects domain services from
 HTTP, JSON, authentication, traceability, rate-limit, and request-log details,
@@ -70,6 +70,8 @@ but it does not own business policy.
 | Refresh window | Safety interval before access-token expiry where the mobile app refreshes credentials rather than sending a token that may expire in flight. |
 | Mobile API flow | Redux thunk-style command that dispatches request-started, request-succeeded, or request-failed actions around wallet and payment API client calls. |
 | Request state | Redux-friendly `idle`, `loading`, `succeeded`, or `failed` state with optional data, error, and trace ID evidence. |
+| Mobile resilience policy | Local mobile rule set for retry backoff, non-retryable failures, offline payment queueing, and ordered replay before durable infrastructure exists. |
+| Offline payment queue | Device-local queue of payment-start commands keyed by idempotency key so duplicate taps or reconnects do not create duplicate payment commands. |
 | API adapter | Boundary layer that translates HTTP-style requests into domain service calls and maps domain outcomes back to stable JSON responses. |
 | API runtime boundary | Guard layer that verifies bearer tokens, requires trace IDs, rate-limits authenticated principals, forwards valid requests, and records request outcomes. |
 
