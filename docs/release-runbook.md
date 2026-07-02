@@ -33,6 +33,7 @@ incident response, rollback, or customer recovery.
 | Phase 10: API Runtime Boundary | Auth, trace, rate-limit, and request-log guards wrap API adapters before a production server is added. | API runtime tests. |
 | Phase 11: Mobile UI Stack | The readiness UI uses React Native, NativeWind/Tailwind CSS, and Redux Toolkit. | Mobile UI state-model tests. |
 | Phase 12: Mobile TypeScript Hardening | Mobile UI model, selectors, Redux slice, and tests are TypeScript-first. | TypeScript mobile UI tests on Node 24. |
+| Phase 13: Mobile API Client Boundary | Mobile payment and wallet reads use typed API clients, transport ports, and Redux-friendly request state. | Mobile API client tests. |
 
 ## Pre-Release Checklist
 

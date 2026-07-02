@@ -136,6 +136,7 @@ const testSuites: TestSuiteEvidence[] = [
   { name: "Identity", passing: 5 },
   { name: "Launch", passing: 4 },
   { name: "Ledger", passing: 6 },
+  { name: "Mobile API client", passing: 4 },
   { name: "Mobile UI", passing: 5 },
   { name: "Notifications", passing: 4 },
   { name: "Ops", passing: 5 },
