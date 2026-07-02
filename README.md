@@ -66,7 +66,8 @@ a product microservice.
 - Java 17 `api-adapter-service` contracts and runtime boundary for payment
   commands, wallet balance reads, auth, traceability, rate limiting, and
   request logging.
-- Dependency-free `apps/web` readiness dashboard UI.
+- React Native `apps/mobile` readiness dashboard using NativeWind/Tailwind CSS
+  and Redux Toolkit.
 - PostgreSQL schema migration for signed, append-only ledger entries.
 - In-memory repository for deterministic local tests.
 - Repair API domain stub requiring a justification payload.
@@ -76,7 +77,7 @@ a product microservice.
   decisions, fraud/compliance event contracts, BDD acceptance scenarios,
   recovery flows, support workflows, API adapter/runtime guards,
   observability/DR plan validation, launch readiness, voice verification flows,
-  and web dashboard checks.
+  and mobile dashboard checks.
 
 ## Benchmark
 
@@ -100,7 +101,7 @@ is executable through the local test suite or represented as launch evidence:
 | Launch | Chaos, security, pen test, shadow mode, 10x load, 100/100 fallback, RTO/RPO, CVE scan source, and pen-test report evidence are validated. |
 | API adapters | Payment POST validates idempotency and trace headers, maps conflicts to `409`, wallet balance reads return JSON, and unknown routes return JSON `404`. |
 | API runtime | Protected routes require bearer tokens, invalid tokens return `403`, trace IDs are required before routing, rate limits return `429`, and request outcomes are logged. |
-| Web UI | Dashboard model, phase order, risk blockers, accessible summary cards, and visible validation counts are covered by Node tests. |
+| Mobile UI | React Native stack declaration, Redux readiness state, mobile accessibility labels, dashboard section order, and NativeWind/Tailwind class tokens are covered by Node tests. |
 
 ## How To Use It
 
@@ -135,14 +136,14 @@ Run the voice tests with a Python 3.10+ executable:
 python services/voice-service/test_voice_service.py
 ```
 
-Run the web UI tests:
+Run the mobile UI tests:
 
 ```sh
-node --test apps/web/test/dashboard.test.mjs
+node --test apps/mobile/test/readinessDashboard.test.mjs
 ```
 
 The first CI slice is defined in `.github/workflows/service-ci.yml`. It runs the
-same direct Java compile/test loop, Python voice tests, web UI tests, and
+same direct Java compile/test loop, Python voice tests, mobile UI tests, and
 whitespace check on pull requests and pushes to `main`.
 
 Use each service README for the smallest code example for that service. The

@@ -33,9 +33,9 @@ infrastructure adapters.
 `event-core` is shared infrastructure for domain events and outbox behavior. It
 is not a bounded context with business ownership.
 
-`apps/web` is a readiness dashboard. It is a presentation surface over build
-evidence, not a bounded context that owns payment, ledger, risk, or launch
-decisions.
+`apps/mobile` is the React Native readiness dashboard. It is a presentation
+surface over build evidence, not a bounded context that owns payment, ledger,
+risk, or launch decisions.
 
 `api-adapter-service` is a boundary adapter. It protects domain services from
 HTTP, JSON, authentication, traceability, rate-limit, and request-log details,
@@ -59,6 +59,7 @@ but it does not own business policy.
 | Token family revocation | Revocation of all refresh tokens in a family after reuse is detected. |
 | Launch evidence | Measured proof for reconciliation, chaos, security, shadow mode, performance, DR, and documentation gates. |
 | Readiness dashboard | UI surface that summarizes service slices, tests, phase status, and remaining production blockers. |
+| Mobile UI stack | React Native app surface styled with NativeWind/Tailwind CSS and backed by Redux Toolkit state. |
 | API adapter | Boundary layer that translates HTTP-style requests into domain service calls and maps domain outcomes back to stable JSON responses. |
 | API runtime boundary | Guard layer that verifies bearer tokens, requires trace IDs, rate-limits authenticated principals, forwards valid requests, and records request outcomes. |
 
