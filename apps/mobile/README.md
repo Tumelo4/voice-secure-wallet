@@ -35,6 +35,8 @@ balance reads. The client depends on an `ApiTransport` port, so React Native
 touching components. The current transport adapter wraps React Native `fetch`,
 normalizes base URLs and paths, preserves response headers, maps network
 failures into typed API errors, and resolves tokens through a provider port.
+Token sessions are stored behind a vault port, so native secure storage can be
+connected without changing API client or component code.
 
 ## Benchmark
 
@@ -48,6 +50,9 @@ failures into typed API errors, and resolves tokens through a provider port.
   runtime error handling, and Redux-friendly async request transitions.
 - Fetch transport tests prove URL joining, request forwarding, response mapping,
   deterministic network failures, and fresh token-provider reads per request.
+- Token session tests prove secure vault save/load/clear, corrupt payload
+  cleanup, cached access-token reuse, refresh-window renewal, and refresh-failure
+  credential cleanup.
 
 ## How To Use It
 
