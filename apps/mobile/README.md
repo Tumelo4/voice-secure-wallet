@@ -39,6 +39,8 @@ Token sessions are stored behind a vault port, so native secure storage can be
 connected without changing API client or component code.
 Redux API flows now bridge wallet-balance reads and payment-start commands into
 request state that React Native screens can select and render.
+Mobile resilience policy keeps retry/backoff and offline payment queue behavior
+local and deterministic until durable Kafka/AWS-backed infrastructure is added.
 
 ## Benchmark
 
@@ -57,6 +59,9 @@ request state that React Native screens can select and render.
   credential cleanup.
 - Redux API flow tests prove wallet success, payment success, API failure,
   auth-session failure, trace preservation, and previous-data preservation.
+- Resilience policy tests prove retry backoff/capping, non-retryable auth and
+  validation failures, idempotent offline payment enqueue, local queue-depth
+  limits, ordered drain, and retryable blocker preservation.
 
 ## How To Use It
 

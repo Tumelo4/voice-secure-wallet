@@ -18,11 +18,12 @@ test("readiness state keeps service and validation evidence", () => {
   const state = createReadinessState();
 
   assert.equal(state.services.length, 13);
-  assert.equal(readinessSelectors.totalPassingTests(state), 103);
-  assert.equal(readinessSelectors.activePhase(state).name, "Mobile Redux API Flows");
+  assert.equal(readinessSelectors.totalPassingTests(state), 109);
+  assert.equal(readinessSelectors.activePhase(state).name, "Mobile Resilience Policy");
   assert.ok(state.testSuites.some((suite) => suite.name === "API runtime"));
   assert.ok(state.testSuites.some((suite) => suite.name === "Mobile API client"));
   assert.ok(state.testSuites.some((suite) => suite.name === "Mobile fetch transport"));
+  assert.ok(state.testSuites.some((suite) => suite.name === "Mobile resilience policy"));
   assert.ok(state.testSuites.some((suite) => suite.name === "Mobile Redux API flows"));
   assert.ok(state.testSuites.some((suite) => suite.name === "Mobile token session"));
 });
@@ -33,7 +34,7 @@ test("summary cards expose mobile accessible labels and current counts", () => {
 
   assert.deepEqual(cards.map((card) => card.accessibilityLabel), [
     "Services ready 13 of 13",
-    "Tests passing 103 of 103",
+    "Tests passing 109 of 109",
     "CI status Service CI passing",
     "Launch gates 4 of 16",
   ]);

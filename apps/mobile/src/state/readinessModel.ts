@@ -102,7 +102,8 @@ const phases: Phase[] = [
   { name: "API Runtime Boundary", status: "complete", evidence: "Bearer auth, trace IDs, rate limits, and request logs guard API adapters" },
   { name: "Mobile Fetch Transport", status: "complete", evidence: "React Native fetch adapter, network error mapping, and token provider boundary" },
   { name: "Mobile Token Session", status: "complete", evidence: "Secure token vault port, refresh-window policy, and refresh-failure cleanup" },
-  { name: "Mobile Redux API Flows", status: "active", evidence: "Thunk-style wallet and payment flows update Redux request state" },
+  { name: "Mobile Redux API Flows", status: "complete", evidence: "Thunk-style wallet and payment flows update Redux request state" },
+  { name: "Mobile Resilience Policy", status: "active", evidence: "Retry backoff, offline payment queue, idempotent enqueue, and ordered drain policy" },
 ];
 
 const blockers: Blocker[] = [
@@ -116,7 +117,7 @@ const blockers: Blocker[] = [
   },
   {
     title: "Mobile secure storage",
-    detail: "The mobile token vault port exists; native OS keystore wiring, retry policy, and offline queueing still need implementation.",
+    detail: "The mobile token vault port exists; native OS keystore wiring still needs implementation.",
   },
   {
     title: "Mobile screen commands",
@@ -149,6 +150,7 @@ const testSuites: TestSuiteEvidence[] = [
   { name: "Ledger", passing: 6 },
   { name: "Mobile API client", passing: 4 },
   { name: "Mobile fetch transport", passing: 4 },
+  { name: "Mobile resilience policy", passing: 6 },
   { name: "Mobile Redux API flows", passing: 5 },
   { name: "Mobile token session", passing: 5 },
   { name: "Mobile UI", passing: 5 },
