@@ -1,3 +1,5 @@
+import { StaticAccessTokenProvider, type AccessTokenProvider } from "../auth/tokenProvider.ts";
+
 export interface ApiTransportRequest {
   method: "GET" | "POST";
   path: string;
@@ -16,7 +18,8 @@ export interface ApiTransport {
 }
 
 export interface VoiceSecureApiClientConfig {
-  token: string;
+  token?: string;
+  tokenProvider?: AccessTokenProvider;
   traceIdFactory: () => string;
   transport: ApiTransport;
 }
@@ -67,12 +70,12 @@ export class ApiClientError extends Error {
 }
 
 export class VoiceSecureApiClient {
-  private readonly token: string;
+  private readonly tokenProvider: AccessTokenProvider;
   private readonly traceIdFactory: () => string;
   private readonly transport: ApiTransport;
 
   constructor(config: VoiceSecureApiClientConfig) {
-    this.token = requireNonBlank(config.token, "token");
+    this.tokenProvider = resolveTokenProvider(config);
     this.traceIdFactory = config.traceIdFactory;
     this.transport = config.transport;
   }
@@ -100,11 +103,12 @@ export class VoiceSecureApiClient {
 
   private async sendJson<T>(request: Omit<ApiTransportRequest, "headers"> & { headers: Record<string, string> }): Promise<T> {
     const traceId = requireNonBlank(this.traceIdFactory(), "traceId");
+    const token = requireNonBlank(await this.tokenProvider.getAccessToken(), "token");
     const response = await this.transport.send({
       ...request,
       headers: {
         ...request.headers,
-        Authorization: `Bearer ${this.token}`,
+        Authorization: `Bearer ${token}`,
         "X-Trace-Id": traceId,
       },
     });
@@ -114,6 +118,13 @@ export class VoiceSecureApiClient {
     }
     return parseJson<T>(response.body, "response body");
   }
+}
+
+function resolveTokenProvider(config: VoiceSecureApiClientConfig): AccessTokenProvider {
+  if (config.tokenProvider) {
+    return config.tokenProvider;
+  }
+  return new StaticAccessTokenProvider(requireNonBlank(config.token, "token"));
 }
 
 function errorFromResponse(response: ApiTransportResponse): ApiClientError {
@@ -132,7 +143,7 @@ function parseJson<T>(body: string, label: string): T {
   }
 }
 
-function requireNonBlank(value: string, field: string): string {
+function requireNonBlank(value: string | null | undefined, field: string): string {
   if (value == null || value.trim() === "") {
     throw new ApiClientError(400, "VALIDATION_FAILED", `${field} is required`);
   }

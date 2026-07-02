@@ -67,7 +67,8 @@ a product microservice.
   commands, wallet balance reads, auth, traceability, rate limiting, and
   request logging.
 - React Native TypeScript `apps/mobile` readiness dashboard using
-  NativeWind/Tailwind CSS and Redux Toolkit.
+  NativeWind/Tailwind CSS and Redux Toolkit, with typed API client and fetch
+  transport boundaries.
 - PostgreSQL schema migration for signed, append-only ledger entries.
 - In-memory repository for deterministic local tests.
 - Repair API domain stub requiring a justification payload.
@@ -103,6 +104,7 @@ is executable through the local test suite or represented as launch evidence:
 | API runtime | Protected routes require bearer tokens, invalid tokens return `403`, trace IDs are required before routing, rate limits return `429`, and request outcomes are logged. |
 | Mobile UI | React Native TypeScript stack declaration, Redux readiness state, mobile accessibility labels, dashboard section order, and NativeWind/Tailwind class tokens are covered by Node tests. |
 | Mobile API client | Payment commands and wallet balance reads use a typed transport port, runtime headers, API error mapping, and Redux-friendly async request states. |
+| Mobile fetch transport | React Native fetch calls are isolated behind `ApiTransport`, base URLs and paths join safely, response headers/body are preserved, network failures map to typed `503` errors, and a token-provider port supports rotating credentials. |
 
 ## How To Use It
 
@@ -149,8 +151,9 @@ whitespace check on pull requests and pushes to `main`.
 
 Use each service README for the smallest code example for that service. The
 remaining production plan still requires a production network server, durable
-infrastructure, full Pact/Schema Registry checks, chaos tests, and launch
-evidence before the PDF launch criteria can be marked complete.
+infrastructure, secure mobile token storage, full Pact/Schema Registry checks,
+chaos tests, and launch evidence before the PDF launch criteria can be marked
+complete.
 
 ## Delivery Docs
 

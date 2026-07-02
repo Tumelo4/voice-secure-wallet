@@ -32,7 +32,9 @@ readiness state model used by the mobile UI.
 It also includes a typed API client boundary for payment commands and wallet
 balance reads. The client depends on an `ApiTransport` port, so React Native
 `fetch`, deterministic tests, or future offline adapters can be swapped without
-touching components.
+touching components. The current transport adapter wraps React Native `fetch`,
+normalizes base URLs and paths, preserves response headers, maps network
+failures into typed API errors, and resolves tokens through a provider port.
 
 ## Benchmark
 
@@ -44,6 +46,8 @@ touching components.
   grid.
 - API client tests prove payment POST headers/body, wallet GET mapping,
   runtime error handling, and Redux-friendly async request transitions.
+- Fetch transport tests prove URL joining, request forwarding, response mapping,
+  deterministic network failures, and fresh token-provider reads per request.
 
 ## How To Use It
 

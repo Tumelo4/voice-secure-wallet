@@ -99,7 +99,8 @@ const phases: Phase[] = [
   { name: "Observability & DR", status: "modeled", evidence: "Policy validators and CI gate, infra still pending" },
   { name: "Hardening & Launch", status: "modeled", evidence: "Launch evidence model, real staging evidence still pending" },
   { name: "API Adapters", status: "complete", evidence: "HTTP payment commands and wallet balance reads mapped to domain services" },
-  { name: "API Runtime Boundary", status: "active", evidence: "Bearer auth, trace IDs, rate limits, and request logs guard API adapters" },
+  { name: "API Runtime Boundary", status: "complete", evidence: "Bearer auth, trace IDs, rate limits, and request logs guard API adapters" },
+  { name: "Mobile Fetch Transport", status: "active", evidence: "React Native fetch adapter, network error mapping, and token provider boundary" },
 ];
 
 const blockers: Blocker[] = [
@@ -110,6 +111,10 @@ const blockers: Blocker[] = [
   {
     title: "Network server integration",
     detail: "Framework-free runtime guards exist; production listener, external auth provider, distributed rate limits, and mTLS are still pending.",
+  },
+  {
+    title: "Mobile secure storage",
+    detail: "The mobile token-provider port exists; OS keystore storage, refresh flow, retry policy, and offline queueing still need implementation.",
   },
   {
     title: "Terraform",
@@ -137,6 +142,7 @@ const testSuites: TestSuiteEvidence[] = [
   { name: "Launch", passing: 4 },
   { name: "Ledger", passing: 6 },
   { name: "Mobile API client", passing: 4 },
+  { name: "Mobile fetch transport", passing: 4 },
   { name: "Mobile UI", passing: 5 },
   { name: "Notifications", passing: 4 },
   { name: "Ops", passing: 5 },
