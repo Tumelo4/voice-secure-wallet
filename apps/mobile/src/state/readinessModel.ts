@@ -103,7 +103,8 @@ const phases: Phase[] = [
   { name: "Mobile Fetch Transport", status: "complete", evidence: "React Native fetch adapter, network error mapping, and token provider boundary" },
   { name: "Mobile Token Session", status: "complete", evidence: "Secure token vault port, refresh-window policy, and refresh-failure cleanup" },
   { name: "Mobile Redux API Flows", status: "complete", evidence: "Thunk-style wallet and payment flows update Redux request state" },
-  { name: "Mobile Resilience Policy", status: "active", evidence: "Retry backoff, offline payment queue, idempotent enqueue, and ordered drain policy" },
+  { name: "Mobile Resilience Policy", status: "complete", evidence: "Retry backoff, offline payment queue, idempotent enqueue, and ordered drain policy" },
+  { name: "API Local HTTP Listener", status: "active", evidence: "JDK HTTP listener forwards real socket requests through runtime guards" },
 ];
 
 const blockers: Blocker[] = [
@@ -113,7 +114,7 @@ const blockers: Blocker[] = [
   },
   {
     title: "Network server integration",
-    detail: "Framework-free runtime guards exist; production listener, external auth provider, distributed rate limits, and mTLS are still pending.",
+    detail: "A local JDK listener exists; external auth provider, distributed rate limits, mTLS, and production ingress are still pending.",
   },
   {
     title: "Mobile secure storage",
@@ -139,6 +140,7 @@ const blockers: Blocker[] = [
 
 const testSuites: TestSuiteEvidence[] = [
   { name: "API adapters", passing: 5 },
+  { name: "API local HTTP listener", passing: 3 },
   { name: "API runtime", passing: 5 },
   { name: "Acceptance", passing: 3 },
   { name: "Compliance", passing: 2 },

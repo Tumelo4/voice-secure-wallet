@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 
-public final class ApiRuntime {
+public final class ApiRuntime implements ApiEndpoint {
     private static final String AUTHENTICATION_REQUIRED = "AUTHENTICATION_REQUIRED";
     private static final String FORBIDDEN = "FORBIDDEN";
     private static final String TRACE_REQUIRED = "TRACE_REQUIRED";
@@ -27,6 +27,12 @@ public final class ApiRuntime {
         this.logSink = Objects.requireNonNull(logSink, "logSink");
     }
 
+    @Override
+    public boolean supports(ApiRequest request) {
+        return true;
+    }
+
+    @Override
     public ApiResponse handle(ApiRequest request) {
         Objects.requireNonNull(request, "request");
         String traceId = request.header("X-Trace-Id");

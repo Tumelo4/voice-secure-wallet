@@ -41,7 +41,9 @@ own HTTP, auth, retry, or offline queue policy.
 
 `api-adapter-service` is a boundary adapter. It protects domain services from
 HTTP, JSON, authentication, traceability, rate-limit, and request-log details,
-but it does not own business policy.
+but it does not own business policy. Its local HTTP listener translates sockets
+into the same `ApiRequest`/`ApiResponse` runtime port; production ingress, mTLS,
+distributed rate limits, Kafka, and AWS remain separate infrastructure concerns.
 
 ## Terms
 
@@ -74,6 +76,7 @@ but it does not own business policy.
 | Offline payment queue | Device-local queue of payment-start commands keyed by idempotency key so duplicate taps or reconnects do not create duplicate payment commands. |
 | API adapter | Boundary layer that translates HTTP-style requests into domain service calls and maps domain outcomes back to stable JSON responses. |
 | API runtime boundary | Guard layer that verifies bearer tokens, requires trace IDs, rate-limits authenticated principals, forwards valid requests, and records request outcomes. |
+| API local HTTP listener | JDK HTTP server adapter that maps localhost socket requests into `ApiRuntime` and preserves status, JSON headers, and retry hints. |
 
 ## Testing Style
 
