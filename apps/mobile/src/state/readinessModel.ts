@@ -101,7 +101,8 @@ const phases: Phase[] = [
   { name: "API Adapters", status: "complete", evidence: "HTTP payment commands and wallet balance reads mapped to domain services" },
   { name: "API Runtime Boundary", status: "complete", evidence: "Bearer auth, trace IDs, rate limits, and request logs guard API adapters" },
   { name: "Mobile Fetch Transport", status: "complete", evidence: "React Native fetch adapter, network error mapping, and token provider boundary" },
-  { name: "Mobile Token Session", status: "active", evidence: "Secure token vault port, refresh-window policy, and refresh-failure cleanup" },
+  { name: "Mobile Token Session", status: "complete", evidence: "Secure token vault port, refresh-window policy, and refresh-failure cleanup" },
+  { name: "Mobile Redux API Flows", status: "active", evidence: "Thunk-style wallet and payment flows update Redux request state" },
 ];
 
 const blockers: Blocker[] = [
@@ -116,6 +117,10 @@ const blockers: Blocker[] = [
   {
     title: "Mobile secure storage",
     detail: "The mobile token vault port exists; native OS keystore wiring, retry policy, and offline queueing still need implementation.",
+  },
+  {
+    title: "Mobile screen commands",
+    detail: "Redux API flows exist; form screens, user-triggered dispatch, optimistic UX, and retry/backoff policy still need production wiring.",
   },
   {
     title: "Terraform",
@@ -144,6 +149,7 @@ const testSuites: TestSuiteEvidence[] = [
   { name: "Ledger", passing: 6 },
   { name: "Mobile API client", passing: 4 },
   { name: "Mobile fetch transport", passing: 4 },
+  { name: "Mobile Redux API flows", passing: 5 },
   { name: "Mobile token session", passing: 5 },
   { name: "Mobile UI", passing: 5 },
   { name: "Notifications", passing: 4 },

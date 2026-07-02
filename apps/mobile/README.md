@@ -37,6 +37,8 @@ normalizes base URLs and paths, preserves response headers, maps network
 failures into typed API errors, and resolves tokens through a provider port.
 Token sessions are stored behind a vault port, so native secure storage can be
 connected without changing API client or component code.
+Redux API flows now bridge wallet-balance reads and payment-start commands into
+request state that React Native screens can select and render.
 
 ## Benchmark
 
@@ -53,6 +55,8 @@ connected without changing API client or component code.
 - Token session tests prove secure vault save/load/clear, corrupt payload
   cleanup, cached access-token reuse, refresh-window renewal, and refresh-failure
   credential cleanup.
+- Redux API flow tests prove wallet success, payment success, API failure,
+  auth-session failure, trace preservation, and previous-data preservation.
 
 ## How To Use It
 

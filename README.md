@@ -68,7 +68,7 @@ a product microservice.
   request logging.
 - React Native TypeScript `apps/mobile` readiness dashboard using
   NativeWind/Tailwind CSS and Redux Toolkit, with typed API client and fetch
-  transport boundaries plus mobile token-session ports.
+  transport boundaries, mobile token-session ports, and Redux API flows.
 - PostgreSQL schema migration for signed, append-only ledger entries.
 - In-memory repository for deterministic local tests.
 - Repair API domain stub requiring a justification payload.
@@ -106,6 +106,7 @@ is executable through the local test suite or represented as launch evidence:
 | Mobile API client | Payment commands and wallet balance reads use a typed transport port, runtime headers, API error mapping, and Redux-friendly async request states. |
 | Mobile fetch transport | React Native fetch calls are isolated behind `ApiTransport`, base URLs and paths join safely, response headers/body are preserved, network failures map to typed `503` errors, and a token-provider port supports rotating credentials. |
 | Mobile token session | Secure token sessions are stored behind a vault port, corrupt sessions are cleared, cached access tokens are reused before the refresh window, expiring tokens are refreshed, and failed refresh clears stored credentials. |
+| Mobile Redux API flows | Wallet-balance and payment-start thunks dispatch loading, success, and failure branches into Redux request state while preserving trace IDs, previous data, API errors, and auth-session failures. |
 
 ## How To Use It
 
@@ -152,9 +153,9 @@ whitespace check on pull requests and pushes to `main`.
 
 Use each service README for the smallest code example for that service. The
 remaining production plan still requires a production network server, durable
-infrastructure, native mobile keystore wiring, full Pact/Schema Registry
-checks, chaos tests, and launch evidence before the PDF launch criteria can be
-marked complete.
+infrastructure, native mobile keystore wiring, screen-level mobile command
+forms, full Pact/Schema Registry checks, chaos tests, and launch evidence before
+the PDF launch criteria can be marked complete.
 
 ## Delivery Docs
 
