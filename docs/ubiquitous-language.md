@@ -36,7 +36,7 @@ is not a bounded context with business ownership.
 `apps/mobile` is the React Native readiness dashboard. It is a presentation
 surface over build evidence, not a bounded context that owns payment, ledger,
 risk, or launch decisions. Its API access remains behind client, transport, and
-token-provider ports so mobile screens do not own HTTP, auth, or retry policy.
+token-session ports so mobile screens do not own HTTP, auth, or retry policy.
 
 `api-adapter-service` is a boundary adapter. It protects domain services from
 HTTP, JSON, authentication, traceability, rate-limit, and request-log details,
@@ -64,6 +64,9 @@ but it does not own business policy.
 | Mobile API client | TypeScript boundary that sends API runtime headers, maps payment and wallet responses, preserves API errors, and feeds Redux-friendly request state. |
 | Mobile fetch transport | React Native `fetch` adapter that implements the mobile `ApiTransport` port and maps network failures into stable API client errors. |
 | Access token provider | Mobile auth port that supplies the bearer token per request so secure storage or refresh logic can change without touching API client methods. |
+| Token session | Mobile auth state containing user ID, access token, refresh token, and access-token expiry. |
+| Token vault | Mobile persistence port for saving, loading, and clearing token sessions without coupling app code to a specific secure-storage library. |
+| Refresh window | Safety interval before access-token expiry where the mobile app refreshes credentials rather than sending a token that may expire in flight. |
 | API adapter | Boundary layer that translates HTTP-style requests into domain service calls and maps domain outcomes back to stable JSON responses. |
 | API runtime boundary | Guard layer that verifies bearer tokens, requires trace IDs, rate-limits authenticated principals, forwards valid requests, and records request outcomes. |
 
