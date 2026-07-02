@@ -63,7 +63,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test apps/mobile/test/readinessDashboard.test.ts
+          node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test apps/mobile/test/*.test.ts
 
       - name: Check whitespace
         shell: bash

@@ -102,6 +102,7 @@ is executable through the local test suite or represented as launch evidence:
 | API adapters | Payment POST validates idempotency and trace headers, maps conflicts to `409`, wallet balance reads return JSON, and unknown routes return JSON `404`. |
 | API runtime | Protected routes require bearer tokens, invalid tokens return `403`, trace IDs are required before routing, rate limits return `429`, and request outcomes are logged. |
 | Mobile UI | React Native TypeScript stack declaration, Redux readiness state, mobile accessibility labels, dashboard section order, and NativeWind/Tailwind class tokens are covered by Node tests. |
+| Mobile API client | Payment commands and wallet balance reads use a typed transport port, runtime headers, API error mapping, and Redux-friendly async request states. |
 
 ## How To Use It
 
@@ -139,7 +140,7 @@ python services/voice-service/test_voice_service.py
 Run the mobile UI tests:
 
 ```sh
-node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test apps/mobile/test/readinessDashboard.test.ts
+node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test apps/mobile/test/*.test.ts
 ```
 
 The first CI slice is defined in `.github/workflows/service-ci.yml`. It runs the

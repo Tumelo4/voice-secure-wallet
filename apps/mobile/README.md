@@ -29,6 +29,11 @@ It includes the app shell, Redux store, dashboard slice, TypeScript readiness
 model, NativeWind/Tailwind configuration, and dependency-free Node tests for the
 readiness state model used by the mobile UI.
 
+It also includes a typed API client boundary for payment commands and wallet
+balance reads. The client depends on an `ApiTransport` port, so React Native
+`fetch`, deterministic tests, or future offline adapters can be swapped without
+touching components.
+
 ## Benchmark
 
 - The TypeScript state model declares React Native, NativeWind/Tailwind, and
@@ -37,6 +42,8 @@ readiness state model used by the mobile UI.
 - Dashboard sections preserve summary, phases, risks, and evidence order.
 - Tailwind class tokens cover the mobile screen, cards, active phase, and metric
   grid.
+- API client tests prove payment POST headers/body, wallet GET mapping,
+  runtime error handling, and Redux-friendly async request transitions.
 
 ## How To Use It
 
