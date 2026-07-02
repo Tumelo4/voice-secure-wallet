@@ -7,7 +7,7 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "test": "node --test test/readinessDashboard.test.mjs"
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test test/readinessDashboard.test.ts"
   },
   "dependencies": {
     "@reduxjs/toolkit": ">=2.4.0",

@@ -1,6 +1,6 @@
 # VoiceSecure Mobile App
 
-React Native readiness dashboard for VoiceSecure Wallet.
+React Native TypeScript readiness dashboard for VoiceSecure Wallet.
 
 ## Problem Statement
 
@@ -18,21 +18,21 @@ styling system that can move toward production app flows.
 
 ## Stack
 
-- React Native through Expo.
+- React Native through Expo and TypeScript.
 - Tailwind CSS through NativeWind.
 - Redux through Redux Toolkit and React Redux.
 
 ## Scope
 
 This phase migrates the previous static readiness dashboard into `apps/mobile`.
-It includes the app shell, Redux store, dashboard slice, NativeWind/Tailwind
-configuration, and dependency-free Node tests for the readiness state model used
-by the mobile UI.
+It includes the app shell, Redux store, dashboard slice, TypeScript readiness
+model, NativeWind/Tailwind configuration, and dependency-free Node tests for the
+readiness state model used by the mobile UI.
 
 ## Benchmark
 
-- The state model declares React Native, NativeWind/Tailwind, and Redux Toolkit
-  as the UI stack.
+- The TypeScript state model declares React Native, NativeWind/Tailwind, and
+  Redux Toolkit as the UI stack.
 - Summary cards expose mobile accessibility labels.
 - Dashboard sections preserve summary, phases, risks, and evidence order.
 - Tailwind class tokens cover the mobile screen, cards, active phase, and metric
@@ -52,3 +52,6 @@ Run the dependency-free state model tests:
 ```sh
 npm test
 ```
+
+The test command uses Node 24 native TypeScript execution for the small
+dependency-free state model checks.
