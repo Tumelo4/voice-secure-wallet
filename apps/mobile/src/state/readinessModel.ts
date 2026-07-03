@@ -110,7 +110,8 @@ const phases: Phase[] = [
   { name: "Production Cutover Readiness", status: "complete", evidence: "Change ticket, rollback, feature flags, monitoring, on-call, support, and rollback SLA validated" },
   { name: "Production Ingress Readiness", status: "complete", evidence: "TLS 1.3, mTLS, JWKS, WAF, HSTS, distributed rate limits, trace forwarding, and health-path controls validated" },
   { name: "Mobile Native Secure Storage", status: "complete", evidence: "Native secure-store driver port, hardware-backed options, device-only storage, biometric/passcode guard, and cloud-sync blocker validated" },
-  { name: "Mobile Screen Commands", status: "active", evidence: "Wallet-balance and payment-start screen forms validate user input before dispatching Redux API flows" },
+  { name: "Mobile Screen Commands", status: "complete", evidence: "Wallet-balance and payment-start screen forms validate user input before dispatching Redux API flows" },
+  { name: "Pact Schema Registry Readiness", status: "active", evidence: "Pact broker, consumer verification, Schema Registry, schema pinning, and backward-transitive compatibility validated locally" },
 ];
 
 const blockers: Blocker[] = [
@@ -136,7 +137,7 @@ const blockers: Blocker[] = [
   },
   {
     title: "Pact",
-    detail: "Local event contracts exist; Pact and Schema Registry compatibility are still pending.",
+    detail: "Pact and Schema Registry readiness is modeled; live Pact broker credentials, Schema Registry credentials, and provider-state verification still need environment tests.",
   },
   {
     title: "Launch evidence",
@@ -152,6 +153,7 @@ const testSuites: TestSuiteEvidence[] = [
   { name: "Acceptance", passing: 3 },
   { name: "Compliance", passing: 2 },
   { name: "Contracts", passing: 3 },
+  { name: "Contract compatibility", passing: 3 },
   { name: "Durable infrastructure", passing: 5 },
   { name: "Events", passing: 6 },
   { name: "Fraud", passing: 4 },
@@ -185,7 +187,7 @@ export const dashboardSections: DashboardSection[] = [
 export function createReadinessState(): ReadinessState {
   const testsPassing = readinessSelectors.totalPassingTests({ testSuites });
   return {
-    generatedAt: "2026-07-03T19:30:00+02:00",
+    generatedAt: "2026-07-03T20:30:00+02:00",
     stack: uiStack,
     services,
     phases,
