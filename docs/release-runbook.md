@@ -43,6 +43,7 @@ incident response, rollback, or customer recovery.
 | Phase 20: Terraform AWS Baseline | Terraform declares the first AWS baseline for VPC, KMS, MSK, RDS, Redis, S3 object lock, and managed secret references. | Terraform AWS baseline tests. |
 | Phase 21: Production Cutover Readiness | Launch validation now blocks production without change approval, tested rollback, locked flags, armed monitoring, on-call coverage, support briefing, and rollback SLA evidence. | Production cutover launch tests. |
 | Phase 22: Production Ingress Readiness | API ingress validation blocks production without TLS 1.3, mTLS, JWKS, distributed rate limits, WAF, HSTS, trace forwarding, body limits, and safe public paths. | Production ingress validator tests. |
+| Phase 23: Mobile Native Secure Storage | Mobile token sessions now require encrypted, hardware-backed, device-only, biometric/passcode-protected storage that does not sync to cloud backups. | Mobile token session tests. |
 
 ## Pre-Release Checklist
 
@@ -72,6 +73,9 @@ incident response, rollback, or customer recovery.
 - [ ] Confirm alert routing is working for payment, identity, and ops signals.
 - [ ] Confirm WAF, HSTS, JWKS discovery, distributed rate limits, request body
   limits, and health-only public paths are enabled at the edge.
+- [ ] Confirm iOS Keychain and Android Keystore builds use hardware-backed,
+  device-only storage with biometric or passcode protection.
+- [ ] Confirm token sessions are excluded from cloud backup/sync.
 - [ ] Confirm primary and secondary on-call owners are online.
 - [ ] Confirm support has the customer-facing briefing and escalation script.
 - [ ] Confirm disaster recovery evidence is attached for the latest run.

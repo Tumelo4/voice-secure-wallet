@@ -108,7 +108,8 @@ const phases: Phase[] = [
   { name: "Durable Infrastructure Readiness", status: "complete", evidence: "Kafka topic durability and AWS HA/encryption controls validated locally" },
   { name: "Terraform AWS Baseline", status: "complete", evidence: "VPC, KMS, MSK, RDS, Redis, S3 object lock, and Secrets Manager references declared" },
   { name: "Production Cutover Readiness", status: "complete", evidence: "Change ticket, rollback, feature flags, monitoring, on-call, support, and rollback SLA validated" },
-  { name: "Production Ingress Readiness", status: "active", evidence: "TLS 1.3, mTLS, JWKS, WAF, HSTS, distributed rate limits, trace forwarding, and health-path controls validated" },
+  { name: "Production Ingress Readiness", status: "complete", evidence: "TLS 1.3, mTLS, JWKS, WAF, HSTS, distributed rate limits, trace forwarding, and health-path controls validated" },
+  { name: "Mobile Native Secure Storage", status: "active", evidence: "Native secure-store driver port, hardware-backed options, device-only storage, biometric/passcode guard, and cloud-sync blocker validated" },
 ];
 
 const blockers: Blocker[] = [
@@ -122,7 +123,7 @@ const blockers: Blocker[] = [
   },
   {
     title: "Mobile secure storage",
-    detail: "The mobile token vault port exists; native OS keystore wiring still needs implementation.",
+    detail: "Native secure-store readiness is modeled; real iOS Keychain/Android Keystore package wiring and device QA still need environment tests.",
   },
   {
     title: "Mobile screen commands",
@@ -160,7 +161,7 @@ const testSuites: TestSuiteEvidence[] = [
   { name: "Mobile fetch transport", passing: 4 },
   { name: "Mobile resilience policy", passing: 6 },
   { name: "Mobile Redux API flows", passing: 5 },
-  { name: "Mobile token session", passing: 5 },
+  { name: "Mobile token session", passing: 7 },
   { name: "Mobile UI", passing: 5 },
   { name: "Notifications", passing: 4 },
   { name: "Ops", passing: 5 },
@@ -182,7 +183,7 @@ export const dashboardSections: DashboardSection[] = [
 export function createReadinessState(): ReadinessState {
   const testsPassing = readinessSelectors.totalPassingTests({ testSuites });
   return {
-    generatedAt: "2026-07-03T17:30:00+02:00",
+    generatedAt: "2026-07-03T18:30:00+02:00",
     stack: uiStack,
     services,
     phases,
