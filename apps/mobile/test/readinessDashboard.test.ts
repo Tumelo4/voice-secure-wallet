@@ -18,8 +18,9 @@ test("readiness state keeps service and validation evidence", () => {
   const state = createReadinessState();
 
   assert.equal(state.services.length, 13);
-  assert.equal(readinessSelectors.totalPassingTests(state), 123);
-  assert.equal(readinessSelectors.activePhase(state).name, "Production Cutover Readiness");
+  assert.equal(readinessSelectors.totalPassingTests(state), 126);
+  assert.equal(readinessSelectors.activePhase(state).name, "Production Ingress Readiness");
+  assert.ok(state.testSuites.some((suite) => suite.name === "API production ingress"));
   assert.ok(state.testSuites.some((suite) => suite.name === "API local HTTP listener"));
   assert.ok(state.testSuites.some((suite) => suite.name === "API runtime"));
   assert.ok(state.testSuites.some((suite) => suite.name === "Durable infrastructure"));
@@ -37,7 +38,7 @@ test("summary cards expose mobile accessible labels and current counts", () => {
 
   assert.deepEqual(cards.map((card) => card.accessibilityLabel), [
     "Services ready 13 of 13",
-    "Tests passing 123 of 123",
+    "Tests passing 126 of 126",
     "CI status Service CI passing",
     "Launch gates 5 of 17",
   ]);

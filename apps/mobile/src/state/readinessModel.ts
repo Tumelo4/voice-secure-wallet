@@ -107,7 +107,8 @@ const phases: Phase[] = [
   { name: "API Local HTTP Listener", status: "complete", evidence: "JDK HTTP listener forwards real socket requests through runtime guards" },
   { name: "Durable Infrastructure Readiness", status: "complete", evidence: "Kafka topic durability and AWS HA/encryption controls validated locally" },
   { name: "Terraform AWS Baseline", status: "complete", evidence: "VPC, KMS, MSK, RDS, Redis, S3 object lock, and Secrets Manager references declared" },
-  { name: "Production Cutover Readiness", status: "active", evidence: "Change ticket, rollback, feature flags, monitoring, on-call, support, and rollback SLA validated" },
+  { name: "Production Cutover Readiness", status: "complete", evidence: "Change ticket, rollback, feature flags, monitoring, on-call, support, and rollback SLA validated" },
+  { name: "Production Ingress Readiness", status: "active", evidence: "TLS 1.3, mTLS, JWKS, WAF, HSTS, distributed rate limits, trace forwarding, and health-path controls validated" },
 ];
 
 const blockers: Blocker[] = [
@@ -117,7 +118,7 @@ const blockers: Blocker[] = [
   },
   {
     title: "Network server integration",
-    detail: "A local JDK listener exists; external auth provider, distributed rate limits, mTLS, and production ingress are still pending.",
+    detail: "Production ingress policy is modeled; live certificate provisioning, load balancer deployment, DNS, and external JWKS integration still need environment tests.",
   },
   {
     title: "Mobile secure storage",
@@ -129,7 +130,7 @@ const blockers: Blocker[] = [
   },
   {
     title: "Terraform",
-    detail: "VPC, ECS/Fargate, RDS/MSK/ElastiCache, mTLS, and object-lock storage are not provisioned.",
+    detail: "VPC, ECS/Fargate, RDS/MSK/ElastiCache, edge certificates, and object-lock storage are not provisioned.",
   },
   {
     title: "Pact",
@@ -144,6 +145,7 @@ const blockers: Blocker[] = [
 const testSuites: TestSuiteEvidence[] = [
   { name: "API adapters", passing: 5 },
   { name: "API local HTTP listener", passing: 3 },
+  { name: "API production ingress", passing: 3 },
   { name: "API runtime", passing: 5 },
   { name: "Acceptance", passing: 3 },
   { name: "Compliance", passing: 2 },
@@ -180,7 +182,7 @@ export const dashboardSections: DashboardSection[] = [
 export function createReadinessState(): ReadinessState {
   const testsPassing = readinessSelectors.totalPassingTests({ testSuites });
   return {
-    generatedAt: "2026-07-03T12:00:00+02:00",
+    generatedAt: "2026-07-03T17:30:00+02:00",
     stack: uiStack,
     services,
     phases,

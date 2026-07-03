@@ -70,7 +70,8 @@ a product microservice.
   cutover, and launch gates.
 - Java 17 `api-adapter-service` contracts and runtime boundary for payment
   commands, wallet balance reads, auth, traceability, rate limiting, and
-  request logging, plus a local JDK HTTP listener.
+  request logging, plus a local JDK HTTP listener and production ingress
+  readiness validator.
 - React Native TypeScript `apps/mobile` readiness dashboard using
   NativeWind/Tailwind CSS and Redux Toolkit, with typed API client and fetch
   transport boundaries, mobile token-session ports, Redux API flows, and
@@ -111,6 +112,7 @@ is executable through the local test suite or represented as launch evidence:
 | API adapters | Payment POST validates idempotency and trace headers, maps conflicts to `409`, wallet balance reads return JSON, and unknown routes return JSON `404`. |
 | API runtime | Protected routes require bearer tokens, invalid tokens return `403`, trace IDs are required before routing, rate limits return `429`, and request outcomes are logged. |
 | API local HTTP listener | Local socket tests prove wallet GET, payment POST JSON, runtime auth/trace guards, JSON headers, request logging, and rate-limit `Retry-After` propagation through the JDK HTTP server boundary. |
+| API production ingress | TLS 1.3, mTLS, forwarded client certificate identity, OIDC/JWKS, distributed rate limits, WAF, HSTS, trace forwarding, 256 KB request body limits, health-only public paths, and blocked admin exposure are validated before production. |
 | Mobile UI | React Native TypeScript stack declaration, Redux readiness state, mobile accessibility labels, dashboard section order, and NativeWind/Tailwind class tokens are covered by Node tests. |
 | Mobile API client | Payment commands and wallet balance reads use a typed transport port, runtime headers, API error mapping, and Redux-friendly async request states. |
 | Mobile fetch transport | React Native fetch calls are isolated behind `ApiTransport`, base URLs and paths join safely, response headers/body are preserved, network failures map to typed `503` errors, and a token-provider port supports rotating credentials. |
@@ -163,10 +165,11 @@ whitespace check on pull requests and pushes to `main`.
 
 Use each service README for the smallest code example for that service. The
 remaining production plan still requires applying Terraform in a real AWS
-account, live Kafka/AWS integration tests, production ingress, mTLS, native
-mobile keystore wiring, screen-level mobile command forms, full Pact/Schema
-Registry checks, chaos tests, 48-hour staging evidence, and real production
-cutover sign-offs before the PDF launch criteria can be marked complete.
+account, live Kafka/AWS integration tests, deployed ingress certificates and
+DNS, native mobile keystore wiring, screen-level mobile command forms, full
+Pact/Schema Registry checks, chaos tests, 48-hour staging evidence, and real
+production cutover sign-offs before the PDF launch criteria can be marked
+complete.
 
 ## Delivery Docs
 
