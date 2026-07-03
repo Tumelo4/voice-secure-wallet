@@ -61,6 +61,7 @@ certificates, DNS, Kafka, and AWS remain separate infrastructure concerns.
 | Compliance hit | A PEP, sanctions, or AML result that blocks payment before funds move. |
 | Fraud scored event | Contract event emitted by the fraud context with score, approval, auth policy, voice threshold, and device/velocity evidence. |
 | Compliance hit event | Contract event emitted only for blocking PEP, sanctions, or AML screening results. |
+| Contract compatibility plan | Release evidence for Pact broker publication, consumer verification, Schema Registry registration, schema ID pinning, and schema compatibility for domain events. |
 | Device binding | A registered device key used to sign critical requests. |
 | Token family revocation | Revocation of all refresh tokens in a family after reuse is detected. |
 | Launch evidence | Measured proof for reconciliation, chaos, security, shadow mode, performance, DR, and documentation gates. |
@@ -111,8 +112,11 @@ These scenarios live in
 - Contract: `fraud.scored` carries auth policy and threshold.
 - Contract: `compliance.hit` carries PEP hit evidence.
 - Contract: clear compliance results cannot publish `compliance.hit`.
+- Compatibility: Pact and Schema Registry readiness blocks missing broker,
+  consumer verification, schema registration, schema ID pinning, or
+  non-`BACKWARD_TRANSITIVE` compatibility.
 
 These local contract tests live in
-`services/contract-tests/src/test/java/com/voicesecure/contracts`. They are the
-domain-level stepping stone before Pact and Schema Registry checks are wired
-into CI.
+`services/contract-tests/src/test/java/com/voicesecure/contracts`. They are now
+the domain-level stepping stone plus the credential-free compatibility gate
+before live Pact broker and Schema Registry credentials are wired into CI.

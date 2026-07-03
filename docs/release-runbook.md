@@ -45,6 +45,7 @@ incident response, rollback, or customer recovery.
 | Phase 22: Production Ingress Readiness | API ingress validation blocks production without TLS 1.3, mTLS, JWKS, distributed rate limits, WAF, HSTS, trace forwarding, body limits, and safe public paths. | Production ingress validator tests. |
 | Phase 23: Mobile Native Secure Storage | Mobile token sessions now require encrypted, hardware-backed, device-only, biometric/passcode-protected storage that does not sync to cloud backups. | Mobile token session tests. |
 | Phase 24: Mobile Screen Commands | Wallet-balance and payment-start forms validate user input before dispatching existing Redux API flows. | Mobile command form tests. |
+| Phase 25: Pact Schema Registry Readiness | Contract compatibility validation now blocks release without Pact broker publication, consumer verification, Schema Registry registration, schema ID pinning, and backward-transitive compatibility. | Contract compatibility validator tests. |
 
 ## Pre-Release Checklist
 
@@ -79,6 +80,9 @@ incident response, rollback, or customer recovery.
 - [ ] Confirm token sessions are excluded from cloud backup/sync.
 - [ ] Confirm wallet and payment command forms are wired to the production API
   client dependencies on real devices.
+- [ ] Confirm Pact broker and Schema Registry credentials are available in CI.
+- [ ] Confirm provider-state Pact verification and schema compatibility checks
+  are green for the release candidate.
 - [ ] Confirm primary and secondary on-call owners are online.
 - [ ] Confirm support has the customer-facing briefing and escalation script.
 - [ ] Confirm disaster recovery evidence is attached for the latest run.

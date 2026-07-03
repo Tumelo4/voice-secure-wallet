@@ -100,6 +100,7 @@ is executable through the local test suite or represented as launch evidence:
 | Identity | RS256 access-token verification, unknown `kid` rejection, refresh-token reuse revocation, and device-signature validation. |
 | Fraud and compliance | PEP/sanctions/AML screening writes one audit trail entry and fraud policy changes happen through `FraudPolicy`. |
 | Event contracts | `fraud.scored` carries auth policy and voice threshold; `compliance.hit` carries hit evidence and cannot be emitted for clear screening results. |
+| Contract compatibility | Pact broker reachability, Pact publication, consumer verification, Schema Registry reachability, schema registration, schema ID pinning, and `BACKWARD_TRANSITIVE` compatibility are validated for critical event contracts. |
 | Event backbone | Pending outbox messages relay in order, publish failures remain pending, and failed attempts retain last-error evidence. |
 | Voice | Enrollment requires three samples, verification uses Python 3.10+, challenges are single-use, and score ranges are enforced. |
 | Notifications | Payment receipts, payment failure/compensation notices, and voice OTP fallback are event-driven and idempotent by source event ID. |
@@ -168,9 +169,10 @@ Use each service README for the smallest code example for that service. The
 remaining production plan still requires applying Terraform in a real AWS
 account, live Kafka/AWS integration tests, deployed ingress certificates and
 DNS, real iOS Keychain/Android Keystore package QA, screen-level mobile command
-dependency injection and device QA, full Pact/Schema Registry checks, chaos
-tests, 48-hour staging evidence, and real production cutover sign-offs before
-the PDF launch criteria can be marked complete.
+dependency injection and device QA, live Pact broker and Schema Registry
+credentials with provider-state verification, chaos tests, 48-hour staging
+evidence, and real production cutover sign-offs before the PDF launch criteria
+can be marked complete.
 
 ## Delivery Docs
 
