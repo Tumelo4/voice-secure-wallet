@@ -39,6 +39,8 @@ Token sessions are stored behind a vault port, so native secure storage can be
 connected without changing API client or component code.
 Redux API flows now bridge wallet-balance reads and payment-start commands into
 request state that React Native screens can select and render.
+Screen command forms now validate wallet-balance and payment-start input before
+dispatching those Redux API flows.
 Mobile resilience policy keeps retry/backoff and offline payment queue behavior
 local and deterministic until durable Kafka/AWS-backed infrastructure is added.
 
@@ -52,6 +54,9 @@ local and deterministic until durable Kafka/AWS-backed infrastructure is added.
   grid.
 - API client tests prove payment POST headers/body, wallet GET mapping,
   runtime error handling, and Redux-friendly async request transitions.
+- Command form tests prove wallet account trimming, typed payment command
+  construction, user-triggered Redux dispatch, and local validation blockers
+  before API calls.
 - Fetch transport tests prove URL joining, request forwarding, response mapping,
   deterministic network failures, and fresh token-provider reads per request.
 - Token session tests prove secure vault save/load/clear, corrupt payload

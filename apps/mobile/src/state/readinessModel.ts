@@ -109,7 +109,8 @@ const phases: Phase[] = [
   { name: "Terraform AWS Baseline", status: "complete", evidence: "VPC, KMS, MSK, RDS, Redis, S3 object lock, and Secrets Manager references declared" },
   { name: "Production Cutover Readiness", status: "complete", evidence: "Change ticket, rollback, feature flags, monitoring, on-call, support, and rollback SLA validated" },
   { name: "Production Ingress Readiness", status: "complete", evidence: "TLS 1.3, mTLS, JWKS, WAF, HSTS, distributed rate limits, trace forwarding, and health-path controls validated" },
-  { name: "Mobile Native Secure Storage", status: "active", evidence: "Native secure-store driver port, hardware-backed options, device-only storage, biometric/passcode guard, and cloud-sync blocker validated" },
+  { name: "Mobile Native Secure Storage", status: "complete", evidence: "Native secure-store driver port, hardware-backed options, device-only storage, biometric/passcode guard, and cloud-sync blocker validated" },
+  { name: "Mobile Screen Commands", status: "active", evidence: "Wallet-balance and payment-start screen forms validate user input before dispatching Redux API flows" },
 ];
 
 const blockers: Blocker[] = [
@@ -127,7 +128,7 @@ const blockers: Blocker[] = [
   },
   {
     title: "Mobile screen commands",
-    detail: "Redux API flows exist; form screens, user-triggered dispatch, optimistic UX, and retry/backoff policy still need production wiring.",
+    detail: "Wallet and payment command forms now validate locally; real API dependency injection, optimistic UX, and device-level form QA still need production wiring.",
   },
   {
     title: "Terraform",
@@ -158,6 +159,7 @@ const testSuites: TestSuiteEvidence[] = [
   { name: "Launch", passing: 5 },
   { name: "Ledger", passing: 6 },
   { name: "Mobile API client", passing: 4 },
+  { name: "Mobile command forms", passing: 3 },
   { name: "Mobile fetch transport", passing: 4 },
   { name: "Mobile resilience policy", passing: 6 },
   { name: "Mobile Redux API flows", passing: 5 },
@@ -183,7 +185,7 @@ export const dashboardSections: DashboardSection[] = [
 export function createReadinessState(): ReadinessState {
   const testsPassing = readinessSelectors.totalPassingTests({ testSuites });
   return {
-    generatedAt: "2026-07-03T18:30:00+02:00",
+    generatedAt: "2026-07-03T19:30:00+02:00",
     stack: uiStack,
     services,
     phases,
