@@ -105,13 +105,14 @@ const phases: Phase[] = [
   { name: "Mobile Redux API Flows", status: "complete", evidence: "Thunk-style wallet and payment flows update Redux request state" },
   { name: "Mobile Resilience Policy", status: "complete", evidence: "Retry backoff, offline payment queue, idempotent enqueue, and ordered drain policy" },
   { name: "API Local HTTP Listener", status: "complete", evidence: "JDK HTTP listener forwards real socket requests through runtime guards" },
-  { name: "Durable Infrastructure Readiness", status: "active", evidence: "Kafka topic durability and AWS HA/encryption controls validated locally" },
+  { name: "Durable Infrastructure Readiness", status: "complete", evidence: "Kafka topic durability and AWS HA/encryption controls validated locally" },
+  { name: "Terraform AWS Baseline", status: "active", evidence: "VPC, KMS, MSK, RDS, Redis, S3 object lock, and Secrets Manager references declared" },
 ];
 
 const blockers: Blocker[] = [
   {
     title: "Durable infrastructure adapters",
-    detail: "Kafka/AWS readiness contracts exist; live MSK, RDS, Redis, S3, and pgvector adapters still need integration tests.",
+    detail: "Kafka/AWS readiness contracts and Terraform baseline exist; live MSK, RDS, Redis, S3, and pgvector adapters still need integration tests.",
   },
   {
     title: "Network server integration",
@@ -163,6 +164,7 @@ const testSuites: TestSuiteEvidence[] = [
   { name: "Payments", passing: 9 },
   { name: "Recovery", passing: 3 },
   { name: "Support", passing: 4 },
+  { name: "Terraform AWS baseline", passing: 5 },
   { name: "Wallet", passing: 4 },
   { name: "Voice Python", passing: 8 },
 ];

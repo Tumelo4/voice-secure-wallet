@@ -33,6 +33,9 @@ gates, and durable Kafka/AWS infrastructure readiness.
   partitions and replication, schema compatibility, dead-letter queues,
   retention, AWS private subnets, KMS encryption, MSK TLS/IAM, RDS HA/PITR,
   Redis encryption, S3 object lock, and managed secret references.
+- Terraform baseline tests require VPC, private subnets, S3 endpoint, KMS
+  rotation, MSK, RDS, Redis, S3 object lock, Secrets Manager references, and no
+  committed secret values.
 
 ## Benchmark
 
@@ -46,6 +49,8 @@ gates, and durable Kafka/AWS infrastructure readiness.
 - Kafka/AWS readiness must include the full event-topic catalog, at least 3
   partitions, replication factor 3, `BACKWARD_TRANSITIVE` schemas, DLQs,
   retention, and AWS HA/encryption controls before live integration work begins.
+- Terraform AWS baseline tests must pass before the module is planned or
+  applied in a real AWS account.
 
 ## How To Use It
 
