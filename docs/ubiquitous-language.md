@@ -77,6 +77,9 @@ distributed rate limits, Kafka, and AWS remain separate infrastructure concerns.
 | API adapter | Boundary layer that translates HTTP-style requests into domain service calls and maps domain outcomes back to stable JSON responses. |
 | API runtime boundary | Guard layer that verifies bearer tokens, requires trace IDs, rate-limits authenticated principals, forwards valid requests, and records request outcomes. |
 | API local HTTP listener | JDK HTTP server adapter that maps localhost socket requests into `ApiRuntime` and preserves status, JSON headers, and retry hints. |
+| Durable infrastructure readiness | Executable preflight validation for Kafka topic durability and AWS high-availability/encryption controls before live provisioning. |
+| Kafka topic spec | Required topic shape including partitions, replication factor, schema compatibility, dead-letter queue, and retention settings. |
+| AWS infrastructure spec | Required cloud shape covering region, private subnets, KMS, MSK TLS/IAM, RDS HA/PITR/deletion protection, Redis encryption, S3 object lock, and managed secret references. |
 
 ## Testing Style
 

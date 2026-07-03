@@ -62,6 +62,8 @@ a product microservice.
 - Java 17 `notification-service` event consumer for receipts and OTP fallback.
 - Java 17 `support-service` and `recovery-service` cores for support workflows.
 - Java 17 `ops-service` plan validator for observability and disaster recovery.
+- Java 17 durable infrastructure readiness validator for Kafka topics and AWS
+  HA/encryption controls.
 - Java 17 `launch-service` readiness validator for hardening and launch gates.
 - Java 17 `api-adapter-service` contracts and runtime boundary for payment
   commands, wallet balance reads, auth, traceability, rate limiting, and
@@ -100,6 +102,7 @@ is executable through the local test suite or represented as launch evidence:
 | Acceptance | BDD scenarios prove that voice fallback can complete payment, compliance hits block funds movement, and wallet projections follow ledger truth. |
 | Support and recovery | Repair cases are persisted before ledger mutation; duplicate recovery transitions are rejected before external ports are called. |
 | Ops | Required dashboards, alert tiers, release stages, log fields, and reconciliation cadence are policy-driven through `OpsReadinessPolicy`. |
+| Durable infrastructure | Kafka topics must cover the event catalog with minimum partitions, replication, schema compatibility, DLQs, and retention; AWS readiness requires private subnets, KMS, MSK TLS/IAM, RDS HA/PITR/deletion protection, Redis encryption, S3 object lock, and managed secrets. |
 | Launch | Chaos, security, pen test, shadow mode, 10x load, 100/100 fallback, RTO/RPO, CVE scan source, and pen-test report evidence are validated. |
 | API adapters | Payment POST validates idempotency and trace headers, maps conflicts to `409`, wallet balance reads return JSON, and unknown routes return JSON `404`. |
 | API runtime | Protected routes require bearer tokens, invalid tokens return `403`, trace IDs are required before routing, rate limits return `429`, and request outcomes are logged. |
@@ -155,11 +158,10 @@ same direct Java compile/test loop, Python voice tests, mobile UI tests, and
 whitespace check on pull requests and pushes to `main`.
 
 Use each service README for the smallest code example for that service. The
-remaining production plan still requires production ingress, mTLS, durable
-infrastructure, native mobile keystore wiring, screen-level mobile command
-forms, full Pact/Schema Registry checks, chaos tests, and launch evidence before
-the PDF launch criteria can be marked complete. Kafka and AWS are intentionally
-deferred until the durable adapter and infrastructure phases.
+remaining production plan still requires live Kafka/AWS provisioning,
+production ingress, mTLS, native mobile keystore wiring, screen-level mobile
+command forms, full Pact/Schema Registry checks, chaos tests, and launch
+evidence before the PDF launch criteria can be marked complete.
 
 ## Delivery Docs
 
