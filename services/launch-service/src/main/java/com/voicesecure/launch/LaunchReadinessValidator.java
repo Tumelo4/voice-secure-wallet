@@ -22,6 +22,7 @@ public final class LaunchReadinessValidator {
                 new ShadowModeLaunchGate(),
                 new PerformanceLaunchGate(),
                 new VoiceFallbackLaunchGate(),
+                new ProductionCutoverLaunchGate(),
                 new BenchmarkEvidenceLaunchGate()
         );
     }

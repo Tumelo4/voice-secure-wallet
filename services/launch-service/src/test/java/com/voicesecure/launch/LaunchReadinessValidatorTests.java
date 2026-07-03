@@ -8,7 +8,8 @@ public final class LaunchReadinessValidatorTests {
                 new TestCase("fully signed-off launch plan passes", LaunchReadinessValidatorTests::fullySignedOffLaunchPlanPasses),
                 new TestCase("missing chaos scenario and CVEs are blocked", LaunchReadinessValidatorTests::missingChaosScenarioAndCvesAreBlocked),
                 new TestCase("shadow mode and fallback thresholds are enforced", LaunchReadinessValidatorTests::shadowModeAndFallbackThresholdsAreEnforced),
-                new TestCase("benchmark evidence is required", LaunchReadinessValidatorTests::benchmarkEvidenceIsRequired)
+                new TestCase("benchmark evidence is required", LaunchReadinessValidatorTests::benchmarkEvidenceIsRequired),
+                new TestCase("production cutover evidence is required", LaunchReadinessValidatorTests::productionCutoverEvidenceIsRequired)
         };
 
         for (TestCase test : tests) {
@@ -53,7 +54,8 @@ public final class LaunchReadinessValidatorTests {
                 true,
                 true,
                 true,
-                true
+                true,
+                validCutoverPlan()
         );
 
         LaunchReadinessReport report = validator.validate(plan);
@@ -82,7 +84,8 @@ public final class LaunchReadinessValidatorTests {
                 true,
                 true,
                 true,
-                true
+                true,
+                validCutoverPlan()
         );
 
         LaunchReadinessReport report = validator.validate(plan);
@@ -111,7 +114,8 @@ public final class LaunchReadinessValidatorTests {
                 true,
                 true,
                 true,
-                true
+                true,
+                validCutoverPlan()
         );
 
         LaunchReadinessReport report = new LaunchReadinessValidator().validate(plan);
@@ -120,6 +124,37 @@ public final class LaunchReadinessValidatorTests {
         assertTrue(report.blockers().contains("benchmark evidence must include a test run id"), "test run evidence should be required");
         assertTrue(report.blockers().contains("benchmark evidence must include measured p99 latency"), "p99 evidence should be required");
         assertTrue(report.blockers().contains("benchmark evidence must include CVE scan source"), "scan evidence should be required");
+    }
+
+    private static void productionCutoverEvidenceIsRequired() {
+        LaunchReadinessPlan plan = new LaunchReadinessPlan(
+                true,
+                validChaosSuite(),
+                true,
+                new PenTestResult(true, 0, 0),
+                true,
+                true,
+                true,
+                new SecurityScanResult(true, 0, 0, true),
+                true,
+                new VoiceShadowModeValidation(48, 0.0008),
+                new PerformanceTestResult(10, true),
+                new VoiceFallbackExercise(100, 100, true),
+                validEvidence(),
+                true,
+                true,
+                true,
+                true,
+                new ProductionCutoverPlan("", false, false, false, false, false, 45)
+        );
+
+        LaunchReadinessReport report = new LaunchReadinessValidator().validate(plan);
+
+        assertTrue(!report.ready(), "missing production cutover evidence should block launch");
+        assertTrue(report.blockers().contains("production change ticket must be linked"), "change ticket should be required");
+        assertTrue(report.blockers().contains("rollback plan must be tested before cutover"), "rollback test should be required");
+        assertTrue(report.blockers().contains("production monitoring and alerts must be armed"), "monitoring should be required");
+        assertTrue(report.blockers().contains("rollback must be executable within 30 minutes"), "rollback timing should be enforced");
     }
 
     private static LaunchReadinessPlan validPlan() {
@@ -140,7 +175,8 @@ public final class LaunchReadinessValidatorTests {
                 true,
                 true,
                 true,
-                true
+                true,
+                validCutoverPlan()
         );
     }
 
@@ -167,6 +203,18 @@ public final class LaunchReadinessValidatorTests {
                 5,
                 "trivy-container-scan-2026-06-18",
                 "pentest-report-2026-q2"
+        );
+    }
+
+    private static ProductionCutoverPlan validCutoverPlan() {
+        return new ProductionCutoverPlan(
+                "CHG-2026-06-18-VOICESECURE",
+                true,
+                true,
+                true,
+                true,
+                true,
+                20
         );
     }
 

@@ -19,7 +19,8 @@ public record LaunchReadinessPlan(
         boolean adminRepairDrillPassed,
         boolean deviceBindingPassed,
         boolean complianceAuditPassed,
-        boolean documentationComplete
+        boolean documentationComplete,
+        ProductionCutoverPlan productionCutoverPlan
 ) {
     public LaunchReadinessPlan {
         Objects.requireNonNull(chaosTestSuite, "chaosTestSuite");
@@ -29,5 +30,6 @@ public record LaunchReadinessPlan(
         Objects.requireNonNull(performanceTestResult, "performanceTestResult");
         Objects.requireNonNull(voiceFallbackExercise, "voiceFallbackExercise");
         Objects.requireNonNull(launchEvidence, "launchEvidence");
+        Objects.requireNonNull(productionCutoverPlan, "productionCutoverPlan");
     }
 }

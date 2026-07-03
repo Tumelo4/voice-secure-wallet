@@ -66,7 +66,8 @@ a product microservice.
   HA/encryption controls.
 - Terraform AWS baseline for VPC, KMS, MSK, RDS, Redis, S3 object lock, and
   Secrets Manager references.
-- Java 17 `launch-service` readiness validator for hardening and launch gates.
+- Java 17 `launch-service` readiness validator for hardening, production
+  cutover, and launch gates.
 - Java 17 `api-adapter-service` contracts and runtime boundary for payment
   commands, wallet balance reads, auth, traceability, rate limiting, and
   request logging, plus a local JDK HTTP listener.
@@ -106,7 +107,7 @@ is executable through the local test suite or represented as launch evidence:
 | Ops | Required dashboards, alert tiers, release stages, log fields, and reconciliation cadence are policy-driven through `OpsReadinessPolicy`. |
 | Durable infrastructure | Kafka topics must cover the event catalog with minimum partitions, replication, schema compatibility, DLQs, and retention; AWS readiness requires private subnets, KMS, MSK TLS/IAM, RDS HA/PITR/deletion protection, Redis encryption, S3 object lock, and managed secrets. |
 | Terraform AWS baseline | Static tests verify required Terraform files, private networking, KMS rotation, MSK TLS/IAM and broker config, RDS HA/PITR, Redis encryption, S3 object lock, and no committed secret values. |
-| Launch | Chaos, security, pen test, shadow mode, 10x load, 100/100 fallback, RTO/RPO, CVE scan source, and pen-test report evidence are validated. |
+| Launch | Chaos, security, pen test, shadow mode, 10x load, 100/100 fallback, RTO/RPO, CVE scan source, pen-test report evidence, production change ticket, rollback drill, feature-flag lock, monitoring, on-call, support briefing, and 30-minute rollback readiness are validated. |
 | API adapters | Payment POST validates idempotency and trace headers, maps conflicts to `409`, wallet balance reads return JSON, and unknown routes return JSON `404`. |
 | API runtime | Protected routes require bearer tokens, invalid tokens return `403`, trace IDs are required before routing, rate limits return `429`, and request outcomes are logged. |
 | API local HTTP listener | Local socket tests prove wallet GET, payment POST JSON, runtime auth/trace guards, JSON headers, request logging, and rate-limit `Retry-After` propagation through the JDK HTTP server boundary. |
@@ -164,8 +165,8 @@ Use each service README for the smallest code example for that service. The
 remaining production plan still requires applying Terraform in a real AWS
 account, live Kafka/AWS integration tests, production ingress, mTLS, native
 mobile keystore wiring, screen-level mobile command forms, full Pact/Schema
-Registry checks, chaos tests, and launch evidence before the PDF launch criteria
-can be marked complete.
+Registry checks, chaos tests, 48-hour staging evidence, and real production
+cutover sign-offs before the PDF launch criteria can be marked complete.
 
 ## Delivery Docs
 

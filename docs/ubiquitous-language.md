@@ -62,6 +62,7 @@ distributed rate limits, Kafka, and AWS remain separate infrastructure concerns.
 | Device binding | A registered device key used to sign critical requests. |
 | Token family revocation | Revocation of all refresh tokens in a family after reuse is detected. |
 | Launch evidence | Measured proof for reconciliation, chaos, security, shadow mode, performance, DR, and documentation gates. |
+| Production cutover plan | Launch-owned proof that a production release has change approval, tested rollback, locked feature flags, armed monitoring, on-call coverage, support briefing, and rollback timing evidence. |
 | Readiness dashboard | UI surface that summarizes service slices, tests, phase status, and remaining production blockers. |
 | Mobile UI stack | React Native TypeScript app surface styled with NativeWind/Tailwind CSS and backed by Redux Toolkit state. |
 | Mobile API client | TypeScript boundary that sends API runtime headers, maps payment and wallet responses, preserves API errors, and feeds Redux-friendly request state. |
