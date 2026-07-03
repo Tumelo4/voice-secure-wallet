@@ -42,6 +42,7 @@ incident response, rollback, or customer recovery.
 | Phase 19: Durable Infrastructure Readiness | Kafka topic durability and AWS HA/encryption controls are executable preflight checks before live provisioning. | Durable infrastructure validator tests. |
 | Phase 20: Terraform AWS Baseline | Terraform declares the first AWS baseline for VPC, KMS, MSK, RDS, Redis, S3 object lock, and managed secret references. | Terraform AWS baseline tests. |
 | Phase 21: Production Cutover Readiness | Launch validation now blocks production without change approval, tested rollback, locked flags, armed monitoring, on-call coverage, support briefing, and rollback SLA evidence. | Production cutover launch tests. |
+| Phase 22: Production Ingress Readiness | API ingress validation blocks production without TLS 1.3, mTLS, JWKS, distributed rate limits, WAF, HSTS, trace forwarding, body limits, and safe public paths. | Production ingress validator tests. |
 
 ## Pre-Release Checklist
 
@@ -62,11 +63,15 @@ incident response, rollback, or customer recovery.
 
 - [ ] Confirm the release branch to merge and the target environment.
 - [ ] Confirm the approved production change ticket is linked to the release.
+- [ ] Confirm ingress TLS certificates, mTLS trust store, and DNS target are
+  ready for the target environment.
 - [ ] Verify staging smoke tests for payment, voice auth, support search, and
   recovery flow.
 - [ ] Confirm feature flags are locked to the intended rollout path.
 - [ ] Confirm dashboards are live before traffic moves.
 - [ ] Confirm alert routing is working for payment, identity, and ops signals.
+- [ ] Confirm WAF, HSTS, JWKS discovery, distributed rate limits, request body
+  limits, and health-only public paths are enabled at the edge.
 - [ ] Confirm primary and secondary on-call owners are online.
 - [ ] Confirm support has the customer-facing briefing and escalation script.
 - [ ] Confirm disaster recovery evidence is attached for the latest run.

@@ -15,16 +15,17 @@ payment retries that are hard to reason about.
 - Users and clients get stable JSON responses for payment commands and wallet
   balance reads.
 - The domain services stay framework-independent and easier to test.
-- Future production ingress work can focus on mTLS, deployment, distributed
-  rate limits, and external auth provider integration without changing payment
-  or wallet behavior.
+- Future production deployment work can focus on certificate provisioning, load
+  balancer rollout, DNS, and external auth provider integration without
+  changing payment or wallet behavior.
 
 ## Scope
 
-This service models the API adapter and runtime boundary and exposes them
-through an optional local JDK HTTP listener. It owns request normalization, route
+This service models the API adapter, runtime boundary, local JDK HTTP listener,
+and production ingress readiness preflight. It owns request normalization, route
 selection, JSON response shaping, runtime guards, socket-to-request translation,
-and error mapping for the first two production-facing routes:
+production ingress policy validation, and error mapping for the first two
+production-facing routes:
 
 - `POST /payments`
 - `GET /wallets/{accountId}/balance`
@@ -36,7 +37,10 @@ without rewriting router behavior. `ApiRuntime` depends on ports for bearer
 token verification, rate limiting, and request logging so production adapters
 can replace the in-memory implementations later. `ApiHttpServer` depends on the
 same `ApiEndpoint` port, so the listener remains an adapter rather than a
-business-policy owner.
+business-policy owner. `ProductionIngressValidator` checks deployment evidence
+for edge TLS, mTLS, external auth, distributed rate limits, WAF, HSTS, trace
+forwarding, body-size limits, and public health paths without provisioning any
+cloud resources.
 
 ## Current Guarantees
 
@@ -52,17 +56,24 @@ business-policy owner.
 - Runtime outcomes are recorded with principal, trace, method, path, and status.
 - Local JDK HTTP listener forwards socket requests through the same runtime
   guards and preserves response status, JSON headers, and retry hints.
+- Production ingress readiness requires TLS 1.3, mTLS, forwarded client
+  certificate identity, OIDC/JWKS configuration, distributed rate-limit storage,
+  WAF, HSTS, trace forwarding, a 256 KB request body cap, health-only public
+  paths, and no public admin routes.
 
 ## Benchmark
 
-- 5 API adapter tests, 5 API runtime tests, and 3 local HTTP listener tests pass
-  through the same direct Java compile/test loop used by CI.
+- 5 API adapter tests, 5 API runtime tests, 3 local HTTP listener tests, and
+  3 production ingress readiness tests pass through the same direct Java
+  compile/test loop used by CI.
 - The adapter tests prove route behavior, JSON response shape, error codes, and
   SOLID routing boundaries.
 - The runtime tests prove auth, trace, rate-limit, forwarding, and audit-log
   behavior.
 - The listener tests prove wallet GET, payment POST, real socket routing, JSON
   response headers, request logging, and `Retry-After` propagation.
+- The production ingress tests prove transport security, runtime controls, and
+  public route exposure are blocked before production.
 
 ## How To Use It
 
