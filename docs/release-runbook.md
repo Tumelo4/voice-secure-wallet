@@ -40,6 +40,7 @@ incident response, rollback, or customer recovery.
 | Phase 17: Mobile Resilience Policy | Retryable mobile failures back off locally and offline payment commands queue idempotently until durable infrastructure is available. | Mobile resilience policy tests. |
 | Phase 18: API Local HTTP Listener | JDK HTTP listener forwards real socket requests through API runtime guards without adding cloud infrastructure. | API HTTP server tests. |
 | Phase 19: Durable Infrastructure Readiness | Kafka topic durability and AWS HA/encryption controls are executable preflight checks before live provisioning. | Durable infrastructure validator tests. |
+| Phase 20: Terraform AWS Baseline | Terraform declares the first AWS baseline for VPC, KMS, MSK, RDS, Redis, S3 object lock, and managed secret references. | Terraform AWS baseline tests. |
 
 ## Pre-Release Checklist
 

@@ -1,0 +1,10 @@
+aws_region                = "af-south-1"
+environment               = "staging"
+vpc_cidr                  = "10.40.0.0/16"
+private_subnet_cidrs      = ["10.40.10.0/24", "10.40.20.0/24", "10.40.30.0/24"]
+msk_broker_count          = 3
+msk_instance_type         = "kafka.m7g.large"
+rds_instance_class        = "db.m7g.large"
+rds_allocated_storage_gb  = 100
+rds_backup_retention_days = 35
+redis_node_type           = "cache.m7g.large"

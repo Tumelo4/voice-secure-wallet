@@ -80,6 +80,7 @@ distributed rate limits, Kafka, and AWS remain separate infrastructure concerns.
 | Durable infrastructure readiness | Executable preflight validation for Kafka topic durability and AWS high-availability/encryption controls before live provisioning. |
 | Kafka topic spec | Required topic shape including partitions, replication factor, schema compatibility, dead-letter queue, and retention settings. |
 | AWS infrastructure spec | Required cloud shape covering region, private subnets, KMS, MSK TLS/IAM, RDS HA/PITR/deletion protection, Redis encryption, S3 object lock, and managed secret references. |
+| Terraform AWS baseline | Infrastructure-as-code module declaring the first AWS network, encryption, broker, database, cache, audit bucket, and secret-reference resources without applying them. |
 
 ## Testing Style
 
