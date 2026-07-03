@@ -65,7 +65,7 @@ a product microservice.
 - Java 17 `launch-service` readiness validator for hardening and launch gates.
 - Java 17 `api-adapter-service` contracts and runtime boundary for payment
   commands, wallet balance reads, auth, traceability, rate limiting, and
-  request logging.
+  request logging, plus a local JDK HTTP listener.
 - React Native TypeScript `apps/mobile` readiness dashboard using
   NativeWind/Tailwind CSS and Redux Toolkit, with typed API client and fetch
   transport boundaries, mobile token-session ports, Redux API flows, and
@@ -103,6 +103,7 @@ is executable through the local test suite or represented as launch evidence:
 | Launch | Chaos, security, pen test, shadow mode, 10x load, 100/100 fallback, RTO/RPO, CVE scan source, and pen-test report evidence are validated. |
 | API adapters | Payment POST validates idempotency and trace headers, maps conflicts to `409`, wallet balance reads return JSON, and unknown routes return JSON `404`. |
 | API runtime | Protected routes require bearer tokens, invalid tokens return `403`, trace IDs are required before routing, rate limits return `429`, and request outcomes are logged. |
+| API local HTTP listener | Local socket tests prove wallet GET, payment POST JSON, runtime auth/trace guards, JSON headers, request logging, and rate-limit `Retry-After` propagation through the JDK HTTP server boundary. |
 | Mobile UI | React Native TypeScript stack declaration, Redux readiness state, mobile accessibility labels, dashboard section order, and NativeWind/Tailwind class tokens are covered by Node tests. |
 | Mobile API client | Payment commands and wallet balance reads use a typed transport port, runtime headers, API error mapping, and Redux-friendly async request states. |
 | Mobile fetch transport | React Native fetch calls are isolated behind `ApiTransport`, base URLs and paths join safely, response headers/body are preserved, network failures map to typed `503` errors, and a token-provider port supports rotating credentials. |
@@ -154,7 +155,7 @@ same direct Java compile/test loop, Python voice tests, mobile UI tests, and
 whitespace check on pull requests and pushes to `main`.
 
 Use each service README for the smallest code example for that service. The
-remaining production plan still requires a production network server, durable
+remaining production plan still requires production ingress, mTLS, durable
 infrastructure, native mobile keystore wiring, screen-level mobile command
 forms, full Pact/Schema Registry checks, chaos tests, and launch evidence before
 the PDF launch criteria can be marked complete. Kafka and AWS are intentionally

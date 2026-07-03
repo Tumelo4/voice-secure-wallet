@@ -1,7 +1,7 @@
 # api-adapter-service
 
-Java 17 framework-free API adapter and runtime boundary contracts for
-VoiceSecure Wallet.
+Java 17 framework-free API adapter, runtime boundary contracts, and local JDK
+HTTP listener for VoiceSecure Wallet.
 
 ## Problem Statement
 
@@ -15,15 +15,16 @@ payment retries that are hard to reason about.
 - Users and clients get stable JSON responses for payment commands and wallet
   balance reads.
 - The domain services stay framework-independent and easier to test.
-- Future network server work can focus on mTLS, deployment, and external auth
-  provider integration without changing payment or wallet behavior.
+- Future production ingress work can focus on mTLS, deployment, distributed
+  rate limits, and external auth provider integration without changing payment
+  or wallet behavior.
 
 ## Scope
 
-This service models the API adapter and runtime boundary without starting a
-network server. It owns request normalization, route selection, JSON response
-shaping, runtime guards, and error mapping for the first two production-facing
-routes:
+This service models the API adapter and runtime boundary and exposes them
+through an optional local JDK HTTP listener. It owns request normalization, route
+selection, JSON response shaping, runtime guards, socket-to-request translation,
+and error mapping for the first two production-facing routes:
 
 - `POST /payments`
 - `GET /wallets/{accountId}/balance`
@@ -33,7 +34,9 @@ routes:
 `ApiRouter` depends on the `ApiEndpoint` abstraction so more routes can be added
 without rewriting router behavior. `ApiRuntime` depends on ports for bearer
 token verification, rate limiting, and request logging so production adapters
-can replace the in-memory implementations later.
+can replace the in-memory implementations later. `ApiHttpServer` depends on the
+same `ApiEndpoint` port, so the listener remains an adapter rather than a
+business-policy owner.
 
 ## Current Guarantees
 
@@ -47,15 +50,19 @@ can replace the in-memory implementations later.
 - Invalid bearer tokens return JSON `403` responses.
 - Per-principal rate-limit failures return JSON `429` with `Retry-After`.
 - Runtime outcomes are recorded with principal, trace, method, path, and status.
+- Local JDK HTTP listener forwards socket requests through the same runtime
+  guards and preserves response status, JSON headers, and retry hints.
 
 ## Benchmark
 
-- 5 API adapter tests and 5 API runtime tests pass through the same direct Java
-  compile/test loop used by CI.
+- 5 API adapter tests, 5 API runtime tests, and 3 local HTTP listener tests pass
+  through the same direct Java compile/test loop used by CI.
 - The adapter tests prove route behavior, JSON response shape, error codes, and
   SOLID routing boundaries.
 - The runtime tests prove auth, trace, rate-limit, forwarding, and audit-log
   behavior.
+- The listener tests prove wallet GET, payment POST, real socket routing, JSON
+  response headers, request logging, and `Retry-After` propagation.
 
 ## How To Use It
 
@@ -92,6 +99,11 @@ ApiResponse guardedResponse = runtime.handle(new ApiRequest(
         ),
         paymentJson
 ));
+
+try (ApiHttpServer server = ApiHttpServer.start(runtime)) {
+    // server.uri("/wallets/{accountId}/balance") returns a localhost URL for
+    // local smoke tests or development clients.
+}
 ```
 
 ## Local Test Command
