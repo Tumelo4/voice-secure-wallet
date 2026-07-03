@@ -74,8 +74,8 @@ a product microservice.
   readiness validator.
 - React Native TypeScript `apps/mobile` readiness dashboard using
   NativeWind/Tailwind CSS and Redux Toolkit, with typed API client and fetch
-  transport boundaries, mobile token-session ports, Redux API flows, and
-  local resilience policy.
+  transport boundaries, mobile token-session and native secure-store ports,
+  Redux API flows, and local resilience policy.
 - PostgreSQL schema migration for signed, append-only ledger entries.
 - In-memory repository for deterministic local tests.
 - Repair API domain stub requiring a justification payload.
@@ -116,7 +116,7 @@ is executable through the local test suite or represented as launch evidence:
 | Mobile UI | React Native TypeScript stack declaration, Redux readiness state, mobile accessibility labels, dashboard section order, and NativeWind/Tailwind class tokens are covered by Node tests. |
 | Mobile API client | Payment commands and wallet balance reads use a typed transport port, runtime headers, API error mapping, and Redux-friendly async request states. |
 | Mobile fetch transport | React Native fetch calls are isolated behind `ApiTransport`, base URLs and paths join safely, response headers/body are preserved, network failures map to typed `503` errors, and a token-provider port supports rotating credentials. |
-| Mobile token session | Secure token sessions are stored behind a vault port, corrupt sessions are cleared, cached access tokens are reused before the refresh window, expiring tokens are refreshed, and failed refresh clears stored credentials. |
+| Mobile token session | Secure token sessions are stored behind a vault port, native secure-store adapters require encrypted hardware-backed device-only storage, corrupt sessions are cleared, cached access tokens are reused before the refresh window, expiring tokens are refreshed, and failed refresh clears stored credentials. |
 | Mobile Redux API flows | Wallet-balance and payment-start thunks dispatch loading, success, and failure branches into Redux request state while preserving trace IDs, previous data, API errors, and auth-session failures. |
 | Mobile resilience policy | Retryable transport failures use capped exponential backoff, auth/validation failures do not retry, offline payment commands enqueue idempotently, local queue depth is capped, and queued payments drain in order. |
 
@@ -166,10 +166,10 @@ whitespace check on pull requests and pushes to `main`.
 Use each service README for the smallest code example for that service. The
 remaining production plan still requires applying Terraform in a real AWS
 account, live Kafka/AWS integration tests, deployed ingress certificates and
-DNS, native mobile keystore wiring, screen-level mobile command forms, full
-Pact/Schema Registry checks, chaos tests, 48-hour staging evidence, and real
-production cutover sign-offs before the PDF launch criteria can be marked
-complete.
+DNS, real iOS Keychain/Android Keystore package QA, screen-level mobile command
+forms, full Pact/Schema Registry checks, chaos tests, 48-hour staging evidence,
+and real production cutover sign-offs before the PDF launch criteria can be
+marked complete.
 
 ## Delivery Docs
 

@@ -13,6 +13,26 @@ export interface SecureTokenStore {
   deleteItem(key: string): void | Promise<void>;
 }
 
+export interface NativeSecureStoreOptions {
+  namespace: string;
+  encryptedAtRest: boolean;
+  hardwareBacked: boolean;
+  deviceOnly: boolean;
+  biometricOrPasscodeRequired: boolean;
+  synchronizesToCloud: boolean;
+}
+
+export interface NativeSecureStoreDriver {
+  getItem(key: string, options: NativeSecureStoreOptions): string | null | Promise<string | null>;
+  setItem(key: string, value: string, options: NativeSecureStoreOptions): void | Promise<void>;
+  deleteItem(key: string, options: NativeSecureStoreOptions): void | Promise<void>;
+}
+
+export interface SecureStoreReadinessReport {
+  ready: boolean;
+  blockers: string[];
+}
+
 export interface TokenVault {
   load(): Promise<TokenSession | null>;
   save(session: TokenSession): Promise<void>;
@@ -34,6 +54,69 @@ export class TokenSessionError extends Error {
 export interface SecureTokenVaultConfig {
   store: SecureTokenStore;
   key?: string;
+}
+
+export interface NativeSecureTokenStoreConfig {
+  driver: NativeSecureStoreDriver;
+  options: NativeSecureStoreOptions;
+}
+
+export class NativeSecureTokenStore implements SecureTokenStore {
+  private readonly driver: NativeSecureStoreDriver;
+  private readonly options: NativeSecureStoreOptions;
+
+  constructor(config: NativeSecureTokenStoreConfig) {
+    this.driver = config.driver;
+    this.options = normalizeSecureStoreOptions(config.options);
+
+    const report = new SecureStoreReadinessValidator().validate(this.options);
+    if (!report.ready) {
+      throw new TokenSessionError("AUTH_SECURE_STORE_UNSAFE", report.blockers.join("; "));
+    }
+  }
+
+  async getItem(key: string): Promise<string | null> {
+    return this.driver.getItem(key, this.options);
+  }
+
+  async setItem(key: string, value: string): Promise<void> {
+    await this.driver.setItem(key, value, this.options);
+  }
+
+  async deleteItem(key: string): Promise<void> {
+    await this.driver.deleteItem(key, this.options);
+  }
+}
+
+export class SecureStoreReadinessValidator {
+  validate(options: NativeSecureStoreOptions): SecureStoreReadinessReport {
+    const normalized = normalizeSecureStoreOptions(options);
+    const blockers: string[] = [];
+
+    if (!normalized.encryptedAtRest) {
+      blockers.push("native secure storage must encrypt token sessions at rest");
+    }
+    if (!normalized.hardwareBacked) {
+      blockers.push("native secure storage must use hardware-backed keys");
+    }
+    if (!normalized.deviceOnly) {
+      blockers.push("token sessions must stay on this device only");
+    }
+    if (!normalized.biometricOrPasscodeRequired) {
+      blockers.push("biometric or device passcode access must protect refresh tokens");
+    }
+    if (normalized.synchronizesToCloud) {
+      blockers.push("token sessions must not sync to cloud backups");
+    }
+    if (normalized.namespace === "") {
+      blockers.push("secure storage namespace is required");
+    }
+
+    return {
+      ready: blockers.length === 0,
+      blockers,
+    };
+  }
 }
 
 export class SecureTokenVault implements TokenVault {
@@ -133,6 +216,21 @@ function normalizeSession(value: unknown): TokenSession {
   };
 }
 
+function normalizeSecureStoreOptions(options: NativeSecureStoreOptions): NativeSecureStoreOptions {
+  if (!isRecord(options)) {
+    throw new TokenSessionError("AUTH_SECURE_STORE_INVALID", "secure store options must be an object");
+  }
+
+  return {
+    namespace: requireString(options.namespace, "namespace").trim(),
+    encryptedAtRest: requireBoolean(options.encryptedAtRest, "encryptedAtRest"),
+    hardwareBacked: requireBoolean(options.hardwareBacked, "hardwareBacked"),
+    deviceOnly: requireBoolean(options.deviceOnly, "deviceOnly"),
+    biometricOrPasscodeRequired: requireBoolean(options.biometricOrPasscodeRequired, "biometricOrPasscodeRequired"),
+    synchronizesToCloud: requireBoolean(options.synchronizesToCloud, "synchronizesToCloud"),
+  };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -142,4 +240,18 @@ function requireNonBlank(value: unknown, field: string): string {
     throw new TokenSessionError("AUTH_SESSION_INVALID", `${field} is required`);
   }
   return value.trim();
+}
+
+function requireBoolean(value: unknown, field: string): boolean {
+  if (typeof value !== "boolean") {
+    throw new TokenSessionError("AUTH_SECURE_STORE_INVALID", `${field} must be a boolean`);
+  }
+  return value;
+}
+
+function requireString(value: unknown, field: string): string {
+  if (typeof value !== "string") {
+    throw new TokenSessionError("AUTH_SECURE_STORE_INVALID", `${field} must be a string`);
+  }
+  return value;
 }

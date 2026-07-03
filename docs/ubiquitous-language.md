@@ -72,6 +72,8 @@ certificates, DNS, Kafka, and AWS remain separate infrastructure concerns.
 | Access token provider | Mobile auth port that supplies the bearer token per request so secure storage or refresh logic can change without touching API client methods. |
 | Token session | Mobile auth state containing user ID, access token, refresh token, and access-token expiry. |
 | Token vault | Mobile persistence port for saving, loading, and clearing token sessions without coupling app code to a specific secure-storage library. |
+| Native secure token store | Mobile adapter port for iOS Keychain, Android Keystore, or equivalent secure storage, requiring encrypted, hardware-backed, device-only, biometric/passcode-protected token storage without cloud sync. |
+| Secure-store readiness | Executable mobile auth check that blocks unsafe token storage configuration before a production build. |
 | Refresh window | Safety interval before access-token expiry where the mobile app refreshes credentials rather than sending a token that may expire in flight. |
 | Mobile API flow | Redux thunk-style command that dispatches request-started, request-succeeded, or request-failed actions around wallet and payment API client calls. |
 | Request state | Redux-friendly `idle`, `loading`, `succeeded`, or `failed` state with optional data, error, and trace ID evidence. |

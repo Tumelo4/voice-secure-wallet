@@ -7,6 +7,8 @@ secure storage:
   access-token expiry;
 - `SecureTokenVault` stores token sessions behind a tiny key-value secure-store
   port;
+- `NativeSecureTokenStore` adapts a platform secure-store driver while enforcing
+  hardened mobile storage options;
 - corrupt stored sessions are cleared and surfaced as deterministic auth errors;
 - `TokenSessionAccessTokenProvider` reuses cached access tokens before the
   refresh window;
@@ -31,13 +33,15 @@ The implementation keeps SOLID boundaries intact:
 
 - **Red:** token-session tests first referenced a missing secure vault and
   session-backed access-token provider.
-- **Green:** vault persistence, corrupt-payload cleanup, cached-token reuse,
-  refresh-window renewal, and refresh-failure cleanup made the tests pass.
+- **Green:** vault persistence, native secure-store option forwarding,
+  production storage readiness validation, corrupt-payload cleanup, cached-token
+  reuse, refresh-window renewal, and refresh-failure cleanup made the tests pass.
 - **Refactor:** readiness evidence, README benchmark, release runbook, and
   ubiquitous language now document the auth session boundary.
 
 ## Remaining Work
 
-The next production slice should connect this vault to the platform secure
-storage library, add retry/backoff policy, wire refresh calls to the API runtime,
-and drive screen-level Redux async thunks from real mobile auth state.
+The native secure-store adapter port and readiness checks now exist. Real
+production still needs the concrete iOS Keychain or Android Keystore package,
+device QA, refresh calls wired to the API runtime, and screen-level Redux async
+thunks driven from real mobile auth state.
