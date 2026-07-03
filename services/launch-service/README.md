@@ -19,16 +19,21 @@ properly challenged.
 
 This service captures the phase 7 launch gates as an executable readiness
 validator: chaos testing, pen testing, security scanning, shadow-mode voice
-checks, fallback volume, performance, and the remaining sign-off criteria.
+checks, fallback volume, performance, production cutover, and the remaining
+sign-off criteria.
 
 ## Current Guarantees
 
-- All 16 launch gates are represented explicitly.
+- All modeled launch gates are represented explicitly, including production
+  cutover evidence.
 - Chaos testing and fallback thresholds are enforced.
 - Security scanning, pen testing, and launch readiness must all be clean before
   the plan reports GO.
 - Launch thresholds are configured through `LaunchReadinessPolicy`.
 - Benchmark evidence is modeled separately from pass/fail assertions.
+- Production cutover evidence must link the change ticket, tested rollback,
+  locked feature flags, armed monitoring, on-call coverage, support briefing,
+  and rollback timing.
 
 ## Benchmark
 
@@ -40,6 +45,8 @@ checks, fallback volume, performance, and the remaining sign-off criteria.
 - Launch evidence must include a test run id, measured p99 latency, load
   multiplier, false-positive sample size, RTO/RPO minutes, CVE scan source, and
   pen-test report reference.
+- Production rollback must be executable within the default 30-minute policy
+  threshold.
 
 ## How To Use It
 

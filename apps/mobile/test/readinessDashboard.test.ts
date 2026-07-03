@@ -18,8 +18,8 @@ test("readiness state keeps service and validation evidence", () => {
   const state = createReadinessState();
 
   assert.equal(state.services.length, 13);
-  assert.equal(readinessSelectors.totalPassingTests(state), 122);
-  assert.equal(readinessSelectors.activePhase(state).name, "Terraform AWS Baseline");
+  assert.equal(readinessSelectors.totalPassingTests(state), 123);
+  assert.equal(readinessSelectors.activePhase(state).name, "Production Cutover Readiness");
   assert.ok(state.testSuites.some((suite) => suite.name === "API local HTTP listener"));
   assert.ok(state.testSuites.some((suite) => suite.name === "API runtime"));
   assert.ok(state.testSuites.some((suite) => suite.name === "Durable infrastructure"));
@@ -37,9 +37,9 @@ test("summary cards expose mobile accessible labels and current counts", () => {
 
   assert.deepEqual(cards.map((card) => card.accessibilityLabel), [
     "Services ready 13 of 13",
-    "Tests passing 122 of 122",
+    "Tests passing 123 of 123",
     "CI status Service CI passing",
-    "Launch gates 4 of 16",
+    "Launch gates 5 of 17",
   ]);
 });
 

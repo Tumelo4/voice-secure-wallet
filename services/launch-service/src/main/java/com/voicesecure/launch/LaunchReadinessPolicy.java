@@ -9,7 +9,8 @@ public record LaunchReadinessPolicy(
         double maxFalsePositiveRate,
         int requiredLoadMultiplier,
         int requiredFallbackAttempts,
-        int requiredFallbackSuccesses
+        int requiredFallbackSuccesses,
+        int maximumRollbackMinutes
 ) {
     public LaunchReadinessPolicy {
         Objects.requireNonNull(requiredChaosScenarios, "requiredChaosScenarios");
@@ -32,6 +33,9 @@ public record LaunchReadinessPolicy(
         if (requiredFallbackSuccesses <= 0 || requiredFallbackSuccesses > requiredFallbackAttempts) {
             throw new LaunchException("required fallback successes must be positive and cannot exceed attempts");
         }
+        if (maximumRollbackMinutes <= 0) {
+            throw new LaunchException("maximum rollback minutes must be positive");
+        }
     }
 
     public static LaunchReadinessPolicy defaults() {
@@ -47,7 +51,8 @@ public record LaunchReadinessPolicy(
                 0.001,
                 10,
                 100,
-                100
+                100,
+                30
         );
     }
 }

@@ -41,6 +41,7 @@ incident response, rollback, or customer recovery.
 | Phase 18: API Local HTTP Listener | JDK HTTP listener forwards real socket requests through API runtime guards without adding cloud infrastructure. | API HTTP server tests. |
 | Phase 19: Durable Infrastructure Readiness | Kafka topic durability and AWS HA/encryption controls are executable preflight checks before live provisioning. | Durable infrastructure validator tests. |
 | Phase 20: Terraform AWS Baseline | Terraform declares the first AWS baseline for VPC, KMS, MSK, RDS, Redis, S3 object lock, and managed secret references. | Terraform AWS baseline tests. |
+| Phase 21: Production Cutover Readiness | Launch validation now blocks production without change approval, tested rollback, locked flags, armed monitoring, on-call coverage, support briefing, and rollback SLA evidence. | Production cutover launch tests. |
 
 ## Pre-Release Checklist
 
@@ -60,11 +61,16 @@ incident response, rollback, or customer recovery.
 ## Rollout Checklist
 
 - [ ] Confirm the release branch to merge and the target environment.
+- [ ] Confirm the approved production change ticket is linked to the release.
 - [ ] Verify staging smoke tests for payment, voice auth, support search, and
   recovery flow.
+- [ ] Confirm feature flags are locked to the intended rollout path.
 - [ ] Confirm dashboards are live before traffic moves.
 - [ ] Confirm alert routing is working for payment, identity, and ops signals.
+- [ ] Confirm primary and secondary on-call owners are online.
+- [ ] Confirm support has the customer-facing briefing and escalation script.
 - [ ] Confirm disaster recovery evidence is attached for the latest run.
+- [ ] Confirm rollback has been tested and can complete within 30 minutes.
 - [ ] Confirm launch gate status is GO before production promotion.
 
 ## Post-Release Checklist

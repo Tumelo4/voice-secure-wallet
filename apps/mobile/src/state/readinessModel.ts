@@ -106,7 +106,8 @@ const phases: Phase[] = [
   { name: "Mobile Resilience Policy", status: "complete", evidence: "Retry backoff, offline payment queue, idempotent enqueue, and ordered drain policy" },
   { name: "API Local HTTP Listener", status: "complete", evidence: "JDK HTTP listener forwards real socket requests through runtime guards" },
   { name: "Durable Infrastructure Readiness", status: "complete", evidence: "Kafka topic durability and AWS HA/encryption controls validated locally" },
-  { name: "Terraform AWS Baseline", status: "active", evidence: "VPC, KMS, MSK, RDS, Redis, S3 object lock, and Secrets Manager references declared" },
+  { name: "Terraform AWS Baseline", status: "complete", evidence: "VPC, KMS, MSK, RDS, Redis, S3 object lock, and Secrets Manager references declared" },
+  { name: "Production Cutover Readiness", status: "active", evidence: "Change ticket, rollback, feature flags, monitoring, on-call, support, and rollback SLA validated" },
 ];
 
 const blockers: Blocker[] = [
@@ -136,7 +137,7 @@ const blockers: Blocker[] = [
   },
   {
     title: "Launch evidence",
-    detail: "Chaos, load, security scanning, DR restore, and 48-hour staging runs still need measured proof.",
+    detail: "Production cutover checks are modeled; real signed change ticket, rollback drill, monitoring, on-call, support briefing, and 48-hour staging evidence still need measured proof.",
   },
 ];
 
@@ -151,7 +152,7 @@ const testSuites: TestSuiteEvidence[] = [
   { name: "Events", passing: 6 },
   { name: "Fraud", passing: 4 },
   { name: "Identity", passing: 5 },
-  { name: "Launch", passing: 4 },
+  { name: "Launch", passing: 5 },
   { name: "Ledger", passing: 6 },
   { name: "Mobile API client", passing: 4 },
   { name: "Mobile fetch transport", passing: 4 },
@@ -179,7 +180,7 @@ export const dashboardSections: DashboardSection[] = [
 export function createReadinessState(): ReadinessState {
   const testsPassing = readinessSelectors.totalPassingTests({ testSuites });
   return {
-    generatedAt: "2026-07-02T09:00:00+02:00",
+    generatedAt: "2026-07-03T12:00:00+02:00",
     stack: uiStack,
     services,
     phases,
@@ -189,7 +190,7 @@ export function createReadinessState(): ReadinessState {
       services: { ready: services.length, total: services.length },
       tests: { passing: testsPassing, total: testsPassing },
       ci: { status: "passing", label: "Service CI passing" },
-      launchGates: { complete: 4, total: 16 },
+      launchGates: { complete: 5, total: 17 },
     },
   };
 }
