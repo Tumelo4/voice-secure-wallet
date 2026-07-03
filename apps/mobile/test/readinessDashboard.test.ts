@@ -18,13 +18,14 @@ test("readiness state keeps service and validation evidence", () => {
   const state = createReadinessState();
 
   assert.equal(state.services.length, 13);
-  assert.equal(readinessSelectors.totalPassingTests(state), 128);
-  assert.equal(readinessSelectors.activePhase(state).name, "Mobile Native Secure Storage");
+  assert.equal(readinessSelectors.totalPassingTests(state), 131);
+  assert.equal(readinessSelectors.activePhase(state).name, "Mobile Screen Commands");
   assert.ok(state.testSuites.some((suite) => suite.name === "API production ingress"));
   assert.ok(state.testSuites.some((suite) => suite.name === "API local HTTP listener"));
   assert.ok(state.testSuites.some((suite) => suite.name === "API runtime"));
   assert.ok(state.testSuites.some((suite) => suite.name === "Durable infrastructure"));
   assert.ok(state.testSuites.some((suite) => suite.name === "Mobile API client"));
+  assert.ok(state.testSuites.some((suite) => suite.name === "Mobile command forms"));
   assert.ok(state.testSuites.some((suite) => suite.name === "Mobile fetch transport"));
   assert.ok(state.testSuites.some((suite) => suite.name === "Mobile resilience policy"));
   assert.ok(state.testSuites.some((suite) => suite.name === "Mobile Redux API flows"));
@@ -38,7 +39,7 @@ test("summary cards expose mobile accessible labels and current counts", () => {
 
   assert.deepEqual(cards.map((card) => card.accessibilityLabel), [
     "Services ready 13 of 13",
-    "Tests passing 128 of 128",
+    "Tests passing 131 of 131",
     "CI status Service CI passing",
     "Launch gates 5 of 17",
   ]);

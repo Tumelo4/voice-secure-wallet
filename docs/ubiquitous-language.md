@@ -76,6 +76,7 @@ certificates, DNS, Kafka, and AWS remain separate infrastructure concerns.
 | Secure-store readiness | Executable mobile auth check that blocks unsafe token storage configuration before a production build. |
 | Refresh window | Safety interval before access-token expiry where the mobile app refreshes credentials rather than sending a token that may expire in flight. |
 | Mobile API flow | Redux thunk-style command that dispatches request-started, request-succeeded, or request-failed actions around wallet and payment API client calls. |
+| Mobile command form | React Native screen-level form state that validates wallet-balance or payment-start input before dispatching a mobile API flow. |
 | Request state | Redux-friendly `idle`, `loading`, `succeeded`, or `failed` state with optional data, error, and trace ID evidence. |
 | Mobile resilience policy | Local mobile rule set for retry backoff, non-retryable failures, offline payment queueing, and ordered replay before durable infrastructure exists. |
 | Offline payment queue | Device-local queue of payment-start commands keyed by idempotency key so duplicate taps or reconnects do not create duplicate payment commands. |

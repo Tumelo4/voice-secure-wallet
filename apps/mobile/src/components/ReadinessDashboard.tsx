@@ -1,4 +1,5 @@
 import { SafeAreaView, ScrollView, Text, View } from "react-native";
+import { MobileCommandForms } from "./MobileCommandForms";
 import {
   selectPaymentStartStatus,
   selectWalletBalanceStatus,
@@ -69,6 +70,11 @@ export function ReadinessDashboard() {
             payment API client while preserving request-state evidence.
           </Text>
         </View>
+
+        <MobileCommandForms
+          walletBalanceStatus={walletBalanceStatus}
+          paymentStartStatus={paymentStartStatus}
+        />
 
         <View className="mt-4">
           {readiness.phases.map((phase, index) => (
