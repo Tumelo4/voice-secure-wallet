@@ -104,13 +104,14 @@ const phases: Phase[] = [
   { name: "Mobile Token Session", status: "complete", evidence: "Secure token vault port, refresh-window policy, and refresh-failure cleanup" },
   { name: "Mobile Redux API Flows", status: "complete", evidence: "Thunk-style wallet and payment flows update Redux request state" },
   { name: "Mobile Resilience Policy", status: "complete", evidence: "Retry backoff, offline payment queue, idempotent enqueue, and ordered drain policy" },
-  { name: "API Local HTTP Listener", status: "active", evidence: "JDK HTTP listener forwards real socket requests through runtime guards" },
+  { name: "API Local HTTP Listener", status: "complete", evidence: "JDK HTTP listener forwards real socket requests through runtime guards" },
+  { name: "Durable Infrastructure Readiness", status: "active", evidence: "Kafka topic durability and AWS HA/encryption controls validated locally" },
 ];
 
 const blockers: Blocker[] = [
   {
     title: "Durable infrastructure adapters",
-    detail: "PostgreSQL, Kafka, Redis, and pgvector adapters still need real integration tests.",
+    detail: "Kafka/AWS readiness contracts exist; live MSK, RDS, Redis, S3, and pgvector adapters still need integration tests.",
   },
   {
     title: "Network server integration",
@@ -145,6 +146,7 @@ const testSuites: TestSuiteEvidence[] = [
   { name: "Acceptance", passing: 3 },
   { name: "Compliance", passing: 2 },
   { name: "Contracts", passing: 3 },
+  { name: "Durable infrastructure", passing: 5 },
   { name: "Events", passing: 6 },
   { name: "Fraud", passing: 4 },
   { name: "Identity", passing: 5 },

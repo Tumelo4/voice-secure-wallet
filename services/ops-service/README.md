@@ -17,10 +17,10 @@ recovery so readiness can be validated before a real incident or outage.
 
 ## Scope
 
-This service captures the phase 6 operational requirements as executable plan
-validation: telemetry shape, four golden signals, SLO dashboards, alert tiers,
-the five-stage release pipeline, reconciliation cadence, and disaster recovery
-restore gates.
+This service captures operational requirements as executable plan validation:
+telemetry shape, four golden signals, SLO dashboards, alert tiers, the
+five-stage release pipeline, reconciliation cadence, disaster recovery restore
+gates, and durable Kafka/AWS infrastructure readiness.
 
 ## Current Guarantees
 
@@ -29,6 +29,10 @@ restore gates.
 - Disaster recovery plans require restore test coverage before release readiness.
 - Required dashboards, release stages, log fields, and reconciliation cadence are
   configured through `OpsReadinessPolicy`.
+- Durable infrastructure readiness requires all event topics in Kafka, minimum
+  partitions and replication, schema compatibility, dead-letter queues,
+  retention, AWS private subnets, KMS encryption, MSK TLS/IAM, RDS HA/PITR,
+  Redis encryption, S3 object lock, and managed secret references.
 
 ## Benchmark
 
@@ -39,6 +43,9 @@ restore gates.
   hours.
 - Alert coverage must include Tier 1, Tier 2, and Tier 3, with runbooks for all
   Tier 1 alerts.
+- Kafka/AWS readiness must include the full event-topic catalog, at least 3
+  partitions, replication factor 3, `BACKWARD_TRANSITIVE` schemas, DLQs,
+  retention, and AWS HA/encryption controls before live integration work begins.
 
 ## How To Use It
 
@@ -52,6 +59,16 @@ OpsPlanValidationReport report = validator.validate(plan);
 
 Use `report.blockers()` as the release-readiness checklist for observability,
 deployment, and disaster recovery gaps.
+
+Validate a durable infrastructure plan before provisioning:
+
+```java
+DurableInfrastructureValidator validator = new DurableInfrastructureValidator();
+DurableInfrastructureValidationReport report = validator.validate(plan);
+```
+
+Use `report.blockers()` as the Kafka/AWS preflight checklist before wiring live
+MSK, RDS, Redis, S3, or deployment adapters.
 
 ## Local Test Command
 

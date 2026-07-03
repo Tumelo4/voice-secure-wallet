@@ -39,6 +39,7 @@ incident response, rollback, or customer recovery.
 | Phase 16: Mobile Redux API Flows | Wallet-balance and payment-start commands dispatch loading, success, and failure branches into Redux request state. | Mobile Redux API flow tests. |
 | Phase 17: Mobile Resilience Policy | Retryable mobile failures back off locally and offline payment commands queue idempotently until durable infrastructure is available. | Mobile resilience policy tests. |
 | Phase 18: API Local HTTP Listener | JDK HTTP listener forwards real socket requests through API runtime guards without adding cloud infrastructure. | API HTTP server tests. |
+| Phase 19: Durable Infrastructure Readiness | Kafka topic durability and AWS HA/encryption controls are executable preflight checks before live provisioning. | Durable infrastructure validator tests. |
 
 ## Pre-Release Checklist
 
