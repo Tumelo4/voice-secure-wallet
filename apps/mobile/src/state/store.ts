@@ -1,8 +1,8 @@
 import { configureStore } from "@reduxjs/toolkit";
 import { useSelector } from "react-redux";
 import type { TypedUseSelectorHook } from "react-redux";
-import { mobileApiReducer } from "./mobileApiSlice";
-import { readinessReducer } from "./readinessSlice";
+import { mobileApiReducer } from "./mobileApiSlice.ts";
+import { readinessReducer } from "./readinessSlice.ts";
 
 export const store = configureStore({
   reducer: {

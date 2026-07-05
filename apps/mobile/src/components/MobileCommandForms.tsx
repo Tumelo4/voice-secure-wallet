@@ -27,12 +27,12 @@ export function MobileCommandForms({
 }: MobileCommandFormsProps) {
   const [walletForm, setWalletForm] = useState<WalletBalanceCommandForm>(() => createWalletBalanceCommandForm());
   const [paymentForm, setPaymentForm] = useState<PaymentCommandForm>(() => createPaymentCommandForm());
-  const [formMessage, setFormMessage] = useState("Ready for user-triggered commands.");
+  const [formMessage, setFormMessage] = useState("Ready for secure transfers.");
 
   const submitWallet = () => {
     try {
       const accountId = walletAccountIdFromForm(walletForm);
-      setFormMessage(`Wallet command ready for ${accountId}.`);
+      setFormMessage(`Balance check prepared for ${accountId}.`);
       void onWalletCommand?.(accountId);
     } catch (error) {
       setFormMessage(messageFrom(error));
@@ -42,7 +42,7 @@ export function MobileCommandForms({
   const submitPayment = () => {
     try {
       const command = paymentCommandFromForm(paymentForm);
-      setFormMessage(`Payment command ready for ${command.currency} ${command.amount}.`);
+      setFormMessage(`Transfer ready for ${command.currency} ${command.amount}.`);
       void onPaymentCommand?.(command);
     } catch (error) {
       setFormMessage(messageFrom(error));
@@ -50,38 +50,41 @@ export function MobileCommandForms({
   };
 
   return (
-    <View className="mt-4 rounded-[32px] border border-emerald-100 bg-emerald-50/80 p-5">
-      <Text className="text-xs font-black uppercase tracking-[3px] text-emerald-700">Screen command forms</Text>
-      <Text className="mt-2 text-2xl font-black tracking-[-1px] text-emerald-950">Wallet and payment actions</Text>
-      <Text className="mt-2 text-sm leading-6 text-stone-600">
-        These React Native form controls validate user input before it reaches
-        the Redux API flow boundary.
+    <View className="mt-4 overflow-hidden rounded-[32px] border border-white/10 bg-white/5 p-5">
+      <View className="absolute right-0 top-0 h-28 w-28 rounded-full bg-emerald-400/10" />
+      <View className="absolute -bottom-10 left-4 h-36 w-36 rounded-full bg-sky-400/10" />
+      <Text className="text-[10px] font-black uppercase tracking-[4px] text-emerald-200/70">Money movement</Text>
+      <Text className="mt-2 text-2xl font-black tracking-[-1px] text-white">Transfers and payments</Text>
+      <Text className="mt-2 text-sm leading-6 text-slate-300">
+        Secure React Native forms validate user input before anything reaches
+        the Redux request boundary.
       </Text>
 
-      <View className="mt-4 rounded-3xl border border-white/80 bg-white/80 p-4">
-        <Text className="text-[10px] font-black uppercase tracking-[2px] text-emerald-700">Wallet balance</Text>
+      <View className="mt-4 rounded-[28px] border border-white/10 bg-[#0b1724] p-4">
+        <Text className="text-[10px] font-black uppercase tracking-[3px] text-emerald-200/70">Check balance</Text>
         <TextInput
           accessibilityLabel="Wallet account id"
-          className="mt-3 rounded-2xl border border-emerald-100 bg-white px-4 py-3 text-base text-emerald-950"
+          className="mt-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-base text-white"
           onChangeText={(value) => setWalletForm((form) => updateWalletBalanceCommandForm(form, "accountId", value))}
+          placeholderTextColor="#8ba1b2"
           placeholder="wallet-account-id"
           value={walletForm.accountId}
         />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Load wallet balance"
-          className="mt-3 rounded-2xl bg-emerald-900 px-4 py-3"
+          className="mt-3 rounded-2xl bg-emerald-400 px-4 py-3"
           onPress={submitWallet}
         >
-          <Text className="text-center text-sm font-black uppercase tracking-[2px] text-white">
-            Load Balance
+          <Text className="text-center text-sm font-black uppercase tracking-[2px] text-[#071521]">
+            Check Balance
           </Text>
         </Pressable>
-        <Text className="mt-2 text-xs font-bold text-stone-500">Status: {walletBalanceStatus}</Text>
+        <Text className="mt-2 text-xs font-bold text-slate-400">Status: {walletBalanceStatus}</Text>
       </View>
 
-      <View className="mt-4 rounded-3xl border border-white/80 bg-white/80 p-4">
-        <Text className="text-[10px] font-black uppercase tracking-[2px] text-orange-700">Start payment</Text>
+      <View className="mt-4 rounded-[28px] border border-white/10 bg-[#0b1724] p-4">
+        <Text className="text-[10px] font-black uppercase tracking-[3px] text-sky-200/70">Send payment</Text>
         <View className="mt-2 flex-row flex-wrap">
           <CommandInput label="Saga id" value={paymentForm.sagaId} onChange={(value) => setPaymentForm((form) => updatePaymentCommandForm(form, "sagaId", value))} />
           <CommandInput label="Idempotency key" value={paymentForm.idempotencyKey} onChange={(value) => setPaymentForm((form) => updatePaymentCommandForm(form, "idempotencyKey", value))} />
@@ -94,17 +97,17 @@ export function MobileCommandForms({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Start payment"
-          className="mt-3 rounded-2xl bg-orange-600 px-4 py-3"
+          className="mt-3 rounded-2xl bg-sky-400 px-4 py-3"
           onPress={submitPayment}
         >
-          <Text className="text-center text-sm font-black uppercase tracking-[2px] text-white">
-            Start Payment
+          <Text className="text-center text-sm font-black uppercase tracking-[2px] text-[#071521]">
+            Send Payment
           </Text>
         </Pressable>
-        <Text className="mt-2 text-xs font-bold text-stone-500">Status: {paymentStartStatus}</Text>
+        <Text className="mt-2 text-xs font-bold text-slate-400">Status: {paymentStartStatus}</Text>
       </View>
 
-      <Text className="mt-3 text-sm font-bold text-emerald-800">{formMessage}</Text>
+      <Text className="mt-3 text-sm font-bold text-emerald-200">{formMessage}</Text>
     </View>
   );
 }
@@ -112,11 +115,12 @@ export function MobileCommandForms({
 function CommandInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
     <View className="mb-2 mr-2 min-w-[132px] flex-1">
-      <Text className="text-[10px] font-black uppercase tracking-[2px] text-stone-500">{label}</Text>
+      <Text className="text-[10px] font-black uppercase tracking-[2px] text-slate-400">{label}</Text>
       <TextInput
         accessibilityLabel={label}
-        className="mt-1 rounded-2xl border border-stone-100 bg-white px-3 py-2 text-sm text-emerald-950"
+        className="mt-1 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
         onChangeText={onChange}
+        placeholderTextColor="#8ba1b2"
         value={value}
       />
     </View>
@@ -124,5 +128,5 @@ function CommandInput({ label, value, onChange }: { label: string; value: string
 }
 
 function messageFrom(error: unknown): string {
-  return error instanceof Error ? error.message : "mobile command form is invalid";
+  return error instanceof Error ? error.message : "Please review the transfer details.";
 }
