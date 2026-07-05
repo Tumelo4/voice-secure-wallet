@@ -216,36 +216,36 @@ export const readinessSelectors = {
   summaryCards(state: Pick<ReadinessState, "summary">): SummaryCard[] {
     return [
       {
-        label: "Services ready",
+        label: "Accounts live",
         value: `${state.summary.services.ready} / ${state.summary.services.total}`,
-        detail: "Bounded contexts modeled",
-        accessibilityLabel: `Services ready ${state.summary.services.ready} of ${state.summary.services.total}`,
+        detail: "Core banking modules online",
+        accessibilityLabel: `Accounts live ${state.summary.services.ready} of ${state.summary.services.total}`,
       },
       {
-        label: "Tests passing",
+        label: "Checks cleared",
         value: `${state.summary.tests.passing} / ${state.summary.tests.total}`,
         detail: "Unit, BDD, contract, and mobile checks",
-        accessibilityLabel: `Tests passing ${state.summary.tests.passing} of ${state.summary.tests.total}`,
+        accessibilityLabel: `Checks cleared ${state.summary.tests.passing} of ${state.summary.tests.total}`,
       },
       {
-        label: "CI status",
+        label: "Security status",
         value: state.summary.ci.label,
-        detail: "GitHub Actions evidence",
-        accessibilityLabel: `CI status ${state.summary.ci.label}`,
+        detail: "Automated guardrails passing",
+        accessibilityLabel: `Security status ${state.summary.ci.label}`,
       },
       {
-        label: "Launch gates",
+        label: "Launch controls",
         value: `${state.summary.launchGates.complete} / ${state.summary.launchGates.total}`,
-        detail: "Production evidence still growing",
-        accessibilityLabel: `Launch gates ${state.summary.launchGates.complete} of ${state.summary.launchGates.total}`,
+        detail: "Production readiness still maturing",
+        accessibilityLabel: `Launch controls ${state.summary.launchGates.complete} of ${state.summary.launchGates.total}`,
       },
     ];
   },
   mobileClassNames(): MobileClassNames {
     return {
-      screen: "flex-1 bg-amber-50",
-      card: "rounded-3xl border border-stone-200 bg-white/80 p-5 shadow-sm",
-      activePhase: "border-orange-500 bg-amber-100",
+      screen: "flex-1 bg-[#071521]",
+      card: "rounded-[30px] border border-white/10 bg-white/5 p-5 shadow-xl",
+      activePhase: "border-emerald-400/30 bg-emerald-400/10",
       metricGrid: "flex-row flex-wrap",
     };
   },

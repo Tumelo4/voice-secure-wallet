@@ -1,9 +1,9 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSelector, createSlice } from "@reduxjs/toolkit";
 import {
   createReadinessState,
   readinessSelectors as modelSelectors,
-} from "./readinessModel";
-import type { RootState } from "./store";
+} from "./readinessModel.ts";
+import type { RootState } from "./store.ts";
 
 const readinessSlice = createSlice({
   name: "readiness",
@@ -18,7 +18,12 @@ const readinessSlice = createSlice({
 export const { markCiPassing } = readinessSlice.actions;
 export const readinessReducer = readinessSlice.reducer;
 
+const stableMobileClassNames = modelSelectors.mobileClassNames();
+
 export const selectReadiness = (state: RootState) => state.readiness;
 export const selectActivePhase = (state: RootState) => modelSelectors.activePhase(state.readiness);
-export const selectSummaryCards = (state: RootState) => modelSelectors.summaryCards(state.readiness);
-export const selectMobileClassNames = (state: RootState) => modelSelectors.mobileClassNames(state.readiness);
+export const selectSummaryCards = createSelector(
+  [(state: RootState) => state.readiness.summary],
+  (summary) => modelSelectors.summaryCards({ summary }),
+);
+export const selectMobileClassNames = (_state: RootState) => stableMobileClassNames;

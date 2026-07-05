@@ -7,6 +7,8 @@ import {
   readinessSelectors,
   uiStack,
 } from "../src/state/readinessModel.ts";
+import { selectMobileClassNames, selectSummaryCards } from "../src/state/readinessSlice.ts";
+import { store } from "../src/state/store.ts";
 
 test("mobile UI declares the requested React Native, Tailwind, and Redux stack", () => {
   assert.equal(uiStack.platform, "react-native");
@@ -39,11 +41,18 @@ test("summary cards expose mobile accessible labels and current counts", () => {
   const cards = readinessSelectors.summaryCards(state);
 
   assert.deepEqual(cards.map((card) => card.accessibilityLabel), [
-    "Services ready 13 of 13",
-    "Tests passing 134 of 134",
-    "CI status Service CI passing",
-    "Launch gates 5 of 17",
+    "Accounts live 13 of 13",
+    "Checks cleared 134 of 134",
+    "Security status Service CI passing",
+    "Launch controls 5 of 17",
   ]);
+});
+
+test("redux readiness selectors return stable references for unchanged state", () => {
+  const state = store.getState();
+
+  assert.equal(selectSummaryCards(state), selectSummaryCards(state));
+  assert.equal(selectMobileClassNames(state), selectMobileClassNames(state));
 });
 
 test("dashboard sections preserve the product narrative order", () => {
@@ -56,11 +65,10 @@ test("dashboard sections preserve the product narrative order", () => {
 });
 
 test("tailwind class tokens avoid static web css and support mobile layout", () => {
-  const state = createReadinessState();
-  const classes = readinessSelectors.mobileClassNames(state);
+  const classes = readinessSelectors.mobileClassNames();
 
-  assert.ok(classes.screen.includes("bg-amber-50"));
-  assert.ok(classes.card.includes("rounded-3xl"));
-  assert.ok(classes.activePhase.includes("border-orange-500"));
+  assert.ok(classes.screen.includes("bg-[#071521]"));
+  assert.ok(classes.card.includes("rounded-[30px]"));
+  assert.ok(classes.activePhase.includes("border-emerald-400/30"));
   assert.ok(classes.metricGrid.includes("flex-row"));
 });
