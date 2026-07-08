@@ -20,8 +20,8 @@ export interface BankingHeroCopy {
 
 export interface BankingAccountCard {
   name: string;
-  balance: string;
   detail: string;
+  meta: string;
   tone: "navy" | "emerald" | "amber";
 }
 
@@ -75,7 +75,7 @@ export const bankingHero: BankingHeroCopy = {
   balanceLabel: "Available balance",
   balance: "R 48,250.75",
   securityNote: "Protected",
-  statusNote: "Your money is protected and ready to move.",
+  statusNote: "Your account is ready for the day.",
 };
 
 export const bankingTabs: BankingTab[] = [
@@ -89,20 +89,20 @@ export const bankingTabs: BankingTab[] = [
 export const bankingAccountCards: BankingAccountCard[] = [
   {
     name: "Everyday Account",
-    balance: "R 48,250.75",
     detail: "Main account for daily spend",
+    meta: "6 payments pending",
     tone: "navy",
   },
   {
     name: "Savings Pocket",
-    balance: "R 12,400.00",
-    detail: "Easy-access reserve",
+    detail: "Instant-access reserve",
+    meta: "2.4% bonus rate",
     tone: "emerald",
   },
   {
     name: "Travel Card",
-    balance: "R 3,840.00",
     detail: "International spend ready",
+    meta: "FX alerts on",
     tone: "amber",
   },
 ];
@@ -111,7 +111,7 @@ export const bankingQuickActions: BankingQuickAction[] = [
   { label: "Pay", detail: "Pay a bill", icon: "↗", tone: "emerald", intent: "pay" },
   { label: "Send", detail: "Transfer money", icon: "⇄", tone: "sky", intent: "send" },
   { label: "Top up", detail: "Add funds", icon: "+", tone: "amber", intent: "topup" },
-  { label: "Scan", detail: "QR payment", icon: "▣", tone: "rose", intent: "pay" },
+  { label: "Scan", detail: "Scan a QR code", icon: "▣", tone: "rose", intent: "pay" },
 ];
 
 export const bankingTransactionGroups: BankingTransactionGroup[] = [
