@@ -34,7 +34,7 @@ export function createVoiceSecureFlow(draft: TransactionDraft): VoiceSecureFlow 
     intent: draft.intent,
     stage: "listening",
     attempts: 0,
-    prompt: voiceSecurePrompt(draft.intent),
+    prompt: 'Say "Confirm payment" to continue',
     message: "Verifying your voice...",
     statusLabel: "Listening",
     fallbackOptions: ["PIN", "Face ID", "Fingerprint"],
@@ -100,16 +100,5 @@ function transactionSuccessMessage(intent: BankingTransactionIntent): string {
       return "Your transfer is on its way.";
     case "topup":
       return "Your top up is on its way.";
-  }
-}
-
-function voiceSecurePrompt(intent: BankingTransactionIntent): string {
-  switch (intent) {
-    case "pay":
-      return 'Say "Confirm payment" to continue';
-    case "send":
-      return 'Say "Confirm transfer" to continue';
-    case "topup":
-      return 'Say "Confirm top up" to continue';
   }
 }
