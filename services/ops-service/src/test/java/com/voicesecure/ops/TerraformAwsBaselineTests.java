@@ -11,6 +11,8 @@ public final class TerraformAwsBaselineTests {
     public static void main(String[] args) throws Exception {
         TestCase[] tests = {
                 new TestCase("Terraform baseline exposes expected files", TerraformAwsBaselineTests::terraformFilesExist),
+                new TestCase("Terraform baseline declares remote state controls", TerraformAwsBaselineTests::remoteStateControlsExist),
+                new TestCase("Terraform baseline declares least-privilege IAM controls", TerraformAwsBaselineTests::leastPrivilegeIamControlsExist),
                 new TestCase("Terraform baseline declares private network and KMS controls", TerraformAwsBaselineTests::networkAndKmsControlsExist),
                 new TestCase("Terraform baseline declares MSK durability controls", TerraformAwsBaselineTests::mskDurabilityControlsExist),
                 new TestCase("Terraform baseline declares RDS Redis S3 durability controls", TerraformAwsBaselineTests::dataStoreDurabilityControlsExist),
@@ -25,9 +27,46 @@ public final class TerraformAwsBaselineTests {
     }
 
     private static void terraformFilesExist() throws IOException {
-        for (String file : List.of("README.md", "versions.tf", "variables.tf", "networking.tf", "security.tf", "data.tf", "outputs.tf", "terraform.tfvars.example")) {
+        for (String file : List.of("README.md", "versions.tf", "backend.tf", "state.tf", "iam.tf", "variables.tf", "networking.tf", "security.tf", "data.tf", "outputs.tf", "terraform.tfvars.example")) {
             assertTrue(Files.isRegularFile(INFRA_DIR.resolve(file)), file + " should exist");
         }
+    }
+
+    private static void remoteStateControlsExist() throws IOException {
+        String backend = read("backend.tf");
+        String state = read("state.tf");
+
+        assertContains(backend, "backend \"s3\"", "S3 backend");
+        assertContains(backend, "bucket = \"voicesecure-terraform-state\"", "remote state bucket");
+        assertContains(backend, "key = \"environments/voicesecure.tfstate\"", "state key");
+        assertContains(backend, "dynamodb_table = \"voicesecure-terraform-locks\"", "state lock table");
+        assertContains(backend, "encrypt = true", "state encryption");
+        assertContains(backend, "workspace_key_prefix = \"voicesecure\"", "workspace key prefix");
+
+        assertContains(state, "resource \"aws_s3_bucket\" \"terraform_state\"", "terraform state bucket");
+        assertContains(state, "resource \"aws_s3_bucket_versioning\" \"terraform_state\"", "terraform state versioning");
+        assertContains(state, "resource \"aws_s3_bucket_server_side_encryption_configuration\" \"terraform_state\"", "terraform state encryption");
+        assertContains(state, "resource \"aws_s3_bucket_public_access_block\" \"terraform_state\"", "terraform state public access block");
+        assertContains(state, "resource \"aws_dynamodb_table\" \"terraform_locks\"", "terraform state lock table");
+        assertContains(state, "billing_mode = \"PAY_PER_REQUEST\"", "lock table billing mode");
+        assertContains(state, "hash_key = \"LockID\"", "lock table hash key");
+    }
+
+    private static void leastPrivilegeIamControlsExist() throws IOException {
+        String iam = read("iam.tf");
+
+        assertContains(iam, "resource \"aws_iam_role\" \"api\"", "api role");
+        assertContains(iam, "resource \"aws_iam_role\" \"payment\"", "payment role");
+        assertContains(iam, "resource \"aws_iam_role\" \"ledger\"", "ledger role");
+        assertContains(iam, "resource \"aws_iam_role\" \"wallet\"", "wallet role");
+        assertContains(iam, "resource \"aws_iam_role\" \"compliance\"", "compliance role");
+        assertContains(iam, "resource \"aws_iam_role\" \"support\"", "support role");
+        assertContains(iam, "resource \"aws_iam_role\" \"ci_deploy\"", "ci deploy role");
+        assertContains(iam, "resource \"aws_iam_role\" \"break_glass_admin\"", "break-glass role");
+        assertContains(iam, "secretsmanager:GetSecretValue", "secret access should be scoped");
+        assertContains(iam, "dynamodb:PutItem", "ci deploy should lock state");
+        assertContains(iam, "s3:PutObject", "ci deploy should write state");
+        assertTrue(!iam.contains("AdministratorAccess"), "Terraform must not attach broad admin policies");
     }
 
     private static void networkAndKmsControlsExist() throws IOException {
@@ -80,7 +119,7 @@ public final class TerraformAwsBaselineTests {
 
     private static String readAllTerraform() throws IOException {
         StringBuilder builder = new StringBuilder();
-        for (String file : List.of("versions.tf", "variables.tf", "networking.tf", "security.tf", "data.tf", "outputs.tf")) {
+        for (String file : List.of("versions.tf", "backend.tf", "state.tf", "variables.tf", "networking.tf", "security.tf", "data.tf", "outputs.tf")) {
             builder.append(read(file)).append('\n');
         }
         return builder.toString();

@@ -7,7 +7,10 @@ Terraform baseline for the first production infrastructure shape.
 This module declares the durable AWS resources required by the platform:
 
 - private VPC subnets and an S3 VPC endpoint;
+- an S3 remote-state backend with DynamoDB locking for environment-specific keys;
 - KMS key with rotation;
+- least-privilege IAM service roles for API, payment, ledger, wallet,
+  compliance, support, CI deploy, and break-glass access;
 - MSK cluster placeholder for the event backbone;
 - RDS PostgreSQL instance for ledger and wallet data;
 - ElastiCache Redis replication group for distributed rate limits;

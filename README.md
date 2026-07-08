@@ -65,7 +65,8 @@ a product microservice.
 - Java 17 durable infrastructure readiness validator for Kafka topics and AWS
   HA/encryption controls.
 - Terraform AWS baseline for VPC, KMS, MSK, RDS, Redis, S3 object lock, and
-  Secrets Manager references.
+  Secrets Manager references, plus remote state bootstrap, IAM roles, and
+  locking.
 - Java 17 `launch-service` readiness validator for hardening, production
   cutover, and launch gates.
 - Java 17 `api-adapter-service` contracts and runtime boundary for payment
