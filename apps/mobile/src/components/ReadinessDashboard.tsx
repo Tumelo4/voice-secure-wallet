@@ -191,7 +191,7 @@ function Header({ layoutMode }: { layoutMode: BankingLayoutMode }) {
   return (
     <View className={`mb-6 ${isCompact ? "flex-col" : "flex-row items-start justify-between"}`}>
       <View className={isCompact ? "" : "max-w-[720px] pr-4"}>
-        <Text className="text-[11px] font-semibold tracking-[0.24em] text-slate-500">
+        <Text className="text-[11px] font-medium tracking-[0.08em] text-slate-500">
           {bankingHero.brand}
         </Text>
         <Text className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-slate-900">
@@ -203,7 +203,7 @@ function Header({ layoutMode }: { layoutMode: BankingLayoutMode }) {
       </View>
 
       <View className={`mt-4 rounded-full border border-slate-200 bg-white px-4 py-2 shadow-sm ${isCompact ? "self-start" : ""}`}>
-        <Text className="text-xs font-semibold text-emerald-700">
+        <Text className="text-xs font-medium text-emerald-700">
           {bankingHero.securityNote}
         </Text>
       </View>
@@ -227,7 +227,7 @@ function HomeTab({
         <View className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
           <View className="h-1.5 bg-[#0b57d0]" />
           <View className="p-5">
-            <Text className="text-[11px] font-semibold tracking-[0.18em] text-slate-500">
+            <Text className="text-[11px] font-medium tracking-[0.08em] text-slate-500">
               {bankingHero.accountName}
             </Text>
             <Text className="mt-2 text-sm font-medium text-slate-600">
@@ -249,9 +249,8 @@ function HomeTab({
         </View>
 
         <SectionHeading
-          eyebrow="Quick actions"
-          title="Move money fast"
-          detail="One-tap actions for the moments people use most."
+          title="Move money"
+          detail="Pay a bill, transfer money, top up, or scan a QR code."
         />
         <View className="mt-4 flex-row flex-wrap justify-between">
           {bankingQuickActions.map((action) => (
@@ -265,9 +264,8 @@ function HomeTab({
         </View>
 
         <SectionHeading
-          eyebrow="Accounts"
           title="Account overview"
-          detail="Balances, savings, and card accounts in a polished stack."
+          detail="At-a-glance account details and activity."
         />
         {isCompact ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mt-4 -mx-1">
@@ -286,9 +284,8 @@ function HomeTab({
 
       <View style={{ flex: isExpanded ? 0.88 : undefined, marginLeft: isExpanded ? 20 : 0, marginTop: isExpanded ? 0 : 24 }}>
         <SectionHeading
-          eyebrow="Activity"
-          title="Transactions by date"
-          detail="Grouped by day with merchant, icon, category, and amount."
+          title="Recent activity"
+          detail="Transactions grouped by date with merchant, category, and amount."
         />
         <View className="mt-4">
           {bankingTransactionGroups.map((group) => (
@@ -339,9 +336,8 @@ function PaymentsTab({
   return (
     <View>
       <SectionHeading
-        eyebrow="Payments"
         title="Send money with VoiceSecure"
-        detail="Fill in the details, tap your action, and do a quick voice check before anything is confirmed."
+        detail="Fill in the details, then verify with VoiceSecure before anything is sent."
       />
 
       {flow?.stage === "confirmed" ? (
@@ -397,14 +393,14 @@ function PaymentComposer({
 
   return (
     <View className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-      <Text className="text-[11px] font-semibold tracking-[0.18em] text-slate-500">
+      <Text className="text-[11px] font-medium tracking-[0.06em] text-slate-500">
         Transfer details
       </Text>
       <Text className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-slate-900">
         {intentLabel} money in a few taps
       </Text>
       <Text className="mt-2 text-sm leading-6 text-slate-600">
-        Keep the details simple. VoiceSecure will step in before the final confirmation.
+        Keep the details simple. VoiceSecure steps in before final confirmation.
       </Text>
 
       <View className="mt-5 rounded-[24px] border border-slate-200 bg-slate-50 p-4">
@@ -504,7 +500,7 @@ function VoiceSecureCard({
 
   return (
     <View className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-      <Text className="text-[11px] font-semibold tracking-[0.18em] text-slate-500">
+      <Text className="text-[11px] font-medium tracking-[0.06em] text-slate-500">
         VoiceSecure
       </Text>
       <Text className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-slate-900">
@@ -513,7 +509,7 @@ function VoiceSecureCard({
       <Text className="mt-2 text-sm leading-6 text-slate-600">{flow.prompt}</Text>
 
       <View className="mt-5 rounded-[24px] border border-slate-200 bg-slate-50 p-4">
-        <Text className="text-[11px] font-semibold tracking-[0.18em] text-slate-500">
+        <Text className="text-[11px] font-medium tracking-[0.06em] text-slate-500">
           Review
         </Text>
         <Text className="mt-2 text-lg font-semibold text-slate-900">{draft.recipient}</Text>
@@ -592,7 +588,7 @@ function SuccessCard({
     <View className="rounded-[28px] border border-emerald-100 bg-white p-5 shadow-sm">
       <View className="items-center rounded-[24px] bg-emerald-50 p-5">
         <Text className="text-5xl">✓</Text>
-        <Text className="mt-4 text-[11px] font-semibold tracking-[0.18em] text-emerald-700">
+        <Text className="mt-4 text-[11px] font-medium tracking-[0.06em] text-emerald-700">
           {method}
         </Text>
         <Text className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-emerald-950">{title}</Text>
@@ -633,9 +629,8 @@ function CardsTab({ layoutMode }: { layoutMode: BankingLayoutMode }) {
   return (
     <View>
       <SectionHeading
-        eyebrow="Cards"
         title="A clean card stack"
-        detail="Freeze, reveal, and manage cards with the same calm premium feel."
+        detail="Freeze, reveal, and manage cards with a calm banking feel."
       />
 
       <View className="mt-4" style={{ flexDirection: isCompact ? "column" : "row", flexWrap: "wrap", justifyContent: "space-between" }}>
@@ -645,10 +640,10 @@ function CardsTab({ layoutMode }: { layoutMode: BankingLayoutMode }) {
             className={`mb-4 overflow-hidden rounded-[28px] border p-5 shadow-sm ${cardClass(card.tone)}`}
             style={{ width: isCompact ? "100%" : "48%" }}
           >
-            <Text className="text-[11px] font-semibold tracking-[0.18em] text-white/80">
+            <Text className="text-[11px] font-medium tracking-[0.06em] text-white/80">
               {card.name}
             </Text>
-            <Text className="mt-4 text-3xl font-semibold tracking-[-0.03em] text-white">
+            <Text className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white">
               {card.maskedNumber}
             </Text>
             <Text className="mt-2 text-sm font-medium text-white/75">{card.expiry}</Text>
@@ -672,13 +667,12 @@ function InsightsTab({ layoutMode }: { layoutMode: BankingLayoutMode }) {
   return (
     <View>
       <SectionHeading
-        eyebrow="Insights"
         title="See where money goes"
-        detail="A simple spend snapshot with categories that read like a bank statement should."
+        detail="A monthly spend snapshot with categories that read clearly."
       />
 
       <View className="mt-4 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-        <Text className="text-[11px] font-semibold tracking-[0.18em] text-slate-500">
+        <Text className="text-[11px] font-medium tracking-[0.06em] text-slate-500">
           Monthly spending
         </Text>
         <Text className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-slate-900">
@@ -702,7 +696,7 @@ function InsightsTab({ layoutMode }: { layoutMode: BankingLayoutMode }) {
             className="mb-3 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm"
             style={{ width: isCompact ? "100%" : "32%" }}
           >
-            <Text className="text-[11px] font-semibold tracking-[0.18em] text-slate-500">
+            <Text className="text-[11px] font-medium tracking-[0.06em] text-slate-500">
               {insight.label}
             </Text>
             <Text className="mt-2 text-2xl font-semibold text-slate-900">{insight.value}</Text>
@@ -720,13 +714,12 @@ function ProfileTab({ layoutMode }: { layoutMode: BankingLayoutMode }) {
   return (
     <View>
       <SectionHeading
-        eyebrow="Profile"
-        title="Your security, your pace"
-        detail="VoiceSecure stays active on every transaction, with friendly backup routes when you need them."
+        title="Security and profile"
+        detail="VoiceSecure stays active on every transaction, with friendly backup routes."
       />
 
       <View className="mt-4 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-        <Text className="text-[11px] font-semibold tracking-[0.18em] text-slate-500">
+        <Text className="text-[11px] font-medium tracking-[0.06em] text-slate-500">
           VoiceSecure Bank member
         </Text>
         <Text className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-slate-900">
@@ -742,7 +735,7 @@ function ProfileTab({ layoutMode }: { layoutMode: BankingLayoutMode }) {
             className="mb-3 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm"
             style={{ width: isCompact ? "100%" : "32%" }}
           >
-            <Text className="text-[11px] font-semibold tracking-[0.18em] text-slate-500">
+            <Text className="text-[11px] font-medium tracking-[0.06em] text-slate-500">
               {row.label}
             </Text>
             <Text className="mt-2 text-lg font-semibold text-slate-900">{row.value}</Text>
@@ -813,15 +806,19 @@ function QuickActionButton({
     <Pressable
       onPress={onPress}
       className={`mb-3 rounded-[24px] border px-4 py-4 shadow-sm ${quickActionClass(action.tone)}`}
-      style={{ width }}
+      style={{ width, minHeight: 92 }}
     >
       <View className="flex-row items-center">
         <View className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-white/80">
           <Text className="text-sm font-semibold text-slate-900">{action.icon}</Text>
         </View>
         <View className="flex-1">
-          <Text className="text-sm font-semibold text-slate-900">{action.label}</Text>
-          <Text className="mt-1 text-xs font-semibold text-slate-600">{action.detail}</Text>
+          <Text className="text-sm font-semibold text-slate-900" numberOfLines={1}>
+            {action.label}
+          </Text>
+          <Text className="mt-1 text-xs font-medium text-slate-600" numberOfLines={1}>
+            {action.detail}
+          </Text>
         </View>
       </View>
     </Pressable>
@@ -829,19 +826,14 @@ function QuickActionButton({
 }
 
 function SectionHeading({
-  eyebrow,
   title,
   detail,
 }: {
-  eyebrow: string;
   title: string;
   detail: string;
 }) {
   return (
     <View className="mt-8">
-      <Text className="text-[11px] font-semibold tracking-[0.18em] text-slate-500">
-        {eyebrow}
-      </Text>
       <Text className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-slate-900">{title}</Text>
       <Text className="mt-2 text-sm leading-6 text-slate-600">{detail}</Text>
     </View>
@@ -851,7 +843,7 @@ function SectionHeading({
 function HeroChip({ label, value }: { label: string; value: string }) {
   return (
     <View className="mb-3 mr-3 min-w-[120px] flex-1 rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3">
-      <Text className="text-[11px] font-semibold tracking-[0.18em] text-slate-500">{label}</Text>
+      <Text className="text-[11px] font-medium tracking-[0.06em] text-slate-500">{label}</Text>
       <Text className="mt-1 text-sm font-semibold text-slate-900">{value}</Text>
     </View>
   );
@@ -869,13 +861,24 @@ function AccountCard({
   return (
     <View
       className={`rounded-[24px] border p-5 shadow-sm ${accountCardClass(card.tone)}`}
-      style={{ width: isCompact ? 250 : "32%", marginRight: isCompact ? 12 : 0, marginBottom: isCompact ? 0 : 12 }}
+      style={{
+        width: isCompact ? 250 : "32%",
+        marginRight: isCompact ? 12 : 0,
+        marginBottom: isCompact ? 0 : 12,
+        minHeight: 160,
+        justifyContent: "space-between",
+      }}
     >
-      <Text className="text-[11px] font-semibold tracking-[0.18em] text-slate-500">
-        {card.name}
-      </Text>
-      <Text className="mt-3 text-3xl font-semibold tracking-[-0.03em] text-slate-900">{card.balance}</Text>
-      <Text className="mt-2 text-sm text-slate-600">{card.detail}</Text>
+      <View>
+        <Text className="text-[11px] font-medium tracking-[0.06em] text-slate-500">
+          {card.name}
+        </Text>
+        <Text className="mt-3 text-sm text-slate-600">{card.detail}</Text>
+      </View>
+      <View className="mt-4">
+        <Text className="text-lg font-semibold text-slate-900">{card.meta}</Text>
+        <Text className="mt-1 text-xs font-medium text-slate-500">Tap to view account details</Text>
+      </View>
     </View>
   );
 }
@@ -883,7 +886,7 @@ function AccountCard({
 function TransactionGroupCard({ group }: { group: (typeof bankingTransactionGroups)[number] }) {
   return (
     <View className="mb-4 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
-      <Text className="text-[11px] font-semibold tracking-[0.18em] text-slate-500">
+      <Text className="text-[11px] font-medium tracking-[0.06em] text-slate-500">
         {group.dateLabel}
       </Text>
       <View className="mt-3">
@@ -931,7 +934,7 @@ function ActionPill({
     <Pressable
       onPress={onPress}
       className={`mb-3 rounded-full px-4 py-3 ${selected ? "bg-[#0b57d0]" : "border border-slate-200 bg-white"}`}
-      style={{ width: isCompact ? "48%" : width }}
+      style={{ width: isCompact ? "48%" : width, minHeight: 52 }}
     >
       <Text className={`text-sm font-semibold ${selected ? "text-white" : "text-slate-900"}`}>
         {label}
@@ -976,7 +979,7 @@ function LabeledField({
 }) {
   return (
     <View>
-      <Text className="text-[11px] font-semibold tracking-[0.18em] text-slate-500">{label}</Text>
+      <Text className="text-[11px] font-medium tracking-[0.06em] text-slate-500">{label}</Text>
       <TextInput
         value={value}
         placeholder={placeholder}
@@ -998,7 +1001,7 @@ function NavigationRail({
 }) {
   return (
     <View className="w-[104px] border-r border-slate-200 bg-white px-3 py-4 shadow-sm">
-      <Text className="text-[11px] font-semibold tracking-[0.22em] text-slate-500">
+      <Text className="text-[11px] font-medium tracking-[0.08em] text-slate-500">
         VoiceSecure
       </Text>
       <View className="mt-6">

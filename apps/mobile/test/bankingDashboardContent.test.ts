@@ -15,6 +15,7 @@ test("banking hero keeps balance front and center", () => {
   assert.equal(bankingHero.accountName, "Everyday Account");
   assert.equal(bankingHero.balance, "R 48,250.75");
   assert.equal(bankingHero.securityNote, "Protected");
+  assert.equal(bankingHero.statusNote, "Your account is ready for the day.");
 });
 
 test("banking tabs match the requested consumer banking navigation", () => {
@@ -30,6 +31,9 @@ test("banking tabs match the requested consumer banking navigation", () => {
 
 test("banking overview includes cards, quick actions, and grouped transactions", () => {
   assert.equal(bankingAccountCards.length, 3);
+  assert.equal(bankingAccountCards[0].meta, "6 payments pending");
+  assert.equal(bankingAccountCards[1].meta, "2.4% bonus rate");
+  assert.equal(bankingAccountCards[2].meta, "FX alerts on");
   assert.deepEqual(
     bankingQuickActions.map((action) => action.label),
     ["Pay", "Send", "Top up", "Scan"],
@@ -43,6 +47,10 @@ test("banking overview includes cards, quick actions, and grouped transactions",
     ["pay", "send", "topup", "pay"],
   );
   assert.deepEqual(
+    bankingQuickActions.map((action) => action.detail),
+    ["Pay a bill", "Transfer money", "Add funds", "Scan a QR code"],
+  );
+  assert.deepEqual(
     bankingTransactionGroups.map((group) => group.dateLabel),
     ["Today", "Yesterday", "Monday"],
   );
@@ -50,4 +58,10 @@ test("banking overview includes cards, quick actions, and grouped transactions",
   assert.equal(bankingTransactionGroups[0].items[1].category, "Groceries");
   assert.equal(bankingTransactionGroups[0].items[2].icon, "U");
   assert.equal(bankingTransactionGroups[1].items[1].icon, "S");
+  assert.ok(
+    !JSON.stringify({ bankingHero, bankingAccountCards, bankingQuickActions, bankingTransactionGroups }).includes("polished stack"),
+  );
+  assert.ok(
+    !JSON.stringify({ bankingHero, bankingAccountCards, bankingQuickActions, bankingTransactionGroups }).includes("moments people use most"),
+  );
 });
