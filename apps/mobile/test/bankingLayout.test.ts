@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   bankingLayoutModeForWidth,
+  bankingScreenChromeForWidth,
   composerColumns,
   contentMaxWidth,
   quickActionColumns,
@@ -31,4 +32,20 @@ test("banking layout expands on desktop widths", () => {
   assert.equal(quickActionColumns(bankingLayoutModeForWidth(1440)), 4);
   assert.equal(composerColumns(bankingLayoutModeForWidth(1440)), 2);
   assert.equal(contentMaxWidth(bankingLayoutModeForWidth(1440)), 1180);
+});
+
+test("banking screen chrome keeps the main scroll area shrinkable on phones", () => {
+  const chrome = bankingScreenChromeForWidth(390);
+
+  assert.equal(chrome.scrollViewClassName.includes("min-w-0"), true);
+  assert.equal(chrome.contentPaddingHorizontal, 16);
+  assert.equal(chrome.contentMaxWidth, undefined);
+});
+
+test("banking screen chrome caps content on larger widths", () => {
+  const chrome = bankingScreenChromeForWidth(1024);
+
+  assert.equal(chrome.scrollViewClassName.includes("min-w-0"), true);
+  assert.equal(chrome.contentPaddingHorizontal, 24);
+  assert.equal(chrome.contentMaxWidth, 1180);
 });
