@@ -18,9 +18,9 @@ success states, duplicate charges, and customer-visible inconsistencies.
 ## Scope
 
 This service coordinates fraud approval, voice verification, fallback handling,
-funds reservation, ledger commit, completion, and compensation. The initial
-implementation is in-memory so the state machine can be tested without any
-infrastructure.
+funds reservation, ledger commit, completion, and compensation. The state
+machine remains testable in memory, and a Postgres repository now captures the
+durable saga snapshot and event log needed for production replay.
 
 ## Current Guarantees
 
@@ -60,6 +60,10 @@ payments.complete(saga.sagaId());
 
 Use `recordFallbackOutcome`, `failFundsReservation`, `failLedgerCommit`, and
 `failCompensation` to exercise failure branches.
+
+For production wiring, use `PostgresPaymentSagaRepository` against AWS RDS
+PostgreSQL. It persists saga snapshots into `payment_sagas` and append-only
+transition events into `payment_saga_events`.
 
 ## Local Test Command
 

@@ -6,4 +6,8 @@ public class EventEnvelopeException extends RuntimeException {
     public EventEnvelopeException(String message) {
         super(message);
     }
+
+    public EventEnvelopeException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

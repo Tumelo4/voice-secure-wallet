@@ -48,20 +48,75 @@ public final class PaymentSaga {
     private final List<PaymentEvent> events = new ArrayList<>();
 
     private PaymentSaga(PaymentRequest request) {
-        this.sagaId = request.sagaId();
-        this.idempotencyKey = request.idempotencyKey();
-        this.userId = request.userId();
-        this.fromAccountId = request.fromAccountId();
-        this.toAccountId = request.toAccountId();
-        this.amount = request.amount();
-        this.currency = request.currency();
-        this.traceId = request.traceId();
-        this.createdAt = Instant.now();
-        this.updatedAt = this.createdAt;
-        this.state = PaymentSagaState.INITIATED;
-        this.stateHistory.add(this.state);
+        this(request, new ConstructionTimestamps(Instant.now()));
+    }
+
+    private PaymentSaga(PaymentRequest request, ConstructionTimestamps timestamps) {
+        this(
+                request.sagaId(),
+                request.idempotencyKey(),
+                request.userId(),
+                request.fromAccountId(),
+                request.toAccountId(),
+                request.amount(),
+                request.currency(),
+                request.traceId(),
+                timestamps.createdAt(),
+                timestamps.updatedAt(),
+                null,
+                0.0,
+                null,
+                null,
+                PaymentSagaState.INITIATED,
+                List.of(PaymentSagaState.INITIATED),
+                List.of()
+        );
         emit(PAYMENT_INITIATED, payload("amount", Long.toString(amount)));
         transition(PaymentSagaState.FRAUD_CHECK_PENDING, PAYMENT_FRAUD_CHECK_REQUESTED, payload("currency", currency));
+    }
+
+    private PaymentSaga(
+            UUID sagaId,
+            UUID idempotencyKey,
+            UUID userId,
+            UUID fromAccountId,
+            UUID toAccountId,
+            long amount,
+            String currency,
+            String traceId,
+            Instant createdAt,
+            Instant updatedAt,
+            Instant completedAt,
+            double fraudScore,
+            AuthPolicy authPolicy,
+            FallbackMethod fallbackMethod,
+            PaymentSagaState state,
+            List<PaymentSagaState> stateHistory,
+            List<PaymentEvent> events
+    ) {
+        this.sagaId = Objects.requireNonNull(sagaId, "sagaId");
+        this.idempotencyKey = Objects.requireNonNull(idempotencyKey, "idempotencyKey");
+        this.userId = Objects.requireNonNull(userId, "userId");
+        this.fromAccountId = Objects.requireNonNull(fromAccountId, "fromAccountId");
+        this.toAccountId = Objects.requireNonNull(toAccountId, "toAccountId");
+        this.amount = amount;
+        this.currency = Objects.requireNonNull(currency, "currency");
+        this.traceId = Objects.requireNonNull(traceId, "traceId");
+        this.createdAt = Objects.requireNonNull(createdAt, "createdAt");
+        this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt");
+        this.completedAt = completedAt;
+        this.fraudScore = fraudScore;
+        this.authPolicy = authPolicy;
+        this.fallbackMethod = fallbackMethod;
+        this.state = Objects.requireNonNull(state, "state");
+        this.stateHistory.addAll(List.copyOf(Objects.requireNonNull(stateHistory, "stateHistory")));
+        this.events.addAll(List.copyOf(Objects.requireNonNull(events, "events")));
+        if (this.stateHistory.isEmpty()) {
+            throw new PaymentException("state history cannot be empty");
+        }
+        if (this.stateHistory.get(this.stateHistory.size() - 1) != this.state) {
+            throw new PaymentException("state history must end in current state");
+        }
     }
 
     public static PaymentSaga initiate(PaymentRequest request) {
@@ -134,6 +189,51 @@ public final class PaymentSaga {
 
     public List<PaymentEvent> events() {
         return List.copyOf(events);
+    }
+
+    public PaymentSagaSnapshot snapshot() {
+        return new PaymentSagaSnapshot(
+                sagaId,
+                idempotencyKey,
+                userId,
+                fromAccountId,
+                toAccountId,
+                amount,
+                currency,
+                traceId,
+                createdAt,
+                updatedAt,
+                completedAt,
+                fraudScore,
+                authPolicy,
+                fallbackMethod,
+                state,
+                stateHistory,
+                events
+        );
+    }
+
+    static PaymentSaga rehydrate(PaymentSagaSnapshot snapshot) {
+        Objects.requireNonNull(snapshot, "snapshot");
+        return new PaymentSaga(
+                snapshot.sagaId(),
+                snapshot.idempotencyKey(),
+                snapshot.userId(),
+                snapshot.fromAccountId(),
+                snapshot.toAccountId(),
+                snapshot.amount(),
+                snapshot.currency(),
+                snapshot.traceId(),
+                snapshot.createdAt(),
+                snapshot.updatedAt(),
+                snapshot.completedAt(),
+                snapshot.fraudScore(),
+                snapshot.authPolicy(),
+                snapshot.fallbackMethod(),
+                snapshot.state(),
+                snapshot.stateHistory(),
+                snapshot.events()
+        );
     }
 
     public boolean canFallback() {
@@ -297,5 +397,11 @@ public final class PaymentSaga {
 
     private String formatScore(double score) {
         return String.format(java.util.Locale.ROOT, "%.3f", score);
+    }
+
+    private record ConstructionTimestamps(Instant createdAt, Instant updatedAt) {
+        private ConstructionTimestamps(Instant timestamp) {
+            this(timestamp, timestamp);
+        }
     }
 }

@@ -154,11 +154,17 @@ public final class InMemoryLedgerRepository implements LedgerRepository {
     }
 
     private List<OutboxEvent> createOutboxEvents(LedgerTransaction transaction, List<LedgerEntry> batchEntries) {
-        String payload = "{\"entryCount\":" + batchEntries.size() + ",\"currency\":\"" + transaction.currency() + "\"}";
+        String payload = "{"
+                + "\"batchId\":\"" + transaction.idempotencyKey() + "\","
+                + "\"sagaId\":\"" + transaction.sagaId() + "\","
+                + "\"idempotencyKey\":\"" + transaction.idempotencyKey() + "\","
+                + "\"currency\":\"" + transaction.currency() + "\","
+                + "\"entryCount\":" + batchEntries.size()
+                + "}";
         return List.of(new OutboxEvent(
                 UUID.randomUUID(),
                 "ledger.entry_posted",
-                transaction.sagaId(),
+                transaction.idempotencyKey(),
                 Instant.now(),
                 payload
         ));

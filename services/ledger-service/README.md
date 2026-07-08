@@ -17,9 +17,9 @@ or reconciliation gaps that are expensive to unwind and hard to defend in audit.
 
 ## Scope
 
-This service owns the signed ledger. It is intentionally small in this first
-slice: the domain logic, append-only repository contract, PostgreSQL migration,
-and tests are present before HTTP, Kafka, or persistence adapters are added.
+This service owns the signed ledger. The domain logic stays isolated, while
+the Postgres-backed repository gives the service a production path with
+append-only storage, idempotency, and durable outbox records.
 
 ## Invariants
 
@@ -57,6 +57,10 @@ LedgerBatch batch = ledger.transfer(sagaId, idempotencyKey, sourceAccountId, des
 
 Use `RepairRequest` for corrective entries. A repair must include balanced
 postings, a requester, and a meaningful justification.
+
+For production wiring, use `PostgresLedgerRepository` with a `DataSource`
+pointing at AWS RDS PostgreSQL. The repository expects the `ledger_batches`,
+`ledger_entries`, and `outbox_events` schema from the production migration.
 
 ## Local Test Command
 

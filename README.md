@@ -34,9 +34,9 @@ authentication, recovery workflows, operational validation, and launch gates.
 
 | Service | Problem Statement | Impact |
 | --- | --- | --- |
-| `ledger-service` | Keeps the source of truth for money movement append-only, balanced, and auditable. | Protects customer balances, keeps finance reconciliation accurate, and reduces audit risk. |
+| `ledger-service` | Keeps the source of truth for money movement append-only, balanced, and auditable, with a Postgres-backed production repository. | Protects customer balances, keeps finance reconciliation accurate, and reduces audit risk. |
 | `wallet-service` | Projects ledger events into user-facing wallet balances without writing to the ledger. | Gives users fast balance reads while keeping money movement controlled by `ledger-service`. |
-| `payment-service` | Coordinates authorization, reservation, ledger commit, completion, and compensation without partial states. | Prevents duplicate charges, failed transfers, and costly manual support work. |
+| `payment-service` | Coordinates authorization, reservation, ledger commit, completion, and compensation without partial states, with a Postgres-backed production repository. | Prevents duplicate charges, failed transfers, and costly manual support work. |
 | `identity-service` | Issues and verifies identities, sessions, and device-bound credentials for secure access. | Lowers account takeover risk while keeping login and device recovery predictable. |
 | `fraud-service` | Scores transaction risk using trust, velocity, amount, and compliance signals before payment approval. | Cuts fraud losses and reduces false declines that frustrate legitimate customers. |
 | `compliance-service` | Screens identities and transactions against PEP, sanctions, and AML requirements. | Helps the business stay bankable, compliant, and ready for regulated growth. |
@@ -49,15 +49,16 @@ authentication, recovery workflows, operational validation, and launch gates.
 | `api-adapter-service` | Translates HTTP-style payment commands and wallet balance reads into domain service calls, with runtime guards for auth, traceability, rate limiting, and request logging. | Gives clients stable JSON contracts while keeping domain services framework-independent. |
 
 `event-core` is shared event infrastructure used by those services rather than
-a product microservice.
+a product microservice. It now includes a Kafka publication boundary that can
+be wired to AWS MSK without changing domain event code.
 
 ## Current Slice
 
-- Java 17 `ledger-service` domain model.
+- Java 17 `ledger-service` domain model with a Postgres-backed production repository.
 - Java 17 `wallet-service` CQRS balance projection.
-- Java 17 `payment-service` saga core.
+- Java 17 `payment-service` saga core with a Postgres-backed production repository.
 - Java 17 `identity-service`, `compliance-service`, and `fraud-service` cores.
-- Shared event backbone with in-memory outbox relay.
+- Shared event backbone with in-memory outbox relay and Kafka publication boundary.
 - Python `voice-service` biometrics core.
 - Java 17 `notification-service` event consumer for receipts and OTP fallback.
 - Java 17 `support-service` and `recovery-service` cores for support workflows.
@@ -77,7 +78,8 @@ a product microservice.
   NativeWind/Tailwind CSS and Redux Toolkit, with typed API client and fetch
   transport boundaries, mobile token-session and native secure-store ports,
   Redux API flows, screen command forms, and local resilience policy.
-- PostgreSQL schema migration for signed, append-only ledger entries.
+- PostgreSQL schema migrations for signed, append-only ledger entries and durable payment saga snapshots.
+- Kafka record publishing adapter for MSK-compatible event delivery.
 - In-memory repository for deterministic local tests.
 - Repair API domain stub requiring a justification payload.
 - Lightweight Java test runners covering service slices, BDD acceptance
