@@ -46,6 +46,12 @@ variable "rds_allocated_storage_gb" {
   default     = 100
 }
 
+variable "app_port" {
+  description = "Application port for the private app tier."
+  type        = number
+  default     = 8080
+}
+
 variable "rds_backup_retention_days" {
   description = "RDS point-in-time recovery retention window."
   type        = number

@@ -13,6 +13,8 @@ public final class TerraformAwsBaselineTests {
                 new TestCase("Terraform baseline exposes expected files", TerraformAwsBaselineTests::terraformFilesExist),
                 new TestCase("Terraform baseline declares remote state controls", TerraformAwsBaselineTests::remoteStateControlsExist),
                 new TestCase("Terraform baseline declares least-privilege IAM controls", TerraformAwsBaselineTests::leastPrivilegeIamControlsExist),
+                new TestCase("Terraform baseline declares strict ingress security groups", TerraformAwsBaselineTests::strictIngressSecurityGroupsExist),
+                new TestCase("Terraform baseline hardens the audit evidence bucket", TerraformAwsBaselineTests::auditEvidenceBucketControlsExist),
                 new TestCase("Terraform baseline declares private network and KMS controls", TerraformAwsBaselineTests::networkAndKmsControlsExist),
                 new TestCase("Terraform baseline declares MSK durability controls", TerraformAwsBaselineTests::mskDurabilityControlsExist),
                 new TestCase("Terraform baseline declares RDS Redis S3 durability controls", TerraformAwsBaselineTests::dataStoreDurabilityControlsExist),
@@ -27,7 +29,7 @@ public final class TerraformAwsBaselineTests {
     }
 
     private static void terraformFilesExist() throws IOException {
-        for (String file : List.of("README.md", "versions.tf", "backend.tf", "state.tf", "iam.tf", "variables.tf", "networking.tf", "security.tf", "data.tf", "outputs.tf", "terraform.tfvars.example")) {
+        for (String file : List.of("README.md", "versions.tf", "backend.tf", "state.tf", "iam.tf", "variables.tf", "networking.tf", "security.tf", "security-groups.tf", "data.tf", "audit.tf", "outputs.tf", "terraform.tfvars.example")) {
             assertTrue(Files.isRegularFile(INFRA_DIR.resolve(file)), file + " should exist");
         }
     }
@@ -69,6 +71,47 @@ public final class TerraformAwsBaselineTests {
         assertTrue(!iam.contains("AdministratorAccess"), "Terraform must not attach broad admin policies");
     }
 
+    private static void strictIngressSecurityGroupsExist() throws IOException {
+        String securityGroups = read("security-groups.tf");
+
+        assertContains(securityGroups, "resource \"aws_security_group\" \"alb\"", "ALB security group");
+        assertContains(securityGroups, "resource \"aws_security_group\" \"app\"", "app security group");
+        assertContains(securityGroups, "resource \"aws_security_group\" \"msk\"", "MSK security group");
+        assertContains(securityGroups, "resource \"aws_security_group\" \"database\"", "database security group");
+        assertContains(securityGroups, "resource \"aws_security_group\" \"redis\"", "redis security group");
+        assertContains(securityGroups, "resource \"aws_vpc_security_group_ingress_rule\" \"alb_https\"", "ALB HTTPS ingress rule");
+        assertContains(securityGroups, "resource \"aws_vpc_security_group_egress_rule\" \"alb_to_app\"", "ALB to app egress rule");
+        assertContains(securityGroups, "resource \"aws_vpc_security_group_ingress_rule\" \"app_from_alb\"", "app ingress rule");
+        assertContains(securityGroups, "resource \"aws_vpc_security_group_egress_rule\" \"app_to_database\"", "app to database egress rule");
+        assertContains(securityGroups, "resource \"aws_vpc_security_group_egress_rule\" \"app_to_redis\"", "app to redis egress rule");
+        assertContains(securityGroups, "resource \"aws_vpc_security_group_egress_rule\" \"app_to_msk\"", "app to MSK egress rule");
+        assertContains(securityGroups, "resource \"aws_vpc_security_group_ingress_rule\" \"msk_from_app\"", "MSK ingress rule");
+        assertContains(securityGroups, "resource \"aws_vpc_security_group_ingress_rule\" \"database_from_app\"", "database ingress rule");
+        assertContains(securityGroups, "resource \"aws_vpc_security_group_ingress_rule\" \"redis_from_app\"", "redis ingress rule");
+        assertContains(securityGroups, "from_port = 443", "public HTTPS ingress");
+        assertContains(securityGroups, "cidr_ipv4 = \"0.0.0.0/0\"", "public HTTPS from internet");
+        assertContains(securityGroups, "from_port = var.app_port", "app port wiring");
+        assertContains(securityGroups, "from_port = 5432", "PostgreSQL port");
+        assertContains(securityGroups, "from_port = 6379", "Redis port");
+        assertContains(securityGroups, "from_port = 9098", "MSK port");
+        assertContains(securityGroups, "egress = []", "private data-plane egress should be removed");
+        assertContains(securityGroups, "ingress = []", "security groups should not use default inline ingress");
+        assertEquals(1, countOccurrences(securityGroups, "0.0.0.0/0"), "only the ALB may expose a public CIDR");
+    }
+
+    private static void auditEvidenceBucketControlsExist() throws IOException {
+        String audit = read("audit.tf");
+
+        assertContains(audit, "resource \"aws_s3_bucket\" \"audit_evidence\"", "audit bucket");
+        assertContains(audit, "object_lock_enabled = true", "object lock enabled");
+        assertContains(audit, "resource \"aws_s3_bucket_server_side_encryption_configuration\" \"audit_evidence\"", "audit bucket encryption");
+        assertContains(audit, "resource \"aws_s3_bucket_versioning\" \"audit_evidence\"", "audit bucket versioning");
+        assertContains(audit, "resource \"aws_s3_bucket_public_access_block\" \"audit_evidence\"", "audit bucket public access block");
+        assertContains(audit, "resource \"aws_s3_bucket_policy\" \"audit_evidence\"", "audit bucket policy");
+        assertContains(audit, "aws:SecureTransport", "TLS-only audit policy");
+        assertContains(audit, "resource \"aws_s3_bucket_object_lock_configuration\" \"audit_evidence\"", "audit bucket object lock configuration");
+    }
+
     private static void networkAndKmsControlsExist() throws IOException {
         String networking = read("networking.tf");
         String security = read("security.tf");
@@ -101,7 +144,6 @@ public final class TerraformAwsBaselineTests {
         assertContains(data, "resource \"aws_elasticache_replication_group\" \"api_rate_limits\"", "Redis replication group");
         assertContains(data, "at_rest_encryption_enabled = true", "Redis at-rest encryption");
         assertContains(data, "transit_encryption_enabled = true", "Redis transit encryption");
-        assertContains(data, "resource \"aws_s3_bucket_object_lock_configuration\" \"audit_evidence\"", "S3 object lock");
     }
 
     private static void secretsAreReferencesOnly() throws IOException {
@@ -119,7 +161,7 @@ public final class TerraformAwsBaselineTests {
 
     private static String readAllTerraform() throws IOException {
         StringBuilder builder = new StringBuilder();
-        for (String file : List.of("versions.tf", "backend.tf", "state.tf", "variables.tf", "networking.tf", "security.tf", "data.tf", "outputs.tf")) {
+        for (String file : List.of("versions.tf", "backend.tf", "state.tf", "variables.tf", "networking.tf", "security.tf", "security-groups.tf", "data.tf", "audit.tf", "outputs.tf")) {
             builder.append(read(file)).append('\n');
         }
         return builder.toString();
@@ -135,6 +177,22 @@ public final class TerraformAwsBaselineTests {
         if (!value) {
             throw new AssertionError(message);
         }
+    }
+
+    private static void assertEquals(int expected, int actual, String message) {
+        if (expected != actual) {
+            throw new AssertionError(message + ": expected " + expected + " but got " + actual);
+        }
+    }
+
+    private static int countOccurrences(String actual, String expected) {
+        int count = 0;
+        int index = 0;
+        while ((index = actual.indexOf(expected, index)) >= 0) {
+            count++;
+            index += expected.length();
+        }
+        return count;
     }
 
     private record TestCase(String name, ThrowingRunnable runnable) {
