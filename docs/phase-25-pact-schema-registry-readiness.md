@@ -12,9 +12,9 @@ schema compatibility.
 - Added `ContractCompatibilityPolicy` and `SchemaCompatibilityMode`.
 - Added `ContractCompatibilityValidator` and
   `ContractCompatibilityValidationReport`.
-- Added service-level tests for valid compatibility evidence, missing Pact
-  publication/consumer verification, and Schema Registry gaps.
-- Added `services/contract-tests/README.md`.
+- Added cross-service verification tests for valid compatibility evidence,
+  missing Pact publication/consumer verification, and Schema Registry gaps.
+- Added `tests/contract-tests/README.md`.
 - Updated README, release runbook, ubiquitous language, and mobile readiness
   evidence.
 

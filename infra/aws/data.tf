@@ -79,38 +79,3 @@ resource "aws_elasticache_replication_group" "api_rate_limits" {
   subnet_group_name          = aws_elasticache_subnet_group.private.name
   security_group_ids         = [aws_security_group.redis.id]
 }
-
-resource "aws_s3_bucket" "audit_evidence" {
-  bucket              = "voicesecure-${var.environment}-audit-evidence"
-  object_lock_enabled = true
-}
-
-resource "aws_s3_bucket_server_side_encryption_configuration" "audit_evidence" {
-  bucket = aws_s3_bucket.audit_evidence.id
-
-  rule {
-    apply_server_side_encryption_by_default {
-      kms_master_key_id = aws_kms_key.platform.arn
-      sse_algorithm     = "aws:kms"
-    }
-  }
-}
-
-resource "aws_s3_bucket_versioning" "audit_evidence" {
-  bucket = aws_s3_bucket.audit_evidence.id
-
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
-resource "aws_s3_bucket_object_lock_configuration" "audit_evidence" {
-  bucket = aws_s3_bucket.audit_evidence.id
-
-  rule {
-    default_retention {
-      mode = "COMPLIANCE"
-      days = 365
-    }
-  }
-}

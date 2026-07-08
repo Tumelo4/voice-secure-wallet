@@ -9,24 +9,6 @@ resource "aws_kms_alias" "platform" {
   target_key_id = aws_kms_key.platform.key_id
 }
 
-resource "aws_security_group" "msk" {
-  name        = "voicesecure-${var.environment}-msk"
-  description = "MSK broker access from private workloads"
-  vpc_id      = aws_vpc.voice_secure.id
-}
-
-resource "aws_security_group" "database" {
-  name        = "voicesecure-${var.environment}-database"
-  description = "PostgreSQL access from private workloads"
-  vpc_id      = aws_vpc.voice_secure.id
-}
-
-resource "aws_security_group" "redis" {
-  name        = "voicesecure-${var.environment}-redis"
-  description = "Redis access from private workloads"
-  vpc_id      = aws_vpc.voice_secure.id
-}
-
 resource "aws_secretsmanager_secret" "database_password" {
   name        = "voicesecure/${var.environment}/database/password"
   description = "Reference for the RDS password. Secret value is managed outside this baseline."

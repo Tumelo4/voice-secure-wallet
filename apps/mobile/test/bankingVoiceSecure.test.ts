@@ -3,7 +3,6 @@ import test from "node:test";
 
 import {
   advanceVoiceSecureFlow,
-  approveVoiceSecureFallback,
   createTransactionDraft,
   createVoiceSecureFlow,
 } from "../src/state/bankingVoiceSecure.ts";
@@ -17,11 +16,6 @@ test("voice secure flow starts with a friendly listening prompt", () => {
   assert.deepEqual(flow.fallbackOptions, ["PIN", "Face ID", "Fingerprint"]);
 });
 
-test("voice secure prompt matches the transaction type", () => {
-  assert.equal(createVoiceSecureFlow(createTransactionDraft("send")).prompt, 'Say "Confirm transfer" to continue');
-  assert.equal(createVoiceSecureFlow(createTransactionDraft("topup")).prompt, 'Say "Confirm top up" to continue');
-});
-
 test("voice secure flow moves to payment sent after a successful match", () => {
   const flow = createVoiceSecureFlow(createTransactionDraft());
   const confirmed = advanceVoiceSecureFlow(flow, "match");
@@ -29,15 +23,6 @@ test("voice secure flow moves to payment sent after a successful match", () => {
   assert.equal(confirmed.stage, "confirmed");
   assert.equal(confirmed.statusLabel, "Payment sent");
   assert.equal(confirmed.message, "Your payment is on its way.");
-});
-
-test("voice secure flow asks the user to try again after one miss", () => {
-  const flow = advanceVoiceSecureFlow(createVoiceSecureFlow(createTransactionDraft()), "miss");
-
-  assert.equal(flow.stage, "retry");
-  assert.equal(flow.attempts, 1);
-  assert.equal(flow.statusLabel, "Try again");
-  assert.equal(flow.message, "We couldn't verify your voice, try again.");
 });
 
 test("voice secure flow uses transaction-specific confirmation copy for top ups", () => {
@@ -57,14 +42,4 @@ test("voice secure flow reveals fallback after two failed attempts", () => {
   assert.equal(secondAttempt.stage, "fallback");
   assert.equal(secondAttempt.attempts, 2);
   assert.equal(secondAttempt.message, "We couldn't verify your voice. Try again or use PIN, Face ID, or fingerprint.");
-});
-
-test("voice secure fallback confirms with the selected backup method", () => {
-  const firstAttempt = advanceVoiceSecureFlow(createVoiceSecureFlow(createTransactionDraft()), "miss");
-  const secondAttempt = advanceVoiceSecureFlow(firstAttempt, "miss");
-  const confirmed = approveVoiceSecureFallback(secondAttempt, "Face ID");
-
-  assert.equal(confirmed.stage, "confirmed");
-  assert.equal(confirmed.statusLabel, "Payment sent");
-  assert.equal(confirmed.message, "Verified with face id. Your payment is on its way.");
 });

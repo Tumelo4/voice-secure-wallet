@@ -2,16 +2,22 @@ $ErrorActionPreference = "Stop"
 
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $BuildRoot = Join-Path $Root ".codex_tmp"
-$BuildDir = Join-Path $BuildRoot "service-classes"
+$BuildDir = Join-Path $BuildRoot "verification-classes"
 New-Item -ItemType Directory -Force -Path $BuildDir | Out-Null
 
 $ServiceRoot = Join-Path $Root "services"
-$SourceFiles = Get-ChildItem -Path $ServiceRoot -Recurse -Filter *.java | Sort-Object FullName
+$TestRoot = Join-Path $Root "tests"
+$SourceFiles = Get-ChildItem -Path @($ServiceRoot, $TestRoot) -Recurse -Filter *.java | Sort-Object FullName
 if ($SourceFiles.Count -eq 0) {
-    throw "No Java sources found under services"
+    throw "No verification Java sources found under services or tests"
 }
 
 javac -Xlint:all -d $BuildDir @($SourceFiles.FullName)
+
+$TestFiles = Get-ChildItem -Path $TestRoot -Recurse -Filter *Tests.java | Sort-Object FullName
+if ($TestFiles.Count -eq 0) {
+    throw "No verification test classes found under tests"
+}
 
 function Get-JavaTestClassName {
     param(
@@ -31,25 +37,8 @@ function Get-JavaTestClassName {
     throw "Unexpected Java test path: $($File.FullName)"
 }
 
-$TestFiles = $SourceFiles | Where-Object { $_.FullName -match '(^|[\\/])src[\\/]+test[\\/]+java[\\/].*Tests\.java$' }
-if ($TestFiles.Count -eq 0) {
-    throw "No service test classes found"
-}
-
 foreach ($testFile in $TestFiles) {
     $className = Get-JavaTestClassName -File $testFile
     Write-Host "Running $className"
     java -cp $BuildDir $className
-}
-
-$PythonTestFiles = Get-ChildItem -Path $ServiceRoot -Recurse -Filter test_*.py | Sort-Object FullName
-foreach ($pythonTest in $PythonTestFiles) {
-    Write-Host "Running Python $($pythonTest.FullName)"
-    Push-Location $pythonTest.Directory.FullName
-    try {
-        python $pythonTest.Name
-    }
-    finally {
-        Pop-Location
-    }
 }

@@ -22,5 +22,3 @@ the production schema shape and append-only trigger.
 - Repeated idempotency keys return the original ledger batch.
 - Concurrent payment attempts cannot overdraft the source account.
 - Repair writes are balanced, append-only, and audit-backed.
-- Wallet read models project `ledger.entry_posted` events without writing to
-  the ledger.

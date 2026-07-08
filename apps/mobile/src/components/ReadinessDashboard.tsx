@@ -23,9 +23,9 @@ import {
   type BankingTabKey,
 } from "./bankingDashboardContent";
 import {
+  bankingScreenChromeForWidth,
   bankingLayoutModeForWidth,
   composerColumns,
-  contentMaxWidth,
   quickActionColumns,
   usesSideRail,
   type BankingLayoutMode,
@@ -43,6 +43,7 @@ import {
 export function ReadinessDashboard() {
   const { width } = useWindowDimensions();
   const layoutMode = bankingLayoutModeForWidth(width);
+  const screenChrome = bankingScreenChromeForWidth(width);
   const isCompact = layoutMode === "compact";
   const showRail = usesSideRail(layoutMode);
   const [activeTab, setActiveTab] = useState<BankingTabKey>("home");
@@ -133,21 +134,23 @@ export function ReadinessDashboard() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#f4f7fb]">
-      <View className="flex-1 flex-row">
+    <SafeAreaView className="flex-1 overflow-hidden bg-[#f4f7fb]">
+      <View className="flex-1 flex-row overflow-hidden">
         {showRail ? <NavigationRail activeTab={activeTab} onChange={setActiveTab} /> : null}
 
         <ScrollView
-          className="flex-1"
-          contentContainerStyle={{ paddingBottom: isCompact ? 192 : 56 }}
+          className={screenChrome.scrollViewClassName}
+          contentContainerStyle={{
+            paddingBottom: isCompact ? 192 : 56,
+            paddingHorizontal: screenChrome.contentPaddingHorizontal,
+          }}
         >
           <View
             style={{
               alignSelf: "center",
               width: "100%",
-              paddingHorizontal: isCompact ? 16 : 24,
               paddingTop: isCompact ? 16 : 24,
-              ...(showRail ? { maxWidth: contentMaxWidth(layoutMode) } : {}),
+              ...(screenChrome.contentMaxWidth ? { maxWidth: screenChrome.contentMaxWidth } : {}),
             }}
           >
             <Header layoutMode={layoutMode} />

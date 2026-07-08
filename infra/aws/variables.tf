@@ -46,6 +46,28 @@ variable "rds_allocated_storage_gb" {
   default     = 100
 }
 
+variable "app_port" {
+  description = "Application port for the private app tier."
+  type        = number
+  default     = 8080
+}
+
+variable "secret_rotation_days" {
+  description = "Rotation interval for Secrets Manager secrets."
+  type        = number
+  default     = 30
+}
+
+variable "database_secret_rotation_lambda_arn" {
+  description = "Lambda ARN that rotates the database password secret."
+  type        = string
+}
+
+variable "redis_secret_rotation_lambda_arn" {
+  description = "Lambda ARN that rotates the Redis auth token secret."
+  type        = string
+}
+
 variable "rds_backup_retention_days" {
   description = "RDS point-in-time recovery retention window."
   type        = number
