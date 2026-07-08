@@ -80,13 +80,8 @@ a product microservice.
 - PostgreSQL schema migration for signed, append-only ledger entries.
 - In-memory repository for deterministic local tests.
 - Repair API domain stub requiring a justification payload.
-- Lightweight Java test runner covering reconciliation, idempotency, repairs,
-  concurrent overdraft prevention, payment saga transitions, trust-layer
-  checks, wallet projections, event-envelope behavior, notification dispatch
-  decisions, fraud/compliance event contracts, BDD acceptance scenarios,
-  recovery flows, support workflows, API adapter/runtime guards,
-  observability/DR plan validation, launch readiness, voice verification flows,
-  and mobile dashboard checks.
+- Lightweight Java test runners covering service slices, BDD acceptance
+  scenarios, and contract compatibility checks.
 
 ## Benchmark
 
@@ -134,10 +129,10 @@ Prerequisites:
 Run the full suite on Windows PowerShell:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\test-services.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\test-suite.ps1
 ```
 
-Run the Java suite on macOS or Linux:
+Run the Java service suite on macOS or Linux:
 
 ```sh
 mkdir -p .codex_tmp/services-classes
@@ -147,6 +142,25 @@ for test_file in $(find services -path '*/src/test/java/*Tests.java' | sort); do
   class_name=${class_name%.java}
   class_name=${class_name//\//.}
   java -cp .codex_tmp/services-classes "$class_name"
+done
+```
+
+Run the cross-service verification suite on Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\test-verification.ps1
+```
+
+Run the cross-service verification suite on macOS or Linux:
+
+```sh
+mkdir -p .codex_tmp/verification-classes
+javac -Xlint:all -d .codex_tmp/verification-classes $(find services tests -name '*.java')
+for test_file in $(find tests -path '*/src/test/java/*Tests.java' | sort); do
+  class_name=${test_file#*/src/test/java/}
+  class_name=${class_name%.java}
+  class_name=${class_name//\//.}
+  java -cp .codex_tmp/verification-classes "$class_name"
 done
 ```
 
@@ -163,8 +177,8 @@ node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test apps/mobile/test/*.te
 ```
 
 The first CI slice is defined in `.github/workflows/service-ci.yml`. It runs the
-same direct Java compile/test loop, Python voice tests, mobile UI tests, and
-whitespace check on pull requests and pushes to `main`.
+same service and verification runners, mobile UI tests, and whitespace check on
+pull requests and pushes to `main`.
 
 Use each service README for the smallest code example for that service. The
 remaining production plan still requires applying Terraform in a real AWS
@@ -185,5 +199,5 @@ can be marked complete.
 ## Quick Test Command
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\test-services.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\test-suite.ps1
 ```

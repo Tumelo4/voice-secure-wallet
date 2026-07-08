@@ -40,11 +40,8 @@ work.
 
 ## How To Use It
 
-Run the full Java service loop from the repository root:
+Run the cross-service verification runner from this module directory:
 
-```sh
-mkdir -p .codex_tmp/services-classes
-javac -Xlint:all -d .codex_tmp/services-classes $(find services -name '*.java')
-java -cp .codex_tmp/services-classes com.voicesecure.contracts.EventContractTests
-java -cp .codex_tmp/services-classes com.voicesecure.contracts.ContractCompatibilityValidatorTests
+```powershell
+powershell -ExecutionPolicy Bypass -File ..\..\scripts\test-verification.ps1
 ```

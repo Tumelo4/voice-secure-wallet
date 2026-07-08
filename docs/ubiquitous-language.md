@@ -105,7 +105,7 @@ certificates, DNS, Kafka, and AWS remain separate infrastructure concerns.
 - Scenario: wallet read model follows ledger truth.
 
 These scenarios live in
-`services/acceptance-tests/src/test/java/com/voicesecure/acceptance`.
+`tests/acceptance-tests/src/test/java/com/voicesecure/acceptance`.
 
 ## Current Contract Tests
 
@@ -117,6 +117,6 @@ These scenarios live in
   non-`BACKWARD_TRANSITIVE` compatibility.
 
 These local contract tests live in
-`services/contract-tests/src/test/java/com/voicesecure/contracts`. They are now
+`tests/contract-tests/src/test/java/com/voicesecure/contracts`. They are now
 the domain-level stepping stone plus the credential-free compatibility gate
 before live Pact broker and Schema Registry credentials are wired into CI.

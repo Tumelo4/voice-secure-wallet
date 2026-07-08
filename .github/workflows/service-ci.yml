@@ -34,30 +34,11 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Compile Java services
+      - name: Run service and verification tests
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p .codex_tmp/ci-classes
-          javac -Xlint:all -d .codex_tmp/ci-classes $(find services -name '*.java')
-
-      - name: Run Java service tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          while IFS= read -r test_file; do
-            class_name=${test_file#*/src/test/java/}
-            class_name=${class_name%.java}
-            class_name=${class_name//\//.}
-            echo "Running ${class_name}"
-            java -cp .codex_tmp/ci-classes "${class_name}"
-          done < <(find services -path '*/src/test/java/*Tests.java' | sort)
-
-      - name: Run Python voice tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          python services/voice-service/test_voice_service.py
+          pwsh -NoLogo -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-suite.ps1
 
       - name: Run mobile UI tests
         shell: bash

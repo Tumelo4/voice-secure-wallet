@@ -34,7 +34,7 @@ incident response, rollback, or customer recovery.
 
 - [ ] The current branch includes the full implementation stack and the latest
   README updates.
-- [ ] `powershell -ExecutionPolicy Bypass -File .\scripts\test-services.ps1`
+- [ ] `powershell -ExecutionPolicy Bypass -File .\scripts\test-suite.ps1`
   passes on a clean working tree.
 - [ ] Open pull requests are reviewed in stack order.
 - [ ] No service README is missing a problem statement or impact section.
