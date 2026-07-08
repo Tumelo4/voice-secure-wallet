@@ -15,6 +15,7 @@ public final class TerraformAwsBaselineTests {
                 new TestCase("Terraform baseline declares least-privilege IAM controls", TerraformAwsBaselineTests::leastPrivilegeIamControlsExist),
                 new TestCase("Terraform baseline declares strict ingress security groups", TerraformAwsBaselineTests::strictIngressSecurityGroupsExist),
                 new TestCase("Terraform baseline hardens the audit evidence bucket", TerraformAwsBaselineTests::auditEvidenceBucketControlsExist),
+                new TestCase("Terraform baseline wires secrets rotation hooks", TerraformAwsBaselineTests::secretRotationControlsExist),
                 new TestCase("Terraform baseline declares private network and KMS controls", TerraformAwsBaselineTests::networkAndKmsControlsExist),
                 new TestCase("Terraform baseline declares MSK durability controls", TerraformAwsBaselineTests::mskDurabilityControlsExist),
                 new TestCase("Terraform baseline declares RDS Redis S3 durability controls", TerraformAwsBaselineTests::dataStoreDurabilityControlsExist),
@@ -29,7 +30,7 @@ public final class TerraformAwsBaselineTests {
     }
 
     private static void terraformFilesExist() throws IOException {
-        for (String file : List.of("README.md", "versions.tf", "backend.tf", "state.tf", "iam.tf", "variables.tf", "networking.tf", "security.tf", "security-groups.tf", "data.tf", "audit.tf", "outputs.tf", "terraform.tfvars.example")) {
+        for (String file : List.of("README.md", "versions.tf", "backend.tf", "state.tf", "iam.tf", "variables.tf", "networking.tf", "security.tf", "security-groups.tf", "data.tf", "audit.tf", "rotation.tf", "outputs.tf", "terraform.tfvars.example")) {
             assertTrue(Files.isRegularFile(INFRA_DIR.resolve(file)), file + " should exist");
         }
     }
@@ -112,6 +113,24 @@ public final class TerraformAwsBaselineTests {
         assertContains(audit, "resource \"aws_s3_bucket_object_lock_configuration\" \"audit_evidence\"", "audit bucket object lock configuration");
     }
 
+    private static void secretRotationControlsExist() throws IOException {
+        String rotation = read("rotation.tf");
+        String variables = read("variables.tf");
+        String tfvars = read("terraform.tfvars.example");
+
+        assertContains(rotation, "resource \"aws_secretsmanager_secret_rotation\" \"database_password\"", "database secret rotation");
+        assertContains(rotation, "resource \"aws_secretsmanager_secret_rotation\" \"redis_auth_token\"", "redis secret rotation");
+        assertContains(rotation, "secret_id = aws_secretsmanager_secret.database_password.id", "database secret reference");
+        assertContains(rotation, "secret_id = aws_secretsmanager_secret.redis_auth_token.id", "redis secret reference");
+        assertContains(rotation, "rotation_lambda_arn = var.database_secret_rotation_lambda_arn", "database rotation lambda");
+        assertContains(rotation, "rotation_lambda_arn = var.redis_secret_rotation_lambda_arn", "redis rotation lambda");
+        assertContains(rotation, "automatically_after_days = var.secret_rotation_days", "rotation interval");
+        assertContains(variables, "variable \"secret_rotation_days\"", "secret rotation interval variable");
+        assertContains(variables, "variable \"database_secret_rotation_lambda_arn\"", "database rotation lambda variable");
+        assertContains(variables, "variable \"redis_secret_rotation_lambda_arn\"", "redis rotation lambda variable");
+        assertContains(tfvars, "secret_rotation_days = 30", "secret rotation tfvars");
+    }
+
     private static void networkAndKmsControlsExist() throws IOException {
         String networking = read("networking.tf");
         String security = read("security.tf");
@@ -161,7 +180,7 @@ public final class TerraformAwsBaselineTests {
 
     private static String readAllTerraform() throws IOException {
         StringBuilder builder = new StringBuilder();
-        for (String file : List.of("versions.tf", "backend.tf", "state.tf", "variables.tf", "networking.tf", "security.tf", "security-groups.tf", "data.tf", "audit.tf", "outputs.tf")) {
+        for (String file : List.of("versions.tf", "backend.tf", "state.tf", "variables.tf", "networking.tf", "security.tf", "security-groups.tf", "data.tf", "audit.tf", "rotation.tf", "outputs.tf")) {
             builder.append(read(file)).append('\n');
         }
         return builder.toString();

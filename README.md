@@ -66,7 +66,7 @@ a product microservice.
   HA/encryption controls.
 - Terraform AWS baseline for VPC, KMS, MSK, RDS, Redis, S3 audit evidence
   hardening, strict security groups, and Secrets Manager references, plus
-  remote state bootstrap, IAM roles, and locking.
+  remote state bootstrap, IAM roles, secret rotation, and locking.
 - Java 17 `launch-service` readiness validator for hardening, production
   cutover, and launch gates.
 - Java 17 `api-adapter-service` contracts and runtime boundary for payment

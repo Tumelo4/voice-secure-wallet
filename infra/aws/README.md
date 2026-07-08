@@ -13,6 +13,7 @@ This module declares the durable AWS resources required by the platform:
   compliance, support, CI deploy, and break-glass access;
 - strict ALB, app, database, Redis, and MSK security groups with least-access
   ingress rules;
+- Secrets Manager rotation hooks for database and Redis credentials;
 - MSK cluster placeholder for the event backbone;
 - RDS PostgreSQL instance for ledger and wallet data;
 - ElastiCache Redis replication group for distributed rate limits;
@@ -24,7 +25,7 @@ This module declares the durable AWS resources required by the platform:
 
 This is an infrastructure-as-code baseline, not a live deployment. It should be
 reviewed, planned, and connected to remote state, IAM, strict ingress, mTLS,
-and environment-specific values before applying against AWS.
+secret rotation, and environment-specific values before applying against AWS.
 
 ## Local Validation
 
