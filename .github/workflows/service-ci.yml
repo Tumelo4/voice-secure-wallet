@@ -34,6 +34,10 @@ jobs:
         with:
           node-version: "24"
 
+      - name: Install mobile dependencies
+        working-directory: apps/mobile
+        run: npm install --omit=dev --no-package-lock --no-fund --no-audit
+
       - name: Run service and verification tests
         shell: bash
         run: |
@@ -41,10 +45,8 @@ jobs:
           pwsh -NoLogo -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-suite.ps1
 
       - name: Run mobile UI tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test apps/mobile/test/*.test.ts
+        working-directory: apps/mobile
+        run: npm test
 
       - name: Check whitespace
         shell: bash

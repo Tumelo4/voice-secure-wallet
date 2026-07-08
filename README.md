@@ -173,7 +173,9 @@ python services/voice-service/test_voice_service.py
 Run the mobile UI tests:
 
 ```sh
-node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test apps/mobile/test/*.test.ts
+cd apps/mobile
+npm install
+npm test
 ```
 
 The first CI slice is defined in `.github/workflows/service-ci.yml`. It runs the
