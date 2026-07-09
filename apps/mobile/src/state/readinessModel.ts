@@ -153,7 +153,7 @@ const testSuites: TestSuiteEvidence[] = [
   { name: "Acceptance", passing: 3 },
   { name: "Compliance", passing: 2 },
   { name: "Contracts", passing: 3 },
-  { name: "Contract compatibility", passing: 3 },
+  { name: "Contract compatibility", passing: 4 },
   { name: "Durable infrastructure", passing: 5 },
   { name: "Events", passing: 6 },
   { name: "Fraud", passing: 4 },

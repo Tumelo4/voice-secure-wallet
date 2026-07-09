@@ -20,7 +20,7 @@ test("readiness state keeps service and validation evidence", () => {
   const state = createReadinessState();
 
   assert.equal(state.services.length, 13);
-  assert.equal(readinessSelectors.totalPassingTests(state), 134);
+  assert.equal(readinessSelectors.totalPassingTests(state), 135);
   assert.equal(readinessSelectors.activePhase(state).name, "Pact Schema Registry Readiness");
   assert.ok(state.testSuites.some((suite) => suite.name === "API production ingress"));
   assert.ok(state.testSuites.some((suite) => suite.name === "API local HTTP listener"));
@@ -42,7 +42,7 @@ test("summary cards expose mobile accessible labels and current counts", () => {
 
   assert.deepEqual(cards.map((card) => card.accessibilityLabel), [
     "Accounts live 13 of 13",
-    "Checks cleared 134 of 134",
+    "Checks cleared 135 of 135",
     "Security status Service CI passing",
     "Launch controls 5 of 17",
   ]);
