@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "audit_evidence" {
-  bucket             = "voicesecure-${var.environment}-audit-evidence"
+  bucket              = "voicesecure-${var.environment}-audit-evidence"
   object_lock_enabled = true
 }
 

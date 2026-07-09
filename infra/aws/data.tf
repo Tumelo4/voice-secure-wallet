@@ -49,19 +49,19 @@ resource "aws_msk_cluster" "events" {
 }
 
 resource "aws_db_instance" "ledger" {
-  identifier              = "voicesecure-${var.environment}-ledger"
-  engine                  = "postgres"
-  engine_version          = "16"
-  instance_class          = var.rds_instance_class
-  allocated_storage       = var.rds_allocated_storage_gb
-  storage_encrypted       = true
-  kms_key_id              = aws_kms_key.platform.arn
-  db_subnet_group_name    = aws_db_subnet_group.private.name
-  vpc_security_group_ids  = [aws_security_group.database.id]
-  backup_retention_period = var.rds_backup_retention_days
-  deletion_protection     = true
-  multi_az                = true
-  username                = "voicesecure_admin"
+  identifier                  = "voicesecure-${var.environment}-ledger"
+  engine                      = "postgres"
+  engine_version              = "16"
+  instance_class              = var.rds_instance_class
+  allocated_storage           = var.rds_allocated_storage_gb
+  storage_encrypted           = true
+  kms_key_id                  = aws_kms_key.platform.arn
+  db_subnet_group_name        = aws_db_subnet_group.private.name
+  vpc_security_group_ids      = [aws_security_group.database.id]
+  backup_retention_period     = var.rds_backup_retention_days
+  deletion_protection         = true
+  multi_az                    = true
+  username                    = "voicesecure_admin"
   manage_master_user_password = true
 }
 

@@ -34,4 +34,7 @@ this baseline.
 ## Local Validation
 
 The Java service test suite statically verifies the required Terraform resource
-contracts and checks that secret values are not committed.
+contracts and checks that secret values are not committed. When Terraform is
+installed, `scripts/test-terraform-aws-baseline.sh` also runs `terraform fmt
+-check`, `terraform init -backend=false`, and `terraform validate` against this
+module.
