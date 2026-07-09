@@ -41,6 +41,9 @@ Redux API flows now bridge wallet-balance reads and payment-start commands into
 request state that React Native screens can select and render.
 Screen command forms now validate wallet-balance and payment-start input before
 dispatching those Redux API flows.
+The readiness dashboard mounts the command-form panel directly, so the wallet
+and payment flows are exercised from the same mobile surface that presents the
+rest of the phase evidence.
 Mobile resilience policy keeps retry/backoff and offline payment queue behavior
 local and deterministic until durable Kafka/AWS-backed infrastructure is added.
 
