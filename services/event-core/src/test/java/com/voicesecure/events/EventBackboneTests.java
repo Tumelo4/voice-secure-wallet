@@ -142,7 +142,6 @@ public final class EventBackboneTests {
         assertEquals(1, publisher.published().size(), "publisher count");
         assertEquals(envelope.eventId(), publisher.published().get(0).eventId(), "published event");
     }
-
     private static void topicCatalogExposesPlanTopics() {
         assertEquals("payments", EventTopic.PAYMENTS.topicName(), "payments topic");
         assertEquals("ledger", EventTopic.LEDGER.topicName(), "ledger topic");
