@@ -14,7 +14,8 @@ public final class IdentityServiceTests {
         TestCase[] tests = {
                 new TestCase("issues and verifies RS256 access tokens", IdentityServiceTests::issuesAndVerifiesAccessTokens),
                 new TestCase("device signatures are validated on critical requests", IdentityServiceTests::validatesCriticalRequestSignatures),
-                new TestCase("refresh token reuse revokes the family", IdentityServiceTests::refreshTokenReuseRevokesFamily)
+                new TestCase("refresh token reuse revokes the family", IdentityServiceTests::refreshTokenReuseRevokesFamily),
+                new TestCase("device certificates can be reissued", IdentityServiceTests::reissuesDeviceCertificates)
         };
 
         for (TestCase test : tests) {
@@ -64,6 +65,23 @@ public final class IdentityServiceTests {
 
         assertTrue(!rotated.refreshToken().equals(grant.refreshToken()), "rotation should issue a new refresh token");
         assertThrows(IdentityException.class, () -> fixture.service.rotateRefreshToken(grant.familyState().familyId(), grant.refreshToken(), Duration.ofDays(7)), "reused token should revoke the family");
+    }
+
+    private static void reissuesDeviceCertificates() throws Exception {
+        Fixture fixture = fixture();
+        UUID userId = UUID.randomUUID();
+        UUID deviceId = UUID.randomUUID();
+        fixture.service.registerDevice(userId, deviceId, fixture.deviceKeys.getPublic());
+
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        KeyPair replacementDeviceKey = generator.generateKeyPair();
+        DeviceRegistration updated = fixture.service.reissueDeviceCertificate(userId, deviceId, replacementDeviceKey.getPublic());
+
+        assertEquals(userId, updated.userId(), "user id");
+        assertEquals(deviceId, updated.deviceId(), "device id");
+        assertTrue(!fixture.deviceKeys.getPublic().equals(updated.publicKey()), "reissue should replace the device certificate");
+        assertTrue(updated.active(), "reissued certificate should remain active");
     }
 
     private static Fixture fixture() throws Exception {
@@ -119,4 +137,3 @@ public final class IdentityServiceTests {
         void run() throws Exception;
     }
 }
-
