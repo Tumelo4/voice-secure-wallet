@@ -25,6 +25,7 @@ public final class ApiRuntimeTests {
                 new TestCase("runtime rejects protected routes without a bearer token", ApiRuntimeTests::rejectsMissingToken),
                 new TestCase("runtime rejects invalid bearer tokens", ApiRuntimeTests::rejectsInvalidToken),
                 new TestCase("runtime requires a trace id before routing", ApiRuntimeTests::requiresTraceBeforeRouting),
+                new TestCase("runtime allows public health routes without a bearer token", ApiRuntimeTests::allowsPublicHealthRoute),
                 new TestCase("runtime rejects requests missing route scopes", ApiRuntimeTests::rejectsMissingScope),
                 new TestCase("runtime rejects support repair requests missing repair scope", ApiRuntimeTests::rejectsMissingSupportRepairScope),
                 new TestCase("runtime rate limits by authenticated principal", ApiRuntimeTests::rateLimitsByPrincipal),
@@ -80,6 +81,24 @@ public final class ApiRuntimeTests {
         assertEquals(400, response.status(), "missing trace status");
         assertContains(response.body(), "\"code\":\"TRACE_REQUIRED\"", "trace error code");
         assertEquals(0, fixture.router.invocationCount(), "missing trace should not hit router");
+    }
+
+    private static void allowsPublicHealthRoute() {
+        Fixture fixture = fixture();
+
+        ApiResponse response = fixture.runtime.handle(new ApiRequest(
+                "GET",
+                "/health/live",
+                Map.of("X-Trace-Id", "trace-runtime-health-1"),
+                ""
+        ));
+
+        assertEquals(200, response.status(), "health status");
+        assertContains(response.body(), "\"status\":\"LIVE\"", "health body");
+        assertEquals(1, fixture.router.invocationCount(), "health request should hit router");
+        ApiRequestLogEntry entry = fixture.logSink.entries().get(0);
+        assertEquals("anonymous", entry.principalId(), "health principal");
+        assertEquals("/health/live", entry.path(), "health path");
     }
 
     private static void rejectsMissingScope() {
@@ -177,11 +196,12 @@ public final class ApiRuntimeTests {
                 "ZAR"
         );
         walletService.applyBalanceSnapshot(accountId, "ZAR", 1_250, Instant.parse("2026-06-20T12:00:00Z"));
-        CountingApiEndpoint router = new CountingApiEndpoint(new ApiRouter(
+        CountingApiEndpoint router = new CountingApiEndpoint(new ApiRouter(java.util.List.of(
+                new HealthApiAdapter(),
                 new PaymentApiAdapter(paymentService, request -> new FraudDecision(0.18, AuthPolicy.VOICE_OTP, true, "")),
                 new WalletApiAdapter(walletService),
                 new SupportRepairApiAdapter(supportService)
-        ));
+        )));
         InMemoryApiRequestLogSink logSink = new InMemoryApiRequestLogSink();
         ApiRuntime runtime = new ApiRuntime(
                 router,

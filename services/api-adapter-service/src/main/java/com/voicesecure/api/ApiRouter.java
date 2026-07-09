@@ -49,4 +49,15 @@ public final class ApiRouter implements ApiEndpoint {
         }
         return Set.of();
     }
+
+    @Override
+    public boolean isPublic(ApiRequest request) {
+        Objects.requireNonNull(request, "request");
+        for (ApiEndpoint endpoint : endpoints) {
+            if (endpoint.supports(request)) {
+                return endpoint.isPublic(request);
+            }
+        }
+        return false;
+    }
 }
