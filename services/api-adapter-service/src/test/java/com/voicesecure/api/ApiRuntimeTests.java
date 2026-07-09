@@ -16,6 +16,7 @@ public final class ApiRuntimeTests {
                 new TestCase("runtime rejects protected routes without a bearer token", ApiRuntimeTests::rejectsMissingToken),
                 new TestCase("runtime rejects invalid bearer tokens", ApiRuntimeTests::rejectsInvalidToken),
                 new TestCase("runtime requires a trace id before routing", ApiRuntimeTests::requiresTraceBeforeRouting),
+                new TestCase("runtime rejects requests missing route scopes", ApiRuntimeTests::rejectsMissingScope),
                 new TestCase("runtime rate limits by authenticated principal", ApiRuntimeTests::rateLimitsByPrincipal),
                 new TestCase("runtime forwards valid requests and records audit log", ApiRuntimeTests::forwardsAndLogsValidRequests)
         };
@@ -69,6 +70,22 @@ public final class ApiRuntimeTests {
         assertEquals(400, response.status(), "missing trace status");
         assertContains(response.body(), "\"code\":\"TRACE_REQUIRED\"", "trace error code");
         assertEquals(0, fixture.router.invocationCount(), "missing trace should not hit router");
+    }
+
+    private static void rejectsMissingScope() {
+        Fixture fixture = fixture();
+
+        ApiResponse response = fixture.runtime.handle(new ApiRequest(
+                "GET",
+                "/wallets/" + fixture.accountId + "/balance",
+                Map.of("Authorization", "Bearer token-user-2", "X-Trace-Id", "trace-runtime-2b"),
+                ""
+        ));
+
+        assertEquals(403, response.status(), "missing scope status");
+        assertContains(response.body(), "\"code\":\"INSUFFICIENT_SCOPE\"", "scope error code");
+        assertEquals(0, fixture.router.invocationCount(), "scope failure should not hit router");
+        assertEquals(1, fixture.logSink.entries().size(), "scope failure should be logged");
     }
 
     private static void rateLimitsByPrincipal() {
@@ -127,7 +144,10 @@ public final class ApiRuntimeTests {
         InMemoryApiRequestLogSink logSink = new InMemoryApiRequestLogSink();
         ApiRuntime runtime = new ApiRuntime(
                 router,
-                StaticBearerTokenVerifier.of(Map.of("token-user-1", "user-1")),
+                StaticBearerTokenVerifier.of(Map.of(
+                        "token-user-1", ApiPrincipal.of("user-1", "wallet:payment", "wallet:balance"),
+                        "token-user-2", ApiPrincipal.of("user-2", "wallet:payment")
+                )),
                 new InMemoryApiRateLimiter(2),
                 logSink
         );

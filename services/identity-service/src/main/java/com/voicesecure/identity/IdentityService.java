@@ -38,13 +38,14 @@ public final class IdentityService {
             throw new IdentityException("device is inactive");
         }
 
-        RefreshTokenFamilyState family = RefreshTokenFamilyState.create(userId, deviceId, refreshTokenTtl);
+        String normalizedScope = normalizeScope(scope);
+        RefreshTokenFamilyState family = RefreshTokenFamilyState.create(userId, deviceId, normalizedScope, accessTokenTtl, refreshTokenTtl);
         repository.saveFamily(family);
         AccessTokenClaims claims = new AccessTokenClaims(
                 userId,
                 deviceId,
                 family.familyId(),
-                scope,
+                normalizedScope,
                 UUID.randomUUID(),
                 Instant.now(),
                 Instant.now().plus(accessTokenTtl)
@@ -65,10 +66,10 @@ public final class IdentityService {
                 family.userId(),
                 family.deviceId(),
                 family.familyId(),
-                "wallet:payment",
+                family.scope(),
                 UUID.randomUUID(),
                 Instant.now(),
-                Instant.now().plus(Duration.ofMinutes(15))
+                Instant.now().plus(family.accessTokenTtl())
         );
         return new SessionGrant(jwtCodec.issue(claims), rotation.refreshToken(), claims, family.snapshot());
     }
@@ -81,5 +82,16 @@ public final class IdentityService {
 
     public JwksDocument jwks() {
         return new JwksDocument(List.of(jwtCodec.publicJwk()));
+    }
+
+    private static String normalizeScope(String scope) {
+        if (scope == null) {
+            throw new IdentityException("scope is required");
+        }
+        String normalizedScope = scope.trim();
+        if (normalizedScope.isBlank()) {
+            throw new IdentityException("scope is required");
+        }
+        return normalizedScope;
     }
 }

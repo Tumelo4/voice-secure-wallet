@@ -83,6 +83,7 @@ public final class IdentityServiceTests {
         SessionGrant rotated = fixture.service.rotateRefreshToken(grant.familyState().familyId(), grant.refreshToken(), Duration.ofDays(7));
 
         assertTrue(!rotated.refreshToken().equals(grant.refreshToken()), "rotation should issue a new refresh token");
+        assertEquals("wallet:payment", rotated.claims().scope(), "rotated access token should preserve scope");
         assertThrows(IdentityException.class, () -> fixture.service.rotateRefreshToken(grant.familyState().familyId(), grant.refreshToken(), Duration.ofDays(7)), "reused token should revoke the family");
     }
 

@@ -8,6 +8,8 @@ public final class RefreshTokenFamilyState {
     private final UUID familyId;
     private final UUID userId;
     private final UUID deviceId;
+    private final String scope;
+    private final Duration accessTokenTtl;
     private String currentRefreshToken;
     private String previousRefreshToken;
     private boolean revoked;
@@ -17,10 +19,24 @@ public final class RefreshTokenFamilyState {
     private Instant revokedAt;
     private Instant expiresAt;
 
-    private RefreshTokenFamilyState(UUID familyId, UUID userId, UUID deviceId, String currentRefreshToken, Duration refreshTokenTtl, Instant createdAt) {
+    private RefreshTokenFamilyState(
+            UUID familyId,
+            UUID userId,
+            UUID deviceId,
+            String scope,
+            Duration accessTokenTtl,
+            String currentRefreshToken,
+            Duration refreshTokenTtl,
+            Instant createdAt
+    ) {
         this.familyId = familyId;
         this.userId = userId;
         this.deviceId = deviceId;
+        this.scope = scope == null ? "" : scope.trim();
+        if (this.scope.isBlank()) {
+            throw new IdentityException("scope is required");
+        }
+        this.accessTokenTtl = accessTokenTtl;
         this.currentRefreshToken = currentRefreshToken;
         this.refreshTokenTtl = refreshTokenTtl;
         this.createdAt = createdAt;
@@ -28,9 +44,9 @@ public final class RefreshTokenFamilyState {
         this.expiresAt = createdAt.plus(refreshTokenTtl);
     }
 
-    public static RefreshTokenFamilyState create(UUID userId, UUID deviceId, Duration ttl) {
+    public static RefreshTokenFamilyState create(UUID userId, UUID deviceId, String scope, Duration accessTokenTtl, Duration refreshTokenTtl) {
         Instant now = Instant.now();
-        return new RefreshTokenFamilyState(UUID.randomUUID(), userId, deviceId, randomToken(), ttl, now);
+        return new RefreshTokenFamilyState(UUID.randomUUID(), userId, deviceId, scope, accessTokenTtl, randomToken(), refreshTokenTtl, now);
     }
 
     public UUID familyId() {
@@ -43,6 +59,14 @@ public final class RefreshTokenFamilyState {
 
     public UUID deviceId() {
         return deviceId;
+    }
+
+    public String scope() {
+        return scope;
+    }
+
+    public Duration accessTokenTtl() {
+        return accessTokenTtl;
     }
 
     public String currentRefreshToken() {
@@ -70,7 +94,16 @@ public final class RefreshTokenFamilyState {
     }
 
     public RefreshTokenFamilyState copy() {
-        RefreshTokenFamilyState copy = new RefreshTokenFamilyState(familyId, userId, deviceId, currentRefreshToken, refreshTokenTtl, createdAt);
+        RefreshTokenFamilyState copy = new RefreshTokenFamilyState(
+                familyId,
+                userId,
+                deviceId,
+                scope,
+                accessTokenTtl,
+                currentRefreshToken,
+                refreshTokenTtl,
+                createdAt
+        );
         copy.previousRefreshToken = previousRefreshToken;
         copy.revoked = revoked;
         copy.updatedAt = updatedAt;

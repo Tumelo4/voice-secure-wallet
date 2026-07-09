@@ -6,8 +6,11 @@ import com.voicesecure.payments.PaymentSaga;
 import com.voicesecure.payments.PaymentSagaService;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.Set;
 
 public final class PaymentApiAdapter implements ApiEndpoint {
+    private static final Set<String> REQUIRED_SCOPES = Set.of("wallet:payment");
+
     private final PaymentSagaService paymentSagaService;
     private final FraudDecisionProvider fraudDecisionProvider;
 
@@ -44,6 +47,11 @@ public final class PaymentApiAdapter implements ApiEndpoint {
         } catch (IllegalArgumentException ex) {
             return ApiResponse.error(400, "VALIDATION_FAILED", ex.getMessage());
         }
+    }
+
+    @Override
+    public Set<String> requiredScopes(ApiRequest request) {
+        return supports(request) ? REQUIRED_SCOPES : Set.of();
     }
 
     private static UUID uuidField(String json, String field) {

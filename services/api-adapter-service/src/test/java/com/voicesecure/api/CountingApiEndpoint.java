@@ -1,6 +1,7 @@
 package com.voicesecure.api;
 
 import java.util.Objects;
+import java.util.Set;
 
 final class CountingApiEndpoint implements ApiEndpoint {
     private final ApiEndpoint delegate;
@@ -19,6 +20,11 @@ final class CountingApiEndpoint implements ApiEndpoint {
     public ApiResponse handle(ApiRequest request) {
         invocationCount++;
         return delegate.handle(request);
+    }
+
+    @Override
+    public Set<String> requiredScopes(ApiRequest request) {
+        return delegate.requiredScopes(request);
     }
 
     int invocationCount() {
