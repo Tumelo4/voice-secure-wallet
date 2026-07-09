@@ -73,13 +73,15 @@ be wired to AWS MSK without changing domain event code.
 - Java 17 `api-adapter-service` contracts and runtime boundary for payment
   commands, wallet balance reads, support repair requests, auth,
   route-scoped authorization, traceability, rate limiting, and request logging,
-  plus a local JDK HTTP listener and production ingress
+  plus a local JDK HTTP listener, public health routes, and production ingress
   readiness validator.
 - React Native TypeScript `apps/mobile` readiness dashboard using
   NativeWind/Tailwind CSS and Redux Toolkit, with typed API client and fetch
   transport boundaries, mobile token-session and native secure-store ports,
   Redux API flows, screen command forms, and local resilience policy.
 - PostgreSQL schema migrations for signed, append-only ledger entries and durable payment saga snapshots.
+- PostgreSQL migration smoke test script that validates the ledger and payment
+  migrations with `psql` against a scratch database.
 - Kafka record publishing adapter for MSK-compatible event delivery.
 - In-memory repository for deterministic local tests.
 - Support repair API route requiring a mandatory justification payload.
@@ -111,7 +113,7 @@ is executable through the local test suite or represented as launch evidence:
 | Launch | Chaos, security, pen test, shadow mode, 10x load, 100/100 fallback, RTO/RPO, CVE scan source, pen-test report evidence, production change ticket, rollback drill, feature-flag lock, monitoring, on-call, support briefing, and 30-minute rollback readiness are validated. |
 | API adapters | Payment POST validates idempotency and trace headers, support repair POST requires a mandatory justification payload, wallet balance reads return JSON, and unknown routes return JSON `404`. |
 | API runtime | Protected routes require bearer tokens and route scopes, invalid tokens return `403`, trace IDs are required before routing, rate limits return `429`, and request outcomes are logged. |
-| API local HTTP listener | Local socket tests prove wallet GET, payment POST JSON, runtime auth/trace guards, JSON headers, request logging, and rate-limit `Retry-After` propagation through the JDK HTTP server boundary. |
+| API local HTTP listener | Local socket tests prove wallet GET, payment POST JSON, public health GET, runtime auth/trace guards, JSON headers, request logging, and rate-limit `Retry-After` propagation through the JDK HTTP server boundary. |
 | API production ingress | TLS 1.3, mTLS, forwarded client certificate identity, OIDC/JWKS, distributed rate limits, WAF, HSTS, trace forwarding, 256 KB request body limits, health-only public paths, and blocked admin exposure are validated before production. |
 | Mobile UI | React Native TypeScript stack declaration, Redux readiness state, mobile accessibility labels, dashboard section order, and NativeWind/Tailwind class tokens are covered by Node tests. |
 | Mobile API client | Payment commands and wallet balance reads use a typed transport port, runtime headers, API error mapping, and Redux-friendly async request states. |
