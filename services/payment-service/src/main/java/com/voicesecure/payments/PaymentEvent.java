@@ -1,5 +1,8 @@
 package com.voicesecure.payments;
 
+import com.voicesecure.events.EventEnvelope;
+import com.voicesecure.events.EventEnvelopeFactory;
+import com.voicesecure.events.EventTopic;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -20,5 +23,16 @@ public record PaymentEvent(
         Objects.requireNonNull(payload, "payload");
         traceId = traceId == null ? "" : traceId.trim();
     }
-}
 
+    public EventEnvelope toEnvelope() {
+        return EventEnvelopeFactory.create(
+                EventTopic.PAYMENTS,
+                sagaId,
+                "Payment",
+                eventType,
+                occurredAt,
+                traceId,
+                payload
+        );
+    }
+}
