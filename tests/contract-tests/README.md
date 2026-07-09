@@ -30,13 +30,14 @@ work.
   evidence.
 - Clear compliance results cannot publish `compliance.hit`.
 - Critical event contracts require Pact broker publication, consumer
-  verification, Schema Registry registration, schema ID pinning, and
-  `BACKWARD_TRANSITIVE` compatibility evidence.
+  verification, Schema Registry registration, schema ID pinning,
+  `BACKWARD_TRANSITIVE` compatibility evidence, unique event-type artifacts,
+  and non-blank consumer names.
 
 ## Benchmark
 
 - 3 event payload contract tests pass.
-- 3 contract compatibility validator tests pass.
+- 4 contract compatibility validator tests pass.
 
 ## How To Use It
 

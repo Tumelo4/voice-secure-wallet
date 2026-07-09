@@ -8,7 +8,8 @@ public final class ContractCompatibilityValidatorTests {
         TestCase[] tests = {
                 new TestCase("valid Pact and Schema Registry plan passes", ContractCompatibilityValidatorTests::validPlanPasses),
                 new TestCase("Pact publication and consumer verification are required", ContractCompatibilityValidatorTests::pactPublicationAndConsumerVerificationAreRequired),
-                new TestCase("Schema Registry compatibility gaps are blocked", ContractCompatibilityValidatorTests::schemaRegistryCompatibilityGapsAreBlocked)
+                new TestCase("Schema Registry compatibility gaps are blocked", ContractCompatibilityValidatorTests::schemaRegistryCompatibilityGapsAreBlocked),
+                new TestCase("duplicate artifacts and blank consumers are blocked", ContractCompatibilityValidatorTests::duplicateArtifactsAndBlankConsumersAreBlocked)
         };
 
         for (TestCase test : tests) {
@@ -66,6 +67,33 @@ public final class ContractCompatibilityValidatorTests {
         assertTrue(report.blockers().contains("compliance.hit must use BACKWARD_TRANSITIVE schema compatibility"), "compliance compatibility blocker");
     }
 
+    private static void duplicateArtifactsAndBlankConsumersAreBlocked() {
+        ContractCompatibilityPlan plan = new ContractCompatibilityPlan(
+                true,
+                true,
+                true,
+                List.of(
+                        artifact("fraud.scored", true, true, true, true, SchemaCompatibilityMode.BACKWARD_TRANSITIVE),
+                        artifact(
+                                "fraud.scored",
+                                Set.of("payment-service", " "),
+                                true,
+                                true,
+                                true,
+                                true,
+                                SchemaCompatibilityMode.BACKWARD_TRANSITIVE
+                        ),
+                        artifact("compliance.hit", true, true, true, true, SchemaCompatibilityMode.BACKWARD_TRANSITIVE)
+                )
+        );
+
+        ContractCompatibilityValidationReport report = new ContractCompatibilityValidator().validate(plan);
+
+        assertTrue(!report.ready(), "duplicate artifacts and blank consumers should block readiness");
+        assertTrue(report.blockers().contains("fraud.scored contract artifact must be unique"), "duplicate artifact blocker");
+        assertTrue(report.blockers().contains("fraud.scored consumers must not be blank"), "blank consumer blocker");
+    }
+
     private static ContractCompatibilityPlan validPlan() {
         return new ContractCompatibilityPlan(
                 true,
@@ -86,10 +114,30 @@ public final class ContractCompatibilityValidatorTests {
             boolean schemaIdPinned,
             SchemaCompatibilityMode compatibilityMode
     ) {
+        return artifact(
+                eventType,
+                Set.of("payment-service", "support-service"),
+                pactPublished,
+                consumersVerified,
+                schemaRegistered,
+                schemaIdPinned,
+                compatibilityMode
+        );
+    }
+
+    private static ContractArtifact artifact(
+            String eventType,
+            Set<String> consumers,
+            boolean pactPublished,
+            boolean consumersVerified,
+            boolean schemaRegistered,
+            boolean schemaIdPinned,
+            SchemaCompatibilityMode compatibilityMode
+    ) {
         return new ContractArtifact(
                 eventType,
                 eventType + "-value",
-                Set.of("payment-service", "support-service"),
+                consumers,
                 pactPublished,
                 consumersVerified,
                 schemaRegistered,

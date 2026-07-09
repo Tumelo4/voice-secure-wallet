@@ -113,8 +113,9 @@ These scenarios live in
 - Contract: `compliance.hit` carries PEP hit evidence.
 - Contract: clear compliance results cannot publish `compliance.hit`.
 - Compatibility: Pact and Schema Registry readiness blocks missing broker,
-  consumer verification, schema registration, schema ID pinning, or
-  non-`BACKWARD_TRANSITIVE` compatibility.
+  consumer verification, schema registration, schema ID pinning,
+  non-`BACKWARD_TRANSITIVE` compatibility, duplicate event-type artifacts, or
+  blank consumer names.
 
 These local contract tests live in
 `tests/contract-tests/src/test/java/com/voicesecure/contracts`. They are now
