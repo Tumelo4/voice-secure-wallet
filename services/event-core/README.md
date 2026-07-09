@@ -1,6 +1,7 @@
 # event-core
 
-Shared event envelope and outbox relay utilities for VoiceSecure Wallet.
+Shared event envelope, Kafka publication boundary, and outbox relay utilities
+for VoiceSecure Wallet.
 
 ## Problem Statement
 
@@ -19,7 +20,9 @@ one common contract for event publication and relay behavior.
 ## Scope
 
 This package defines the common shape for domain events across payment, ledger,
-fraud, identity, voice, and compliance flows.
+fraud, identity, voice, and compliance flows. It also includes a Kafka record
+publisher adapter so MSK-backed delivery can be wired without changing the
+domain event model.
 
 ## Benchmark
 

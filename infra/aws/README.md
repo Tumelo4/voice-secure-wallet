@@ -27,6 +27,10 @@ This is an infrastructure-as-code baseline, not a live deployment. It should be
 reviewed, planned, and connected to remote state, IAM, strict ingress, mTLS,
 secret rotation, and environment-specific values before applying against AWS.
 
+The production repository and Kafka adapters expect the resulting RDS
+PostgreSQL endpoint, MSK bootstrap brokers, and Secrets Manager references from
+this baseline.
+
 ## Local Validation
 
 The Java service test suite statically verifies the required Terraform resource
