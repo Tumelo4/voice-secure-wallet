@@ -12,8 +12,8 @@ payment retries that are hard to reason about.
 
 ## Impact
 
-- Users and clients get stable JSON responses for payment commands and wallet
-  balance reads.
+- Users and clients get stable JSON responses for payment commands, wallet
+  balance reads, and support repair requests.
 - The domain services stay framework-independent and easier to test.
 - Future production deployment work can focus on certificate provisioning, load
   balancer rollout, DNS, and external auth provider integration without
@@ -25,13 +25,16 @@ This service models the API adapter, runtime boundary, local JDK HTTP listener,
 and production ingress readiness preflight. It owns request normalization, route
 selection, JSON response shaping, runtime guards, socket-to-request translation,
 production ingress policy validation, and error mapping for the first two
-production-facing routes:
+production-facing routes plus the support repair route:
 
 - `POST /payments`
 - `GET /wallets/{accountId}/balance`
+- `POST /support/repairs`
 
 `PaymentApiAdapter` depends on `PaymentSagaService` and a
 `FraudDecisionProvider` port. `WalletApiAdapter` depends on `WalletService`.
+`SupportRepairApiAdapter` depends on `SupportService` and links justified
+repair requests back to the ledger repair flow.
 `ApiRouter` depends on the `ApiEndpoint` abstraction so more routes can be
 added without rewriting router behavior. `ApiRuntime` depends on ports for
 bearer-token verification, route-scoped authorization, rate limiting, and
@@ -49,6 +52,12 @@ limits, and public health paths without provisioning any cloud resources.
 - Payment validation failures return JSON `400` responses without leaking Java
   exception names.
 - Wallet balance reads return JSON `200` responses from the wallet projection.
+- Support repair POST requires a repair id, saga id, idempotency key, repair
+  justification, actor, source account, destination account, amount, and
+  trace header before it reaches the ledger repair path.
+- Support repair POST maps idempotency conflicts to HTTP `409`.
+- Support repair validation failures return JSON `400` responses without
+  leaking Java exception names.
 - Unknown routes return JSON `404` responses.
 - Runtime requests require `Authorization: Bearer ...` and `X-Trace-Id`.
 - Invalid bearer tokens return JSON `403` responses.
@@ -64,15 +73,16 @@ limits, and public health paths without provisioning any cloud resources.
 
 ## Benchmark
 
-- 5 API adapter tests, 6 API runtime tests, 2 identity bearer verifier tests,
-  3 local HTTP listener tests, and 3 production ingress readiness tests pass
+- 7 API adapter tests, 7 API runtime tests, 2 identity bearer verifier tests,
+  4 local HTTP listener tests, and 3 production ingress readiness tests pass
   through the same direct Java compile/test loop used by CI.
 - The adapter tests prove route behavior, JSON response shape, error codes, and
   SOLID routing boundaries.
 - The runtime tests prove auth, route-scoped authorization, trace,
   rate-limit, forwarding, and audit-log behavior.
-- The listener tests prove wallet GET, payment POST, real socket routing, JSON
-  response headers, request logging, and `Retry-After` propagation.
+- The listener tests prove wallet GET, payment POST, support repair POST, real
+  socket routing, JSON response headers, request logging, and `Retry-After`
+  propagation.
 - The production ingress tests prove transport security, runtime controls, and
   public route exposure are blocked before production.
 
@@ -81,11 +91,16 @@ limits, and public health paths without provisioning any cloud resources.
 ```java
 PaymentSagaService payments = new PaymentSagaService(new InMemoryPaymentSagaRepository());
 WalletService wallets = new WalletService(new InMemoryWalletRepository());
-
-ApiRouter router = new ApiRouter(
-        new PaymentApiAdapter(payments, request -> new FraudDecision(0.18, AuthPolicy.VOICE_OTP, true, "")),
-        new WalletApiAdapter(wallets)
+SupportService support = new SupportService(
+        new InMemorySupportRepository(),
+        new LedgerService(new InMemoryLedgerRepository())
 );
+
+ApiRouter router = new ApiRouter(List.of(
+        new PaymentApiAdapter(payments, request -> new FraudDecision(0.18, AuthPolicy.VOICE_OTP, true, "")),
+        new WalletApiAdapter(wallets),
+        new SupportRepairApiAdapter(support)
+));
 
 ApiResponse response = router.handle(new ApiRequest(
         "POST",
@@ -117,6 +132,8 @@ ApiResponse guardedResponse = runtime.handle(new ApiRequest(
 try (ApiHttpServer server = ApiHttpServer.start(runtime)) {
     // server.uri("/wallets/{accountId}/balance") returns a localhost URL for
     // local smoke tests or development clients.
+    // server.uri("/support/repairs") returns the repair route for justified
+    // support escalations.
 }
 ```
 

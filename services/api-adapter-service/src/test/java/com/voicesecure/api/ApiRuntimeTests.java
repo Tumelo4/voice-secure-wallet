@@ -4,6 +4,10 @@ import com.voicesecure.payments.AuthPolicy;
 import com.voicesecure.payments.FraudDecision;
 import com.voicesecure.payments.InMemoryPaymentSagaRepository;
 import com.voicesecure.payments.PaymentSagaService;
+import com.voicesecure.ledger.InMemoryLedgerRepository;
+import com.voicesecure.ledger.LedgerService;
+import com.voicesecure.support.InMemorySupportRepository;
+import com.voicesecure.support.SupportService;
 import com.voicesecure.wallet.InMemoryWalletRepository;
 import com.voicesecure.wallet.WalletService;
 import java.time.Instant;
@@ -17,6 +21,7 @@ public final class ApiRuntimeTests {
                 new TestCase("runtime rejects invalid bearer tokens", ApiRuntimeTests::rejectsInvalidToken),
                 new TestCase("runtime requires a trace id before routing", ApiRuntimeTests::requiresTraceBeforeRouting),
                 new TestCase("runtime rejects requests missing route scopes", ApiRuntimeTests::rejectsMissingScope),
+                new TestCase("runtime rejects support repair requests missing repair scope", ApiRuntimeTests::rejectsMissingSupportRepairScope),
                 new TestCase("runtime rate limits by authenticated principal", ApiRuntimeTests::rateLimitsByPrincipal),
                 new TestCase("runtime forwards valid requests and records audit log", ApiRuntimeTests::forwardsAndLogsValidRequests)
         };
@@ -88,6 +93,25 @@ public final class ApiRuntimeTests {
         assertEquals(1, fixture.logSink.entries().size(), "scope failure should be logged");
     }
 
+    private static void rejectsMissingSupportRepairScope() {
+        Fixture fixture = fixture();
+
+        ApiResponse response = fixture.runtime.handle(new ApiRequest(
+                "POST",
+                "/support/repairs",
+                Map.of(
+                        "Authorization", "Bearer token-user-2",
+                        "X-Trace-Id", "trace-runtime-2c",
+                        "Idempotency-Key", UUID.randomUUID().toString()
+                ),
+                ""
+        ));
+
+        assertEquals(403, response.status(), "missing support repair scope status");
+        assertContains(response.body(), "\"code\":\"INSUFFICIENT_SCOPE\"", "support repair scope error code");
+        assertEquals(0, fixture.router.invocationCount(), "support scope failure should not hit router");
+    }
+
     private static void rateLimitsByPrincipal() {
         Fixture fixture = fixture();
         Map<String, String> headers = Map.of("Authorization", "Bearer token-user-1", "X-Trace-Id", "trace-runtime-3");
@@ -129,6 +153,10 @@ public final class ApiRuntimeTests {
     private static Fixture fixture() {
         PaymentSagaService paymentService = new PaymentSagaService(new InMemoryPaymentSagaRepository());
         WalletService walletService = new WalletService(new InMemoryWalletRepository());
+        SupportService supportService = new SupportService(
+                new InMemorySupportRepository(),
+                new LedgerService(new InMemoryLedgerRepository())
+        );
         UUID accountId = UUID.fromString("11111111-1111-4111-8111-111111111111");
         walletService.openWallet(
                 UUID.fromString("22222222-2222-4222-8222-222222222222"),
@@ -139,7 +167,8 @@ public final class ApiRuntimeTests {
         walletService.applyBalanceSnapshot(accountId, "ZAR", 1_250, Instant.parse("2026-06-20T12:00:00Z"));
         CountingApiEndpoint router = new CountingApiEndpoint(new ApiRouter(
                 new PaymentApiAdapter(paymentService, request -> new FraudDecision(0.18, AuthPolicy.VOICE_OTP, true, "")),
-                new WalletApiAdapter(walletService)
+                new WalletApiAdapter(walletService),
+                new SupportRepairApiAdapter(supportService)
         ));
         InMemoryApiRequestLogSink logSink = new InMemoryApiRequestLogSink();
         ApiRuntime runtime = new ApiRuntime(

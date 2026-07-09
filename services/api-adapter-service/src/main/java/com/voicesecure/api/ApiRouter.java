@@ -11,6 +11,10 @@ public final class ApiRouter implements ApiEndpoint {
         this(List.of(paymentApiAdapter, walletApiAdapter));
     }
 
+    public ApiRouter(PaymentApiAdapter paymentApiAdapter, WalletApiAdapter walletApiAdapter, SupportRepairApiAdapter supportRepairApiAdapter) {
+        this(List.of(paymentApiAdapter, walletApiAdapter, supportRepairApiAdapter));
+    }
+
     public ApiRouter(List<ApiEndpoint> endpoints) {
         Objects.requireNonNull(endpoints, "endpoints");
         this.endpoints = List.copyOf(endpoints);
