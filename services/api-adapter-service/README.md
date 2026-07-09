@@ -109,11 +109,20 @@ ApiResponse response = router.handle(new ApiRequest(
         paymentJson
 ));
 
+// Assume signingKeyPair, userId, deviceId, and devicePublicKey come from your test harness.
+IdentityService identityService = new IdentityService(new InMemoryIdentityRepository(), signingKeyPair, "voice-secure-key-1");
+identityService.registerDevice(userId, deviceId, devicePublicKey);
+String accessToken = identityService.createSession(
+        userId,
+        deviceId,
+        "wallet:payment wallet:balance",
+        Duration.ofMinutes(15),
+        Duration.ofDays(7)
+).accessToken().token();
+
 ApiRuntime runtime = new ApiRuntime(
         router,
-        StaticBearerTokenVerifier.of(Map.of(
-                "token-user-1", ApiPrincipal.of("user-1", "wallet:payment", "wallet:balance")
-        )),
+        new IdentityBearerTokenVerifier(identityService),
         new InMemoryApiRateLimiter(100),
         new InMemoryApiRequestLogSink()
 );
@@ -122,7 +131,7 @@ ApiResponse guardedResponse = runtime.handle(new ApiRequest(
         "POST",
         "/payments",
         Map.of(
-                "Authorization", "Bearer token-user-1",
+                "Authorization", "Bearer " + accessToken,
                 "Idempotency-Key", idempotencyKey.toString(),
                 "X-Trace-Id", "trace-api-1"
         ),

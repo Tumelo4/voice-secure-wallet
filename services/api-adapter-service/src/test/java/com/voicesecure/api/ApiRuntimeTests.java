@@ -4,12 +4,17 @@ import com.voicesecure.payments.AuthPolicy;
 import com.voicesecure.payments.FraudDecision;
 import com.voicesecure.payments.InMemoryPaymentSagaRepository;
 import com.voicesecure.payments.PaymentSagaService;
+import com.voicesecure.identity.IdentityService;
+import com.voicesecure.identity.InMemoryIdentityRepository;
 import com.voicesecure.ledger.InMemoryLedgerRepository;
 import com.voicesecure.ledger.LedgerService;
 import com.voicesecure.support.InMemorySupportRepository;
 import com.voicesecure.support.SupportService;
 import com.voicesecure.wallet.InMemoryWalletRepository;
 import com.voicesecure.wallet.WalletService;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -68,7 +73,7 @@ public final class ApiRuntimeTests {
         ApiResponse response = fixture.runtime.handle(new ApiRequest(
                 "GET",
                 "/wallets/" + fixture.accountId + "/balance",
-                Map.of("Authorization", "Bearer token-user-1"),
+                java.util.Map.of("Authorization", "Bearer " + fixture.tokenUser1),
                 ""
         ));
 
@@ -83,7 +88,7 @@ public final class ApiRuntimeTests {
         ApiResponse response = fixture.runtime.handle(new ApiRequest(
                 "GET",
                 "/wallets/" + fixture.accountId + "/balance",
-                Map.of("Authorization", "Bearer token-user-2", "X-Trace-Id", "trace-runtime-2b"),
+                java.util.Map.of("Authorization", "Bearer " + fixture.tokenUser2, "X-Trace-Id", "trace-runtime-2b"),
                 ""
         ));
 
@@ -99,8 +104,8 @@ public final class ApiRuntimeTests {
         ApiResponse response = fixture.runtime.handle(new ApiRequest(
                 "POST",
                 "/support/repairs",
-                Map.of(
-                        "Authorization", "Bearer token-user-2",
+                java.util.Map.of(
+                        "Authorization", "Bearer " + fixture.tokenUser2,
                         "X-Trace-Id", "trace-runtime-2c",
                         "Idempotency-Key", UUID.randomUUID().toString()
                 ),
@@ -114,7 +119,7 @@ public final class ApiRuntimeTests {
 
     private static void rateLimitsByPrincipal() {
         Fixture fixture = fixture();
-        Map<String, String> headers = Map.of("Authorization", "Bearer token-user-1", "X-Trace-Id", "trace-runtime-3");
+        java.util.Map<String, String> headers = java.util.Map.of("Authorization", "Bearer " + fixture.tokenUser1, "X-Trace-Id", "trace-runtime-3");
 
         fixture.runtime.handle(new ApiRequest("GET", "/wallets/" + fixture.accountId + "/balance", headers, ""));
         fixture.runtime.handle(new ApiRequest("GET", "/wallets/" + fixture.accountId + "/balance", headers, ""));
@@ -133,8 +138,8 @@ public final class ApiRuntimeTests {
         ApiResponse response = fixture.runtime.handle(new ApiRequest(
                 "POST",
                 "/payments",
-                Map.of(
-                        "Authorization", "Bearer token-user-1",
+                java.util.Map.of(
+                        "Authorization", "Bearer " + fixture.tokenUser1,
                         "Idempotency-Key", idempotencyKey.toString(),
                         "X-Trace-Id", "trace-runtime-4"
                 ),
@@ -145,7 +150,7 @@ public final class ApiRuntimeTests {
         assertContains(response.body(), "\"state\":\"VOICE_VERIFICATION_PENDING\"", "payment state");
         ApiRequestLogEntry entry = fixture.logSink.entries().get(0);
         assertEquals("trace-runtime-4", entry.traceId(), "logged trace");
-        assertEquals("user-1", entry.principalId(), "logged principal");
+        assertEquals(fixture.user1Id.toString(), entry.principalId(), "logged principal");
         assertEquals("/payments", entry.path(), "logged path");
         assertEquals(202, entry.status(), "logged status");
     }
@@ -157,6 +162,13 @@ public final class ApiRuntimeTests {
                 new InMemorySupportRepository(),
                 new LedgerService(new InMemoryLedgerRepository())
         );
+        IdentityService identityService = new IdentityService(new InMemoryIdentityRepository(), signingKeyPair(), "voice-secure-key-1");
+        UUID user1Id = UUID.fromString("11111111-1111-4111-8111-111111111111");
+        UUID user1DeviceId = UUID.fromString("33333333-3333-4333-8333-333333333333");
+        UUID user2Id = UUID.fromString("22222222-2222-4222-8222-222222222222");
+        UUID user2DeviceId = UUID.fromString("44444444-4444-4444-8444-444444444444");
+        identityService.registerDevice(user1Id, user1DeviceId, generateKeyPair().getPublic());
+        identityService.registerDevice(user2Id, user2DeviceId, generateKeyPair().getPublic());
         UUID accountId = UUID.fromString("11111111-1111-4111-8111-111111111111");
         walletService.openWallet(
                 UUID.fromString("22222222-2222-4222-8222-222222222222"),
@@ -173,14 +185,25 @@ public final class ApiRuntimeTests {
         InMemoryApiRequestLogSink logSink = new InMemoryApiRequestLogSink();
         ApiRuntime runtime = new ApiRuntime(
                 router,
-                StaticBearerTokenVerifier.of(Map.of(
-                        "token-user-1", ApiPrincipal.of("user-1", "wallet:payment", "wallet:balance"),
-                        "token-user-2", ApiPrincipal.of("user-2", "wallet:payment")
-                )),
+                new IdentityBearerTokenVerifier(identityService),
                 new InMemoryApiRateLimiter(2),
                 logSink
         );
-        return new Fixture(runtime, router, logSink, accountId);
+        String tokenUser1 = identityService.createSession(
+                user1Id,
+                user1DeviceId,
+                "wallet:payment wallet:balance support:repair",
+                Duration.ofMinutes(15),
+                Duration.ofDays(7)
+        ).accessToken().token();
+        String tokenUser2 = identityService.createSession(
+                user2Id,
+                user2DeviceId,
+                "wallet:payment",
+                Duration.ofMinutes(15),
+                Duration.ofDays(7)
+        ).accessToken().token();
+        return new Fixture(runtime, router, logSink, accountId, user1Id, tokenUser1, tokenUser2);
     }
 
     private static String paymentBody(UUID sagaId, long amount) {
@@ -192,6 +215,20 @@ public final class ApiRuntimeTests {
                 + "\"amount\":" + amount + ","
                 + "\"currency\":\"ZAR\""
                 + "}";
+    }
+
+    private static KeyPair generateKeyPair() {
+        try {
+            KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+            generator.initialize(2048);
+            return generator.generateKeyPair();
+        } catch (Exception ex) {
+            throw new IllegalStateException("unable to generate RSA key pair", ex);
+        }
+    }
+
+    private static KeyPair signingKeyPair() {
+        return generateKeyPair();
     }
 
     private static void assertEquals(Object expected, Object actual, String message) {
@@ -210,7 +247,10 @@ public final class ApiRuntimeTests {
             ApiRuntime runtime,
             CountingApiEndpoint router,
             InMemoryApiRequestLogSink logSink,
-            UUID accountId
+            UUID accountId,
+            UUID user1Id,
+            String tokenUser1,
+            String tokenUser2
     ) {
     }
 
