@@ -4,6 +4,8 @@ import com.voicesecure.payments.AuthPolicy;
 import com.voicesecure.payments.FraudDecision;
 import com.voicesecure.payments.InMemoryPaymentSagaRepository;
 import com.voicesecure.payments.PaymentSagaService;
+import com.voicesecure.identity.IdentityService;
+import com.voicesecure.identity.InMemoryIdentityRepository;
 import com.voicesecure.ledger.InMemoryLedgerRepository;
 import com.voicesecure.ledger.LedgerService;
 import com.voicesecure.support.InMemorySupportRepository;
@@ -14,8 +16,10 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.time.Duration;
 import java.time.Instant;
-import java.util.Map;
 import java.util.UUID;
 
 public final class ApiHttpServerTests {
@@ -38,7 +42,7 @@ public final class ApiHttpServerTests {
         Fixture fixture = fixture(10);
         try (ApiHttpServer server = ApiHttpServer.start(fixture.runtime)) {
             HttpResponse<String> response = send(HttpRequest.newBuilder(server.uri("/wallets/" + fixture.accountId + "/balance"))
-                    .header("Authorization", "Bearer token-user-1")
+                    .header("Authorization", "Bearer " + fixture.tokenUser1)
                     .header("X-Trace-Id", "trace-http-1")
                     .GET()
                     .build());
@@ -56,7 +60,7 @@ public final class ApiHttpServerTests {
         UUID idempotencyKey = UUID.fromString("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
         try (ApiHttpServer server = ApiHttpServer.start(fixture.runtime)) {
             HttpResponse<String> response = send(HttpRequest.newBuilder(server.uri("/payments"))
-                    .header("Authorization", "Bearer token-user-1")
+                    .header("Authorization", "Bearer " + fixture.tokenUser1)
                     .header("Idempotency-Key", idempotencyKey.toString())
                     .header("X-Trace-Id", "trace-http-2")
                     .POST(HttpRequest.BodyPublishers.ofString(paymentBody(sagaId, 750)))
@@ -75,7 +79,7 @@ public final class ApiHttpServerTests {
         UUID idempotencyKey = UUID.fromString("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
         try (ApiHttpServer server = ApiHttpServer.start(fixture.runtime)) {
             HttpResponse<String> response = send(HttpRequest.newBuilder(server.uri("/support/repairs"))
-                    .header("Authorization", "Bearer token-user-1")
+                    .header("Authorization", "Bearer " + fixture.tokenUser1)
                     .header("Idempotency-Key", idempotencyKey.toString())
                     .header("X-Trace-Id", "trace-http-2b")
                     .POST(HttpRequest.BodyPublishers.ofString(repairBody(
@@ -102,14 +106,14 @@ public final class ApiHttpServerTests {
         Fixture fixture = fixture(1);
         try (ApiHttpServer server = ApiHttpServer.start(fixture.runtime)) {
             HttpRequest first = HttpRequest.newBuilder(server.uri("/wallets/" + fixture.accountId + "/balance"))
-                    .header("Authorization", "Bearer token-user-1")
+                    .header("Authorization", "Bearer " + fixture.tokenUser1)
                     .header("X-Trace-Id", "trace-http-3")
                     .GET()
                     .build();
             send(first);
 
             HttpResponse<String> limited = send(HttpRequest.newBuilder(server.uri("/wallets/" + fixture.accountId + "/balance"))
-                    .header("Authorization", "Bearer token-user-1")
+                    .header("Authorization", "Bearer " + fixture.tokenUser1)
                     .header("X-Trace-Id", "trace-http-4")
                     .GET()
                     .build());
@@ -130,6 +134,17 @@ public final class ApiHttpServerTests {
         InMemoryLedgerRepository supportLedgerRepository = new InMemoryLedgerRepository();
         LedgerService supportLedgerService = new LedgerService(supportLedgerRepository);
         InMemorySupportRepository supportRepository = new InMemorySupportRepository();
+        IdentityService identityService = new IdentityService(new InMemoryIdentityRepository(), signingKeyPair(), "voice-secure-key-1");
+        UUID user1Id = UUID.fromString("11111111-1111-4111-8111-111111111111");
+        UUID user1DeviceId = UUID.fromString("33333333-3333-4333-8333-333333333333");
+        identityService.registerDevice(user1Id, user1DeviceId, generateKeyPair().getPublic());
+        String tokenUser1 = identityService.createSession(
+                user1Id,
+                user1DeviceId,
+                "wallet:payment wallet:balance support:repair",
+                Duration.ofMinutes(15),
+                Duration.ofDays(7)
+        ).accessToken().token();
         UUID supportSourceAccountId = UUID.fromString("33333333-3333-4333-8333-333333333333");
         UUID supportDestinationAccountId = UUID.fromString("44444444-4444-4444-8444-444444444444");
         supportLedgerService.createAccount(supportSourceAccountId, "ZAR", 1_000);
@@ -151,13 +166,11 @@ public final class ApiHttpServerTests {
         InMemoryApiRequestLogSink logSink = new InMemoryApiRequestLogSink();
         ApiRuntime runtime = new ApiRuntime(
                 router,
-                StaticBearerTokenVerifier.of(Map.of(
-                        "token-user-1", ApiPrincipal.of("user-1", "wallet:payment", "wallet:balance", "support:repair")
-                )),
+                new IdentityBearerTokenVerifier(identityService),
                 new InMemoryApiRateLimiter(rateLimit),
                 logSink
         );
-        return new Fixture(runtime, logSink, accountId, supportRepository, supportLedgerRepository, supportSourceAccountId, supportDestinationAccountId);
+        return new Fixture(runtime, logSink, accountId, supportRepository, supportLedgerRepository, supportSourceAccountId, supportDestinationAccountId, tokenUser1);
     }
 
     private static String paymentBody(UUID sagaId, long amount) {
@@ -192,6 +205,20 @@ public final class ApiHttpServerTests {
                 + "}";
     }
 
+    private static KeyPair generateKeyPair() {
+        try {
+            KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+            generator.initialize(2048);
+            return generator.generateKeyPair();
+        } catch (Exception ex) {
+            throw new IllegalStateException("unable to generate RSA key pair", ex);
+        }
+    }
+
+    private static KeyPair signingKeyPair() {
+        return generateKeyPair();
+    }
+
     private static void assertEquals(Object expected, Object actual, String message) {
         if (!expected.equals(actual)) {
             throw new AssertionError(message + ": expected " + expected + " but got " + actual);
@@ -211,7 +238,8 @@ public final class ApiHttpServerTests {
             InMemorySupportRepository supportRepository,
             InMemoryLedgerRepository supportLedgerRepository,
             UUID supportSourceAccountId,
-            UUID supportDestinationAccountId
+            UUID supportDestinationAccountId,
+            String tokenUser1
     ) {
     }
 
