@@ -42,3 +42,9 @@ foreach ($testFile in $TestFiles) {
     Write-Host "Running $className"
     java -cp $BuildDir $className
 }
+
+$Terraform = Get-Command terraform -ErrorAction SilentlyContinue
+if ($Bash -and $Terraform) {
+    Write-Host "Running Terraform AWS baseline validation"
+    & bash (Join-Path $PSScriptRoot "test-terraform-aws-baseline.sh")
+}

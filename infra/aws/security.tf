@@ -12,11 +12,11 @@ resource "aws_kms_alias" "platform" {
 resource "aws_secretsmanager_secret" "database_password" {
   name        = "voicesecure/${var.environment}/database/password"
   description = "Reference for the RDS password. Secret value is managed outside this baseline."
-  kms_key_id   = aws_kms_key.platform.arn
+  kms_key_id  = aws_kms_key.platform.arn
 }
 
 resource "aws_secretsmanager_secret" "redis_auth_token" {
   name        = "voicesecure/${var.environment}/redis/auth-token"
   description = "Reference for the Redis auth token. Secret value is managed outside this baseline."
-  kms_key_id   = aws_kms_key.platform.arn
+  kms_key_id  = aws_kms_key.platform.arn
 }
