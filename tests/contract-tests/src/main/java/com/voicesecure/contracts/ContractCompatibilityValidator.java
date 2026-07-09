@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public final class ContractCompatibilityValidator {
@@ -39,16 +38,19 @@ public final class ContractCompatibilityValidator {
     }
 
     private void validateArtifacts(ContractCompatibilityPlan plan, List<String> blockers) {
-        Map<String, ContractArtifact> artifactsByType = plan.artifacts().stream()
-                .collect(Collectors.toMap(ContractArtifact::eventType, Function.identity(), (first, second) -> first));
+        Map<String, List<ContractArtifact>> artifactsByType = plan.artifacts().stream()
+                .collect(Collectors.groupingBy(ContractArtifact::eventType));
 
         for (String requiredEventType : policy.requiredEventTypes()) {
-            ContractArtifact artifact = artifactsByType.get(requiredEventType);
-            if (artifact == null) {
+            List<ContractArtifact> artifacts = artifactsByType.get(requiredEventType);
+            if (artifacts == null || artifacts.isEmpty()) {
                 blockers.add(requiredEventType + " contract artifact is required");
                 continue;
             }
-            validateArtifact(artifact, blockers);
+            if (artifacts.size() > 1) {
+                blockers.add(requiredEventType + " contract artifact must be unique");
+            }
+            artifacts.forEach(artifact -> validateArtifact(artifact, blockers));
         }
     }
 
@@ -59,6 +61,8 @@ public final class ContractCompatibilityValidator {
         }
         if (artifact.consumers().isEmpty()) {
             blockers.add(eventType + " must list at least one consumer");
+        } else if (artifact.consumers().stream().anyMatch(String::isBlank)) {
+            blockers.add(eventType + " consumers must not be blank");
         }
         if (!artifact.pactPublished()) {
             blockers.add(eventType + " contract must be published to Pact broker");

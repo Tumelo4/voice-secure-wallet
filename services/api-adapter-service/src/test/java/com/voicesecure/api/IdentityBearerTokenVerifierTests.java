@@ -54,8 +54,9 @@ public final class IdentityBearerTokenVerifierTests {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
         generator.initialize(2048);
         KeyPair signingKey = generator.generateKeyPair();
+        KeyPair deviceKeys = generator.generateKeyPair();
         IdentityService identityService = new IdentityService(new InMemoryIdentityRepository(), signingKey, "voice-secure-key-1");
-        return new Fixture(identityService, new IdentityBearerTokenVerifier(identityService));
+        return new Fixture(identityService, new IdentityBearerTokenVerifier(identityService), deviceKeys);
     }
 
     private static void assertEquals(Object expected, Object actual, String message) {
@@ -70,7 +71,7 @@ public final class IdentityBearerTokenVerifierTests {
         }
     }
 
-    private record Fixture(IdentityService identityService, IdentityBearerTokenVerifier verifier) {
+    private record Fixture(IdentityService identityService, IdentityBearerTokenVerifier verifier, KeyPair deviceKeys) {
     }
 
     private record TestCase(String name, ThrowingRunnable runnable) {

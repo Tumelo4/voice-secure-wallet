@@ -12,6 +12,8 @@ schema compatibility.
 - Added `ContractCompatibilityPolicy` and `SchemaCompatibilityMode`.
 - Added `ContractCompatibilityValidator` and
   `ContractCompatibilityValidationReport`.
+- Added duplicate-artifact and blank-consumer validation to the compatibility
+  gate.
 - Added cross-service verification tests for valid compatibility evidence,
   missing Pact publication/consumer verification, and Schema Registry gaps.
 - Added `tests/contract-tests/README.md`.
