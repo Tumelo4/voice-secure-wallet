@@ -4,6 +4,10 @@ import com.voicesecure.payments.AuthPolicy;
 import com.voicesecure.payments.FraudDecision;
 import com.voicesecure.payments.InMemoryPaymentSagaRepository;
 import com.voicesecure.payments.PaymentSagaService;
+import com.voicesecure.ledger.InMemoryLedgerRepository;
+import com.voicesecure.ledger.LedgerService;
+import com.voicesecure.support.InMemorySupportRepository;
+import com.voicesecure.support.SupportService;
 import com.voicesecure.wallet.InMemoryWalletRepository;
 import com.voicesecure.wallet.WalletService;
 import java.net.URI;
@@ -19,6 +23,7 @@ public final class ApiHttpServerTests {
         TestCase[] tests = {
                 new TestCase("local listener forwards wallet GET through runtime guards", ApiHttpServerTests::forwardsWalletGet),
                 new TestCase("local listener forwards payment POST JSON", ApiHttpServerTests::forwardsPaymentPost),
+                new TestCase("local listener forwards support repair POST JSON", ApiHttpServerTests::forwardsSupportRepairPost),
                 new TestCase("local listener preserves runtime rate-limit retry headers", ApiHttpServerTests::preservesRateLimitHeaders)
         };
 
@@ -63,6 +68,36 @@ public final class ApiHttpServerTests {
         }
     }
 
+    private static void forwardsSupportRepairPost() throws Exception {
+        Fixture fixture = fixture(10);
+        UUID repairId = UUID.fromString("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+        UUID sagaId = UUID.fromString("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+        UUID idempotencyKey = UUID.fromString("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+        try (ApiHttpServer server = ApiHttpServer.start(fixture.runtime)) {
+            HttpResponse<String> response = send(HttpRequest.newBuilder(server.uri("/support/repairs"))
+                    .header("Authorization", "Bearer token-user-1")
+                    .header("Idempotency-Key", idempotencyKey.toString())
+                    .header("X-Trace-Id", "trace-http-2b")
+                    .POST(HttpRequest.BodyPublishers.ofString(repairBody(
+                            repairId,
+                            sagaId,
+                            fixture.supportSourceAccountId,
+                            fixture.supportDestinationAccountId,
+                            50,
+                            "COMPENSATION_FAILED drill corrective entry",
+                            "sre@example.com"
+                    )))
+                    .build());
+
+            assertEquals(200, response.statusCode(), "support repair status");
+            assertContains(response.body(), "\"entryCount\":2", "support repair entry count");
+            assertContains(response.body(), "\"status\":\"APPLIED\"", "support repair status");
+            assertEquals("/support/repairs", fixture.logSink.entries().get(0).path(), "logged path");
+            assertEquals(1, fixture.supportRepository.cases().size(), "support repair case count");
+            assertEquals(2, fixture.supportLedgerRepository.entries().size(), "support repair entries");
+        }
+    }
+
     private static void preservesRateLimitHeaders() throws Exception {
         Fixture fixture = fixture(1);
         try (ApiHttpServer server = ApiHttpServer.start(fixture.runtime)) {
@@ -92,6 +127,14 @@ public final class ApiHttpServerTests {
     private static Fixture fixture(int rateLimit) {
         PaymentSagaService paymentService = new PaymentSagaService(new InMemoryPaymentSagaRepository());
         WalletService walletService = new WalletService(new InMemoryWalletRepository());
+        InMemoryLedgerRepository supportLedgerRepository = new InMemoryLedgerRepository();
+        LedgerService supportLedgerService = new LedgerService(supportLedgerRepository);
+        InMemorySupportRepository supportRepository = new InMemorySupportRepository();
+        UUID supportSourceAccountId = UUID.fromString("33333333-3333-4333-8333-333333333333");
+        UUID supportDestinationAccountId = UUID.fromString("44444444-4444-4444-8444-444444444444");
+        supportLedgerService.createAccount(supportSourceAccountId, "ZAR", 1_000);
+        supportLedgerService.createAccount(supportDestinationAccountId, "ZAR", 0);
+        SupportService supportService = new SupportService(supportRepository, supportLedgerService);
         UUID accountId = UUID.fromString("11111111-1111-4111-8111-111111111111");
         walletService.openWallet(
                 UUID.fromString("22222222-2222-4222-8222-222222222222"),
@@ -102,18 +145,19 @@ public final class ApiHttpServerTests {
         walletService.applyBalanceSnapshot(accountId, "ZAR", 1_250, Instant.parse("2026-06-20T12:00:00Z"));
         ApiRouter router = new ApiRouter(
                 new PaymentApiAdapter(paymentService, request -> new FraudDecision(0.18, AuthPolicy.VOICE_OTP, true, "")),
-                new WalletApiAdapter(walletService)
+                new WalletApiAdapter(walletService),
+                new SupportRepairApiAdapter(supportService)
         );
         InMemoryApiRequestLogSink logSink = new InMemoryApiRequestLogSink();
         ApiRuntime runtime = new ApiRuntime(
                 router,
                 StaticBearerTokenVerifier.of(Map.of(
-                        "token-user-1", ApiPrincipal.of("user-1", "wallet:payment", "wallet:balance")
+                        "token-user-1", ApiPrincipal.of("user-1", "wallet:payment", "wallet:balance", "support:repair")
                 )),
                 new InMemoryApiRateLimiter(rateLimit),
                 logSink
         );
-        return new Fixture(runtime, logSink, accountId);
+        return new Fixture(runtime, logSink, accountId, supportRepository, supportLedgerRepository, supportSourceAccountId, supportDestinationAccountId);
     }
 
     private static String paymentBody(UUID sagaId, long amount) {
@@ -124,6 +168,27 @@ public final class ApiHttpServerTests {
                 + "\"toAccountId\":\"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee\","
                 + "\"amount\":" + amount + ","
                 + "\"currency\":\"ZAR\""
+                + "}";
+    }
+
+    private static String repairBody(
+            UUID repairId,
+            UUID sagaId,
+            UUID sourceAccountId,
+            UUID destinationAccountId,
+            long amount,
+            String justification,
+            String requestedBy
+    ) {
+        return "{"
+                + "\"repairId\":\"" + repairId + "\","
+                + "\"sagaId\":\"" + sagaId + "\","
+                + "\"sourceAccountId\":\"" + sourceAccountId + "\","
+                + "\"destinationAccountId\":\"" + destinationAccountId + "\","
+                + "\"amount\":" + amount + ","
+                + "\"currency\":\"ZAR\","
+                + "\"justification\":\"" + justification + "\","
+                + "\"requestedBy\":\"" + requestedBy + "\""
                 + "}";
     }
 
@@ -139,7 +204,15 @@ public final class ApiHttpServerTests {
         }
     }
 
-    private record Fixture(ApiRuntime runtime, InMemoryApiRequestLogSink logSink, UUID accountId) {
+    private record Fixture(
+            ApiRuntime runtime,
+            InMemoryApiRequestLogSink logSink,
+            UUID accountId,
+            InMemorySupportRepository supportRepository,
+            InMemoryLedgerRepository supportLedgerRepository,
+            UUID supportSourceAccountId,
+            UUID supportDestinationAccountId
+    ) {
     }
 
     private record TestCase(String name, ThrowingRunnable runnable) {
