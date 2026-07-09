@@ -10,6 +10,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { MobileCommandForms } from "./MobileCommandForms";
 import {
   bankingAccountCards,
   bankingCardDeck,
@@ -49,6 +50,8 @@ export function ReadinessDashboard() {
   const [activeTab, setActiveTab] = useState<BankingTabKey>("home");
   const [draft, setDraft] = useState<TransactionDraft>(() => createTransactionDraft("pay"));
   const [flow, setFlow] = useState<VoiceSecureFlow | null>(null);
+  const [walletCommandStatus, setWalletCommandStatus] = useState("Ready to check balance.");
+  const [paymentCommandStatus, setPaymentCommandStatus] = useState("Ready to send payment.");
 
   const micPulse = useRef(new Animated.Value(0)).current;
   const wavePulse = useRef(new Animated.Value(0)).current;
@@ -156,7 +159,16 @@ export function ReadinessDashboard() {
             <Header layoutMode={layoutMode} />
 
             {activeTab === "home" ? (
-              <HomeTab layoutMode={layoutMode} onOpenPayments={openPayments} />
+              <HomeTab
+                layoutMode={layoutMode}
+                walletCommandStatus={walletCommandStatus}
+                paymentCommandStatus={paymentCommandStatus}
+                onOpenPayments={openPayments}
+                onWalletCommand={(accountId) => setWalletCommandStatus(`Prepared for ${accountId}.`)}
+                onPaymentCommand={(command) =>
+                  setPaymentCommandStatus(`Prepared for ${command.currency} ${command.amount.toFixed(2)}.`)
+                }
+              />
             ) : null}
 
             {activeTab === "payments" ? (
@@ -216,10 +228,18 @@ function Header({ layoutMode }: { layoutMode: BankingLayoutMode }) {
 
 function HomeTab({
   layoutMode,
+  walletCommandStatus,
+  paymentCommandStatus,
   onOpenPayments,
+  onWalletCommand,
+  onPaymentCommand,
 }: {
   layoutMode: BankingLayoutMode;
+  walletCommandStatus: string;
+  paymentCommandStatus: string;
   onOpenPayments: (intent: BankingTransactionIntent) => void;
+  onWalletCommand: (accountId: string) => void;
+  onPaymentCommand: (command: { amount: number; currency: string }) => void;
 }) {
   const isCompact = layoutMode === "compact";
   const isExpanded = layoutMode === "expanded";
@@ -283,6 +303,13 @@ function HomeTab({
             ))}
           </View>
         )}
+
+        <MobileCommandForms
+          walletBalanceStatus={walletCommandStatus}
+          paymentStartStatus={paymentCommandStatus}
+          onWalletCommand={onWalletCommand}
+          onPaymentCommand={onPaymentCommand}
+        />
       </View>
 
       <View style={{ flex: isExpanded ? 0.88 : undefined, marginLeft: isExpanded ? 20 : 0, marginTop: isExpanded ? 0 : 24 }}>
