@@ -27,7 +27,14 @@ class AuthPolicy(str, Enum):
     DEVICE_PIN = "DEVICE_PIN"
 
 
-@dataclass(frozen=True, slots=True)
+try:
+    frozen_slots_dataclass = dataclass(frozen=True, slots=True)
+except TypeError:
+    # Python 3.9 lacks dataclass(slots=True); keep the model importable there.
+    frozen_slots_dataclass = dataclass(frozen=True)
+
+
+@frozen_slots_dataclass
 class VoiceChallenge:
     challenge_id: UUID
     user_id: UUID
@@ -36,7 +43,7 @@ class VoiceChallenge:
     expires_at: datetime
 
 
-@dataclass(frozen=True, slots=True)
+@frozen_slots_dataclass
 class VoiceProfile:
     user_id: UUID
     embedding: tuple[float, ...]
@@ -44,7 +51,7 @@ class VoiceProfile:
     sample_count: int
 
 
-@dataclass(frozen=True, slots=True)
+@frozen_slots_dataclass
 class VoiceVerificationRequest:
     user_id: UUID
     challenge_id: UUID
@@ -59,7 +66,7 @@ class VoiceVerificationRequest:
     captured_at: datetime
 
 
-@dataclass(frozen=True, slots=True)
+@frozen_slots_dataclass
 class VoiceVerificationResult:
     verification_id: UUID
     user_id: UUID
@@ -267,7 +274,7 @@ def _average_vectors(vectors: Sequence[Sequence[float]]) -> tuple[float, ...]:
     dimensions = len(vectors[0])
     if any(len(vector) != dimensions for vector in vectors):
         raise VoiceServiceError("all enrollment vectors must have the same dimensions")
-    return tuple(sum(values) / len(vectors) for values in zip(*vectors, strict=True))
+    return tuple(sum(values) / len(vectors) for values in zip(*vectors))
 
 
 def _cosine_similarity(left: Iterable[float], right: Iterable[float]) -> float:
@@ -275,7 +282,7 @@ def _cosine_similarity(left: Iterable[float], right: Iterable[float]) -> float:
     right_values = tuple(float(value) for value in right)
     if len(left_values) != len(right_values):
         raise VoiceServiceError("embedding dimensions must match")
-    dot = sum(l * r for l, r in zip(left_values, right_values, strict=True))
+    dot = sum(l * r for l, r in zip(left_values, right_values))
     left_norm = sqrt(sum(value * value for value in left_values))
     right_norm = sqrt(sum(value * value for value in right_values))
     if left_norm == 0.0 or right_norm == 0.0:

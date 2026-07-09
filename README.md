@@ -46,7 +46,7 @@ authentication, recovery workflows, operational validation, and launch gates.
 | `recovery-service` | Rebuilds trust after compromise through document upload, video KYC, reenrollment, and certificate reissue. | Lets legitimate users regain access safely instead of abandoning the account. |
 | `ops-service` | Models telemetry, dashboards, alerts, release gates, and disaster recovery requirements. | Improves uptime, incident response, and leadership visibility into operational risk. |
 | `launch-service` | Validates chaos, pen test, security, performance, and fallback gates before release. | Prevents unsafe releases and protects reputation, revenue, and customer trust. |
-| `api-adapter-service` | Translates HTTP-style payment commands and wallet balance reads into domain service calls, with runtime guards for auth, traceability, rate limiting, and request logging. | Gives clients stable JSON contracts while keeping domain services framework-independent. |
+| `api-adapter-service` | Translates HTTP-style payment commands and wallet balance reads into domain service calls, with runtime guards for auth, scope-based authorization, traceability, rate limiting, and request logging. | Gives clients stable JSON contracts while keeping domain services framework-independent. |
 
 `event-core` is shared event infrastructure used by those services rather than
 a product microservice. It now includes a Kafka publication boundary that can
@@ -71,8 +71,9 @@ be wired to AWS MSK without changing domain event code.
 - Java 17 `launch-service` readiness validator for hardening, production
   cutover, and launch gates.
 - Java 17 `api-adapter-service` contracts and runtime boundary for payment
-  commands, wallet balance reads, auth, traceability, rate limiting, and
-  request logging, plus a local JDK HTTP listener and production ingress
+  commands, wallet balance reads, auth, route-scoped authorization,
+  traceability, rate limiting, and request logging, plus a local JDK HTTP
+  listener and production ingress
   readiness validator.
 - React Native TypeScript `apps/mobile` readiness dashboard using
   NativeWind/Tailwind CSS and Redux Toolkit, with typed API client and fetch
@@ -100,7 +101,7 @@ is executable through the local test suite or represented as launch evidence:
 | Event contracts | `fraud.scored` carries auth policy and voice threshold; `compliance.hit` carries hit evidence and cannot be emitted for clear screening results. |
 | Contract compatibility | Pact broker reachability, Pact publication, consumer verification, Schema Registry reachability, schema registration, schema ID pinning, and `BACKWARD_TRANSITIVE` compatibility are validated for critical event contracts. |
 | Event backbone | Pending outbox messages relay in order, publish failures remain pending, and failed attempts retain last-error evidence. |
-| Voice | Enrollment requires three samples, verification uses Python 3.10+, challenges are single-use, and score ranges are enforced. |
+| Voice | Enrollment requires three samples, verification uses Python 3.9+ with a slots fallback, challenges are single-use, and score ranges are enforced. |
 | Notifications | Payment receipts, payment failure/compensation notices, and voice OTP fallback are event-driven and idempotent by source event ID. |
 | Acceptance | BDD scenarios prove that voice fallback can complete payment, compliance hits block funds movement, and wallet projections follow ledger truth. |
 | Support and recovery | Repair cases are persisted before ledger mutation; duplicate recovery transitions are rejected before external ports are called. |
@@ -109,7 +110,7 @@ is executable through the local test suite or represented as launch evidence:
 | Terraform AWS baseline | Static tests verify required Terraform files, private networking, KMS rotation, MSK TLS/IAM and broker config, RDS HA/PITR, Redis encryption, S3 object lock, and no committed secret values. |
 | Launch | Chaos, security, pen test, shadow mode, 10x load, 100/100 fallback, RTO/RPO, CVE scan source, pen-test report evidence, production change ticket, rollback drill, feature-flag lock, monitoring, on-call, support briefing, and 30-minute rollback readiness are validated. |
 | API adapters | Payment POST validates idempotency and trace headers, maps conflicts to `409`, wallet balance reads return JSON, and unknown routes return JSON `404`. |
-| API runtime | Protected routes require bearer tokens, invalid tokens return `403`, trace IDs are required before routing, rate limits return `429`, and request outcomes are logged. |
+| API runtime | Protected routes require bearer tokens and route scopes, invalid tokens return `403`, trace IDs are required before routing, rate limits return `429`, and request outcomes are logged. |
 | API local HTTP listener | Local socket tests prove wallet GET, payment POST JSON, runtime auth/trace guards, JSON headers, request logging, and rate-limit `Retry-After` propagation through the JDK HTTP server boundary. |
 | API production ingress | TLS 1.3, mTLS, forwarded client certificate identity, OIDC/JWKS, distributed rate limits, WAF, HSTS, trace forwarding, 256 KB request body limits, health-only public paths, and blocked admin exposure are validated before production. |
 | Mobile UI | React Native TypeScript stack declaration, Redux readiness state, mobile accessibility labels, dashboard section order, and NativeWind/Tailwind class tokens are covered by Node tests. |
@@ -125,7 +126,7 @@ is executable through the local test suite or represented as launch evidence:
 Prerequisites:
 
 - Java 17 with `javac` and `java` on `PATH`.
-- Python 3.10+ for `voice-service`, because it uses `dataclass(slots=True)`.
+- Python 3.9+ for `voice-service`, because it uses standard dataclasses with a slots fallback on newer interpreters.
 - PowerShell for the provided Windows-first test script.
 
 Run the full suite on Windows PowerShell:
@@ -166,10 +167,10 @@ for test_file in $(find tests -path '*/src/test/java/*Tests.java' | sort); do
 done
 ```
 
-Run the voice tests with a Python 3.10+ executable:
+Run the voice tests with a Python 3.9+ executable:
 
 ```sh
-python services/voice-service/test_voice_service.py
+python3 services/voice-service/test_voice_service.py
 ```
 
 Run the mobile UI tests:

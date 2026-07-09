@@ -4,6 +4,7 @@ This slice adds the first runtime safety layer around the Phase 9 API adapter
 contracts:
 
 - bearer-token verification through a `BearerTokenVerifier` port;
+- route-scoped authorization through `ApiEndpoint.requiredScopes(...)`;
 - trace-header enforcement before routing;
 - per-principal in-memory rate limiting;
 - request audit logging with principal, trace, method, path, and response
@@ -20,7 +21,8 @@ termination, and distributed rate-limit storage.
 
 - **Red:** `ApiRuntimeTests` first referenced missing runtime, token verifier,
   rate limiter, audit log, and route-counting test adapter types.
-- **Green:** `ApiRuntime` enforced trace, authentication, authorization, rate
-  limiting, forwarding, and audit logging through small ports.
+- **Green:** `ApiRuntime` enforced trace, authentication, route-scoped
+  authorization, rate limiting, forwarding, and audit logging through small
+  ports.
 - **Refactor:** `ApiResponse.withHeader` centralized immutable response header
   extension, and `ApiRouter` now implements `ApiEndpoint` directly.

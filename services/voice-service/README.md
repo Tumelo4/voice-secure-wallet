@@ -31,7 +31,8 @@ replay detection, and fallback selection.
 
 ## How To Use It
 
-Use Python 3.10+ because the service uses `dataclass(slots=True)`.
+Use Python 3.9+ because the service uses standard dataclasses with a slots
+fallback on newer interpreters.
 
 ```python
 repository = InMemoryVoiceRepository()

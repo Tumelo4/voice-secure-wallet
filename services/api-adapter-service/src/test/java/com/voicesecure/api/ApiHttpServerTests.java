@@ -107,7 +107,9 @@ public final class ApiHttpServerTests {
         InMemoryApiRequestLogSink logSink = new InMemoryApiRequestLogSink();
         ApiRuntime runtime = new ApiRuntime(
                 router,
-                StaticBearerTokenVerifier.of(Map.of("token-user-1", "user-1")),
+                StaticBearerTokenVerifier.of(Map.of(
+                        "token-user-1", ApiPrincipal.of("user-1", "wallet:payment", "wallet:balance")
+                )),
                 new InMemoryApiRateLimiter(rateLimit),
                 logSink
         );

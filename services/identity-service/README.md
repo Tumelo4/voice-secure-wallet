@@ -21,7 +21,8 @@ Without that foundation, fraud controls and recovery flows lose their footing.
 
 This slice handles device registration, RSA JWT issuance and verification,
 refresh token family rotation, token-family revocation, and device signature
-validation for critical requests.
+validation for critical requests. Refresh rotation now preserves the access
+token scope so renewed credentials do not silently drop permissions.
 
 ## Benchmark
 

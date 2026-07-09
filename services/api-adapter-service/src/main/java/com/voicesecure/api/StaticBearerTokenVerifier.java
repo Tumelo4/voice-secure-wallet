@@ -5,13 +5,13 @@ import java.util.Objects;
 import java.util.Optional;
 
 public final class StaticBearerTokenVerifier implements BearerTokenVerifier {
-    private final Map<String, String> tokenPrincipals;
+    private final Map<String, ApiPrincipal> tokenPrincipals;
 
-    private StaticBearerTokenVerifier(Map<String, String> tokenPrincipals) {
+    private StaticBearerTokenVerifier(Map<String, ApiPrincipal> tokenPrincipals) {
         this.tokenPrincipals = Map.copyOf(Objects.requireNonNull(tokenPrincipals, "tokenPrincipals"));
     }
 
-    public static StaticBearerTokenVerifier of(Map<String, String> tokenPrincipals) {
+    public static StaticBearerTokenVerifier of(Map<String, ApiPrincipal> tokenPrincipals) {
         return new StaticBearerTokenVerifier(tokenPrincipals);
     }
 
@@ -20,7 +20,7 @@ public final class StaticBearerTokenVerifier implements BearerTokenVerifier {
         if (token == null || token.isBlank()) {
             return Optional.empty();
         }
-        String principalId = tokenPrincipals.get(token.trim());
-        return principalId == null ? Optional.empty() : Optional.of(new ApiPrincipal(principalId));
+        ApiPrincipal principal = tokenPrincipals.get(token.trim());
+        return principal == null ? Optional.empty() : Optional.of(principal);
     }
 }

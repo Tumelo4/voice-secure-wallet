@@ -2,6 +2,7 @@ package com.voicesecure.api;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 public final class ApiRouter implements ApiEndpoint {
     private final List<ApiEndpoint> endpoints;
@@ -32,5 +33,16 @@ public final class ApiRouter implements ApiEndpoint {
             }
         }
         return ApiResponse.error(404, "ROUTE_NOT_FOUND", "route not found");
+    }
+
+    @Override
+    public Set<String> requiredScopes(ApiRequest request) {
+        Objects.requireNonNull(request, "request");
+        for (ApiEndpoint endpoint : endpoints) {
+            if (endpoint.supports(request)) {
+                return endpoint.requiredScopes(request);
+            }
+        }
+        return Set.of();
     }
 }

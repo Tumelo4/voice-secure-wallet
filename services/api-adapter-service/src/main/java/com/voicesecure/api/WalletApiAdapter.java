@@ -5,8 +5,11 @@ import com.voicesecure.wallet.WalletException;
 import com.voicesecure.wallet.WalletService;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.Set;
 
 public final class WalletApiAdapter implements ApiEndpoint {
+    private static final Set<String> REQUIRED_SCOPES = Set.of("wallet:balance");
+
     private final WalletService walletService;
 
     public WalletApiAdapter(WalletService walletService) {
@@ -28,6 +31,11 @@ public final class WalletApiAdapter implements ApiEndpoint {
         } catch (WalletException ex) {
             return ApiResponse.error(404, "WALLET_NOT_FOUND", ex.getMessage());
         }
+    }
+
+    @Override
+    public Set<String> requiredScopes(ApiRequest request) {
+        return supports(request) ? REQUIRED_SCOPES : Set.of();
     }
 
     private static String accountIdPath(String path) {

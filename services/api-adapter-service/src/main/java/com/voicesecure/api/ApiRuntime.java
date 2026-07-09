@@ -1,12 +1,14 @@
 package com.voicesecure.api;
 
 import java.time.Instant;
+import java.util.Set;
 import java.util.Objects;
 import java.util.Optional;
 
 public final class ApiRuntime implements ApiEndpoint {
     private static final String AUTHENTICATION_REQUIRED = "AUTHENTICATION_REQUIRED";
     private static final String FORBIDDEN = "FORBIDDEN";
+    private static final String INSUFFICIENT_SCOPE = "INSUFFICIENT_SCOPE";
     private static final String TRACE_REQUIRED = "TRACE_REQUIRED";
     private static final String RATE_LIMITED = "RATE_LIMITED";
 
@@ -55,6 +57,16 @@ public final class ApiRuntime implements ApiEndpoint {
         }
 
         String principalId = principal.get().principalId();
+        Set<String> requiredScopes = endpoint.requiredScopes(request);
+        if (!principal.get().hasAnyScope(requiredScopes)) {
+            return finish(
+                    request,
+                    principalId,
+                    traceId,
+                    ApiResponse.error(403, INSUFFICIENT_SCOPE, "bearer token lacks required scope for this route")
+            );
+        }
+
         if (!rateLimiter.allow(principalId)) {
             ApiResponse response = ApiResponse.error(429, RATE_LIMITED, "rate limit exceeded").withHeader("Retry-After", "2");
             return finish(request, principalId, traceId, response);
