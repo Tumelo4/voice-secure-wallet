@@ -53,3 +53,15 @@ foreach ($pythonTest in $PythonTestFiles) {
         Pop-Location
     }
 }
+
+$Bash = Get-Command bash -ErrorAction SilentlyContinue
+$Brew = Get-Command brew -ErrorAction SilentlyContinue
+$PostgresInstalled = $false
+if ($Brew) {
+    $PostgresInstalled = [bool](& brew list --formula --versions postgresql@16 2>$null)
+}
+
+if ($Bash -and $Brew -and $PostgresInstalled) {
+    Write-Host "Running PostgreSQL migration smoke test"
+    & bash (Join-Path $PSScriptRoot "test-postgres-migrations.sh")
+}
