@@ -28,6 +28,7 @@ public final class ApiHttpServerTests {
                 new TestCase("local listener forwards wallet GET through runtime guards", ApiHttpServerTests::forwardsWalletGet),
                 new TestCase("local listener forwards payment POST JSON", ApiHttpServerTests::forwardsPaymentPost),
                 new TestCase("local listener forwards support repair POST JSON", ApiHttpServerTests::forwardsSupportRepairPost),
+                new TestCase("local listener forwards public health GET", ApiHttpServerTests::forwardsHealthGet),
                 new TestCase("local listener preserves runtime rate-limit retry headers", ApiHttpServerTests::preservesRateLimitHeaders)
         };
 
@@ -102,6 +103,21 @@ public final class ApiHttpServerTests {
         }
     }
 
+    private static void forwardsHealthGet() throws Exception {
+        Fixture fixture = fixture(10);
+        try (ApiHttpServer server = ApiHttpServer.start(fixture.runtime)) {
+            HttpResponse<String> response = send(HttpRequest.newBuilder(server.uri("/health/ready"))
+                    .header("X-Trace-Id", "trace-http-health-1")
+                    .GET()
+                    .build());
+
+            assertEquals(200, response.statusCode(), "health status");
+            assertContains(response.body(), "\"status\":\"READY\"", "health body");
+            assertEquals("anonymous", fixture.logSink.entries().get(0).principalId(), "health principal");
+            assertEquals("/health/ready", fixture.logSink.entries().get(0).path(), "health path");
+        }
+    }
+
     private static void preservesRateLimitHeaders() throws Exception {
         Fixture fixture = fixture(1);
         try (ApiHttpServer server = ApiHttpServer.start(fixture.runtime)) {
@@ -158,11 +174,12 @@ public final class ApiHttpServerTests {
                 "ZAR"
         );
         walletService.applyBalanceSnapshot(accountId, "ZAR", 1_250, Instant.parse("2026-06-20T12:00:00Z"));
-        ApiRouter router = new ApiRouter(
+        ApiRouter router = new ApiRouter(java.util.List.of(
+                new HealthApiAdapter(),
                 new PaymentApiAdapter(paymentService, request -> new FraudDecision(0.18, AuthPolicy.VOICE_OTP, true, "")),
                 new WalletApiAdapter(walletService),
                 new SupportRepairApiAdapter(supportService)
-        );
+        ));
         InMemoryApiRequestLogSink logSink = new InMemoryApiRequestLogSink();
         ApiRuntime runtime = new ApiRuntime(
                 router,

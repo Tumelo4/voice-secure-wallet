@@ -42,6 +42,10 @@ public final class ApiRuntime implements ApiEndpoint {
             return finish(request, "anonymous", "", ApiResponse.error(400, TRACE_REQUIRED, "trace id is required"));
         }
 
+        if (endpoint.isPublic(request)) {
+            return finish(request, "anonymous", traceId, endpoint.handle(request));
+        }
+
         String authorization = request.header("Authorization");
         if (authorization == null || authorization.isBlank()) {
             return finish(request, "anonymous", traceId, ApiResponse.error(401, AUTHENTICATION_REQUIRED, "bearer token is required"));

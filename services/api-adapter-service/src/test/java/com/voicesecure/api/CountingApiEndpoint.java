@@ -27,6 +27,11 @@ final class CountingApiEndpoint implements ApiEndpoint {
         return delegate.requiredScopes(request);
     }
 
+    @Override
+    public boolean isPublic(ApiRequest request) {
+        return delegate.isPublic(request);
+    }
+
     int invocationCount() {
         return invocationCount;
     }

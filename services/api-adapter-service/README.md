@@ -58,6 +58,8 @@ limits, and public health paths without provisioning any cloud resources.
 - Support repair POST maps idempotency conflicts to HTTP `409`.
 - Support repair validation failures return JSON `400` responses without
   leaking Java exception names.
+- Public `/health/live` and `/health/ready` routes return JSON readiness
+  responses without bearer auth so ingress can probe the service safely.
 - Unknown routes return JSON `404` responses.
 - Runtime requests require `Authorization: Bearer ...` and `X-Trace-Id`.
 - Invalid bearer tokens return JSON `403` responses.
@@ -73,16 +75,16 @@ limits, and public health paths without provisioning any cloud resources.
 
 ## Benchmark
 
-- 7 API adapter tests, 7 API runtime tests, 2 identity bearer verifier tests,
-  4 local HTTP listener tests, and 3 production ingress readiness tests pass
+- 7 API adapter tests, 8 API runtime tests, 2 identity bearer verifier tests,
+  5 local HTTP listener tests, and 3 production ingress readiness tests pass
   through the same direct Java compile/test loop used by CI.
 - The adapter tests prove route behavior, JSON response shape, error codes, and
   SOLID routing boundaries.
 - The runtime tests prove auth, route-scoped authorization, trace,
   rate-limit, forwarding, and audit-log behavior.
-- The listener tests prove wallet GET, payment POST, support repair POST, real
-  socket routing, JSON response headers, request logging, and `Retry-After`
-  propagation.
+- The listener tests prove wallet GET, payment POST, support repair POST,
+  public health GET, real socket routing, JSON response headers, request
+  logging, and `Retry-After` propagation.
 - The production ingress tests prove transport security, runtime controls, and
   public route exposure are blocked before production.
 

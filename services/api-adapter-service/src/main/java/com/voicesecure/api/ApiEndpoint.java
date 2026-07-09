@@ -10,4 +10,8 @@ public interface ApiEndpoint {
     default Set<String> requiredScopes(ApiRequest request) {
         return Set.of();
     }
+
+    default boolean isPublic(ApiRequest request) {
+        return false;
+    }
 }
