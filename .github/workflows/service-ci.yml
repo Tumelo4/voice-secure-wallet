@@ -23,11 +23,12 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+          cache: maven
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.9"
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -36,17 +37,24 @@ jobs:
 
       - name: Install mobile dependencies
         working-directory: apps/mobile
-        run: npm install --omit=dev --no-package-lock --no-fund --no-audit
+        run: npm ci --no-fund --no-audit
 
-      - name: Run service and verification tests
-        shell: bash
+      - name: Run Maven service, contract, and acceptance tests
+        run: mvn --batch-mode --no-transfer-progress verify
+
+      - name: Install voice-service test dependencies
+        working-directory: services/voice-service
+        run: python -m pip install -e ".[test]"
+
+      - name: Test and build voice-service
+        working-directory: services/voice-service
         run: |
-          set -euo pipefail
-          pwsh -NoLogo -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-suite.ps1
+          python -m pytest
+          python -m build
 
-      - name: Run mobile UI tests
+      - name: Type-check and test mobile app
         working-directory: apps/mobile
-        run: npm test
+        run: npm run validate
 
       - name: Check whitespace
         shell: bash

@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "voicesecure-voice-service"
+version = "1.0.0"
+description = "Voice enrollment, verification, liveness, and replay-detection domain service."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "LicenseRef-Proprietary"
+authors = [{ name = "VoiceSecure Wallet" }]
+
+[project.optional-dependencies]
+test = [
+  "build>=1.2.2",
+  "pytest>=8.3,<9",
+  "pytest-cov>=6,<7",
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "--strict-config --strict-markers --cov=voice_service --cov-report=term-missing --cov-fail-under=90"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["voice_service"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

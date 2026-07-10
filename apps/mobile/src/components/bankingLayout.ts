@@ -7,11 +7,11 @@ export interface BankingScreenChrome {
 }
 
 export function bankingLayoutModeForWidth(width: number): BankingLayoutMode {
-  if (width >= 1024) {
+  if (width >= 1200) {
     return "expanded";
   }
 
-  if (width >= 768) {
+  if (width >= 600) {
     return "medium";
   }
 
@@ -27,9 +27,9 @@ export function contentMaxWidth(mode: BankingLayoutMode): number {
     case "compact":
       return 0;
     case "medium":
-      return 920;
+      return 840;
     case "expanded":
-      return 1180;
+      return 1200;
   }
 }
 
@@ -46,7 +46,11 @@ export function bankingScreenChromeForWidth(width: number): BankingScreenChrome 
 
   return {
     scrollViewClassName: "flex-1 min-w-0",
-    contentPaddingHorizontal: mode === "compact" ? 16 : 24,
+    contentPaddingHorizontal: width < 360 ? 12 : mode === "compact" ? 16 : 24,
     contentMaxWidth: mode === "compact" ? undefined : contentMaxWidth(mode),
   };
+}
+
+export function compactGridItemWidth(width: number): "100%" | "48%" {
+  return width < 360 ? "100%" : "48%";
 }

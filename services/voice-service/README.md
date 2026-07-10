@@ -31,8 +31,7 @@ replay detection, and fallback selection.
 
 ## How To Use It
 
-Use Python 3.9+ because the service uses standard dataclasses with a slots
-fallback on newer interpreters.
+The service uses a standard `src/` package layout and supports Python 3.9+.
 
 ```python
 repository = InMemoryVoiceRepository()
@@ -47,6 +46,13 @@ replace `InMemoryVoiceRepository` without changing verification policy.
 
 ## Local Test Command
 
-```powershell
-powershell -ExecutionPolicy Bypass -File ..\..\scripts\test-services.ps1
+```bash
+python -m pip install -e ".[test]"
+python -m pytest
+```
+
+Build the wheel and source distribution through the PEP 517 interface:
+
+```bash
+python -m build
 ```

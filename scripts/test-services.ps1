@@ -42,12 +42,12 @@ foreach ($testFile in $TestFiles) {
     java -cp $BuildDir $className
 }
 
-$PythonTestFiles = Get-ChildItem -Path $ServiceRoot -Recurse -Filter test_*.py | Sort-Object FullName
-foreach ($pythonTest in $PythonTestFiles) {
-    Write-Host "Running Python $($pythonTest.FullName)"
-    Push-Location $pythonTest.Directory.FullName
+$PythonProjects = Get-ChildItem -Path $ServiceRoot -Recurse -Filter pyproject.toml | Sort-Object FullName
+foreach ($pythonProject in $PythonProjects) {
+    Write-Host "Running pytest for $($pythonProject.Directory.FullName)"
+    Push-Location $pythonProject.Directory.FullName
     try {
-        python $pythonTest.Name
+        python -m pytest
     }
     finally {
         Pop-Location

@@ -35,6 +35,16 @@ class VoiceServiceTests(unittest.TestCase):
         with self.assertRaises(VoiceServiceError):
             self.service.enroll(self.user_id, [(0.1, 0.2), (0.2, 0.3)])
 
+    def test_enrollment_requires_matching_vector_dimensions(self) -> None:
+        with self.assertRaisesRegex(VoiceServiceError, "same dimensions"):
+            self.service.enroll(self.user_id, [(0.1, 0.2), (0.2,), (0.3, 0.4)])
+
+    def test_challenge_requires_phrase_and_positive_ttl(self) -> None:
+        with self.assertRaisesRegex(VoiceServiceError, "phrase is required"):
+            self.service.issue_challenge(self.user_id, "   ")
+        with self.assertRaisesRegex(VoiceServiceError, "ttl must be positive"):
+            self.service.issue_challenge(self.user_id, "open sesame", ttl_seconds=0)
+
     def test_verified_sample_passes_and_records_fingerprint(self) -> None:
         result = self.service.verify(
             VoiceVerificationRequest(
