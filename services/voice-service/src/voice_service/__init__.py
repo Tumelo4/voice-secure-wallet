@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from math import sqrt
-from typing import Iterable, Protocol, Sequence
+from typing import Iterable, Optional, Protocol, Sequence
 from uuid import UUID, uuid4
 
 
@@ -74,7 +74,7 @@ class VoiceVerificationResult:
     status: VoiceStatus
     confidence: float
     fallback_requested: bool
-    fallback_method: FallbackMethod | None
+    fallback_method: Optional[FallbackMethod]
     reason: str
     verified_at: datetime
 
@@ -87,13 +87,13 @@ class VoiceRepository(Protocol):
     def save_profile(self, profile: VoiceProfile) -> None:
         ...
 
-    def get_profile(self, user_id: UUID) -> VoiceProfile | None:
+    def get_profile(self, user_id: UUID) -> Optional[VoiceProfile]:
         ...
 
     def save_challenge(self, challenge: VoiceChallenge) -> None:
         ...
 
-    def get_challenge(self, challenge_id: UUID) -> VoiceChallenge | None:
+    def get_challenge(self, challenge_id: UUID) -> Optional[VoiceChallenge]:
         ...
 
     def mark_challenge_attempted(self, challenge_id: UUID) -> None:
@@ -126,13 +126,13 @@ class InMemoryVoiceRepository:
     def save_profile(self, profile: VoiceProfile) -> None:
         self._profiles[profile.user_id] = profile
 
-    def get_profile(self, user_id: UUID) -> VoiceProfile | None:
+    def get_profile(self, user_id: UUID) -> Optional[VoiceProfile]:
         return self._profiles.get(user_id)
 
     def save_challenge(self, challenge: VoiceChallenge) -> None:
         self._challenges[challenge.challenge_id] = challenge
 
-    def get_challenge(self, challenge_id: UUID) -> VoiceChallenge | None:
+    def get_challenge(self, challenge_id: UUID) -> Optional[VoiceChallenge]:
         return self._challenges.get(challenge_id)
 
     def mark_challenge_attempted(self, challenge_id: UUID) -> None:

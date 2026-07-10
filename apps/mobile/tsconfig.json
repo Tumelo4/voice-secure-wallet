@@ -2,7 +2,20 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "allowJs": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "types": [
+      "node",
+      "nativewind/types"
+    ],
     "strict": true
   },
-  "include": ["App.tsx", "src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "nativewind-env.d.ts"]
+  "include": [
+    "App.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "test/**/*.ts",
+    "**/*.d.ts",
+    "nativewind-env.d.ts"
+  ]
 }

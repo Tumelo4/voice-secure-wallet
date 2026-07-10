@@ -3,13 +3,13 @@ import {
   Animated,
   Easing,
   Pressable,
-  SafeAreaView,
   ScrollView,
   Text,
   TextInput,
   useWindowDimensions,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MobileCommandForms } from "./MobileCommandForms";
 import {
   bankingAccountCards,
@@ -26,6 +26,7 @@ import {
 import {
   bankingScreenChromeForWidth,
   bankingLayoutModeForWidth,
+  compactGridItemWidth,
   composerColumns,
   quickActionColumns,
   usesSideRail,
@@ -43,6 +44,7 @@ import {
 
 export function ReadinessDashboard() {
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const layoutMode = bankingLayoutModeForWidth(width);
   const screenChrome = bankingScreenChromeForWidth(width);
   const isCompact = layoutMode === "compact";
@@ -137,14 +139,18 @@ export function ReadinessDashboard() {
   };
 
   return (
-    <SafeAreaView className="flex-1 overflow-hidden bg-[#f4f7fb]">
+    <View className="flex-1 overflow-hidden bg-[#f4f7fb]" style={{ paddingTop: insets.top }}>
       <View className="flex-1 flex-row overflow-hidden">
         {showRail ? <NavigationRail activeTab={activeTab} onChange={setActiveTab} /> : null}
 
         <ScrollView
+          accessibilityLabel={`${activeTab} banking content`}
           className={screenChrome.scrollViewClassName}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={{
-            paddingBottom: isCompact ? 192 : 56,
+            paddingBottom: isCompact ? 112 + insets.bottom : 56 + insets.bottom,
             paddingHorizontal: screenChrome.contentPaddingHorizontal,
           }}
         >
@@ -161,6 +167,7 @@ export function ReadinessDashboard() {
             {activeTab === "home" ? (
               <HomeTab
                 layoutMode={layoutMode}
+                viewportWidth={width}
                 walletCommandStatus={walletCommandStatus}
                 paymentCommandStatus={paymentCommandStatus}
                 onOpenPayments={openPayments}
@@ -195,8 +202,8 @@ export function ReadinessDashboard() {
         </ScrollView>
       </View>
 
-      {showRail ? null : <BottomTabs activeTab={activeTab} onChange={setActiveTab} />}
-    </SafeAreaView>
+      {showRail ? null : <BottomTabs activeTab={activeTab} bottomInset={insets.bottom} onChange={setActiveTab} />}
+    </View>
   );
 }
 
@@ -228,6 +235,7 @@ function Header({ layoutMode }: { layoutMode: BankingLayoutMode }) {
 
 function HomeTab({
   layoutMode,
+  viewportWidth,
   walletCommandStatus,
   paymentCommandStatus,
   onOpenPayments,
@@ -235,6 +243,7 @@ function HomeTab({
   onPaymentCommand,
 }: {
   layoutMode: BankingLayoutMode;
+  viewportWidth: number;
   walletCommandStatus: string;
   paymentCommandStatus: string;
   onOpenPayments: (intent: BankingTransactionIntent) => void;
@@ -281,6 +290,7 @@ function HomeTab({
               key={action.label}
               action={action}
               layoutMode={layoutMode}
+              viewportWidth={viewportWidth}
               onPress={() => onOpenPayments(action.intent)}
             />
           ))}
@@ -305,6 +315,7 @@ function HomeTab({
         )}
 
         <MobileCommandForms
+          layoutMode={layoutMode}
           walletBalanceStatus={walletCommandStatus}
           paymentStartStatus={paymentCommandStatus}
           onWalletCommand={onWalletCommand}
@@ -779,21 +790,26 @@ function ProfileTab({ layoutMode }: { layoutMode: BankingLayoutMode }) {
 
 function BottomTabs({
   activeTab,
+  bottomInset,
   onChange,
 }: {
   activeTab: BankingTabKey;
+  bottomInset: number;
   onChange: (tab: BankingTabKey) => void;
 }) {
   return (
-    <View className="absolute inset-x-0 bottom-0 px-4 pb-4">
-      <View className="flex-row rounded-[28px] border border-slate-200 bg-white px-2 py-2 shadow-lg">
+    <View className="absolute inset-x-0 bottom-0 px-4" style={{ paddingBottom: Math.max(12, bottomInset) }}>
+      <View accessibilityRole="tablist" className="flex-row rounded-[28px] border border-slate-200 bg-white px-2 py-2 shadow-lg">
         {bankingTabs.map((tab) => {
           const isActive = tab.key === activeTab;
           return (
             <Pressable
               key={tab.key}
+              accessibilityLabel={tab.label}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isActive }}
               onPress={() => onChange(tab.key)}
-              className={`flex-1 items-center rounded-[20px] px-2 py-2 ${isActive ? "bg-[#0b57d0]" : "bg-transparent"}`}
+              className={`min-h-[56px] flex-1 items-center justify-center rounded-[20px] px-2 py-2 ${isActive ? "bg-[#0b57d0]" : "bg-transparent"}`}
             >
               <View
                 className={`h-8 w-8 items-center justify-center rounded-full ${
@@ -824,16 +840,21 @@ function BottomTabs({
 function QuickActionButton({
   action,
   layoutMode,
+  viewportWidth,
   onPress,
 }: {
   action: (typeof bankingQuickActions)[number];
   layoutMode: BankingLayoutMode;
+  viewportWidth: number;
   onPress: () => void;
 }) {
-  const width = quickActionColumns(layoutMode) === 4 ? "23%" : "48%";
+  const width = quickActionColumns(layoutMode) === 4 ? "23%" : layoutMode === "compact" ? compactGridItemWidth(viewportWidth) : "48%";
 
   return (
     <Pressable
+      accessibilityHint={action.detail}
+      accessibilityLabel={action.label}
+      accessibilityRole="button"
       onPress={onPress}
       className={`mb-3 rounded-[24px] border px-4 py-4 shadow-sm ${quickActionClass(action.tone)}`}
       style={{ width, minHeight: 92 }}
@@ -843,10 +864,10 @@ function QuickActionButton({
           <Text className="text-sm font-semibold text-slate-900">{action.icon}</Text>
         </View>
         <View className="flex-1">
-          <Text className="text-sm font-semibold text-slate-900" numberOfLines={1}>
+          <Text className="text-sm font-semibold text-slate-900">
             {action.label}
           </Text>
-          <Text className="mt-1 text-xs font-medium text-slate-600" numberOfLines={1}>
+          <Text className="mt-1 text-xs font-medium text-slate-600">
             {action.detail}
           </Text>
         </View>
@@ -962,6 +983,9 @@ function ActionPill({
 
   return (
     <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
       onPress={onPress}
       className={`mb-3 rounded-full px-4 py-3 ${selected ? "bg-[#0b57d0]" : "border border-slate-200 bg-white"}`}
       style={{ width: isCompact ? "48%" : width, minHeight: 52 }}
@@ -984,8 +1008,10 @@ function VoicePill({
 }) {
   return (
     <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
       onPress={onPress}
-      className={`mb-3 mr-3 rounded-full px-4 py-3 ${voicePillClass(tone)}`}
+      className={`mb-3 mr-3 min-h-[48px] justify-center rounded-full px-5 py-3 ${voicePillClass(tone)}`}
     >
       <Text className={`text-xs font-semibold ${tone === "slate" ? "text-slate-900" : "text-white"}`}>
         {label}
@@ -1011,12 +1037,13 @@ function LabeledField({
     <View>
       <Text className="text-[11px] font-medium tracking-[0.06em] text-slate-500">{label}</Text>
       <TextInput
+        accessibilityLabel={label}
         value={value}
         placeholder={placeholder}
         placeholderTextColor="#94a3b8"
         onChangeText={onChangeText}
         keyboardType={keyboardType}
-        className="mt-2 rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-base text-slate-900"
+        className="mt-2 min-h-[52px] rounded-[18px] border border-slate-300 bg-white px-4 py-3 text-base text-slate-900"
       />
     </View>
   );
@@ -1040,8 +1067,11 @@ function NavigationRail({
           return (
             <Pressable
               key={tab.key}
+              accessibilityLabel={tab.label}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isActive }}
               onPress={() => onChange(tab.key)}
-              className="mb-3 items-center rounded-[20px] px-2 py-3"
+              className="mb-3 min-h-[64px] items-center justify-center rounded-[20px] px-2 py-3"
               style={{ backgroundColor: isActive ? "#e8f0fe" : "transparent" }}
             >
               <View

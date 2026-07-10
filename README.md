@@ -125,67 +125,46 @@ is executable through the local test suite or represented as launch evidence:
 
 ## How To Use It
 
+The Java code is a Maven multi-module reactor. Each service owns its standard
+`src/main/java`, `src/main/resources`, and `src/test/java` tree. Contract and
+acceptance tests intentionally remain under `tests/` because they validate
+multiple services rather than one bounded context.
+
+Run every Java module:
+
+```bash
+mvn verify
+```
+
+Run one service together with its upstream dependencies:
+
+```bash
+mvn -pl services/payment-service -am test
+```
+
 Prerequisites:
 
-- Java 17 with `javac` and `java` on `PATH`.
+- Java 17 and Maven 3.9+ on `PATH`.
 - Python 3.9+ for `voice-service`, because it uses standard dataclasses with a slots fallback on newer interpreters.
-- PowerShell for the provided Windows-first test script.
-
-Run the full suite on Windows PowerShell:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\test-suite.ps1
-```
-
-Run the Java service suite on macOS or Linux:
-
-```sh
-mkdir -p .codex_tmp/services-classes
-javac -Xlint:all -d .codex_tmp/services-classes $(find services -name '*.java')
-for test_file in $(find services -path '*/src/test/java/*Tests.java' | sort); do
-  class_name=${test_file#*/src/test/java/}
-  class_name=${class_name%.java}
-  class_name=${class_name//\//.}
-  java -cp .codex_tmp/services-classes "$class_name"
-done
-```
-
-Run the cross-service verification suite on Windows PowerShell:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\test-verification.ps1
-```
-
-Run the cross-service verification suite on macOS or Linux:
-
-```sh
-mkdir -p .codex_tmp/verification-classes
-javac -Xlint:all -d .codex_tmp/verification-classes $(find services tests -name '*.java')
-for test_file in $(find tests -path '*/src/test/java/*Tests.java' | sort); do
-  class_name=${test_file#*/src/test/java/}
-  class_name=${class_name%.java}
-  class_name=${class_name//\//.}
-  java -cp .codex_tmp/verification-classes "$class_name"
-done
-```
 
 Run the voice tests with a Python 3.9+ executable:
 
 ```sh
-python3 services/voice-service/test_voice_service.py
+cd services/voice-service
+python3 -m pip install -e ".[test]"
+python3 -m pytest
 ```
 
 Run the mobile UI tests:
 
 ```sh
 cd apps/mobile
-npm install
-npm test
+npm ci
+npm run validate
 ```
 
-The first CI slice is defined in `.github/workflows/service-ci.yml`. It runs the
-same service and verification runners, mobile UI tests, and whitespace check on
-pull requests and pushes to `main`.
+The CI workflow runs the Maven reactor, mobile type checks and tests, and a
+whitespace check on pull requests and pushes to `main`.
 
 Use each service README for the smallest code example for that service. The
 remaining production plan still requires applying Terraform in a real AWS
