@@ -29,14 +29,7 @@ class AuthPolicy(str, Enum):
     DEVICE_PIN = "DEVICE_PIN"
 
 
-try:
-    frozen_slots_dataclass = dataclass(frozen=True, slots=True)
-except TypeError:
-    # Python 3.9 lacks dataclass(slots=True); keep the model importable there.
-    frozen_slots_dataclass = dataclass(frozen=True)
-
-
-@frozen_slots_dataclass
+@dataclass(frozen=True)
 class VoiceChallenge:
     challenge_id: UUID
     user_id: UUID
@@ -46,7 +39,7 @@ class VoiceChallenge:
     transaction_binding_hash: str = ""
 
 
-@frozen_slots_dataclass
+@dataclass(frozen=True)
 class VoiceProfile:
     user_id: UUID
     embedding: tuple[float, ...]
@@ -54,7 +47,7 @@ class VoiceProfile:
     sample_count: int
 
 
-@frozen_slots_dataclass
+@dataclass(frozen=True)
 class VoiceVerificationRequest:
     user_id: UUID
     challenge_id: UUID
@@ -70,7 +63,7 @@ class VoiceVerificationRequest:
     transaction_binding_hash: str = ""
 
 
-@frozen_slots_dataclass
+@dataclass(frozen=True)
 class VoiceVerificationResult:
     verification_id: UUID
     user_id: UUID

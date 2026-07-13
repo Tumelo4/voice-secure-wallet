@@ -1,6 +1,31 @@
 resource "aws_s3_bucket" "audit_evidence" {
+  #checkov:skip=CKV_AWS_144:Cross-region replication is configured by the environment DR stack with its secondary-region provider.
   bucket              = "voicesecure-${var.environment}-audit-evidence"
   object_lock_enabled = true
+}
+
+resource "aws_s3_bucket_logging" "audit_evidence" {
+  bucket        = aws_s3_bucket.audit_evidence.id
+  target_bucket = aws_s3_bucket.access_logs.id
+  target_prefix = "audit-evidence/"
+}
+
+resource "aws_s3_bucket_notification" "audit_evidence" {
+  bucket      = aws_s3_bucket.audit_evidence.id
+  eventbridge = true
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "audit_evidence" {
+  bucket = aws_s3_bucket.audit_evidence.id
+  rule {
+    id     = "retain-audit-evidence"
+    status = "Enabled"
+    filter {}
+    noncurrent_version_expiration {
+      noncurrent_days = 2555
+    }
+    abort_incomplete_multipart_upload { days_after_initiation = 7 }
+  }
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "audit_evidence" {

@@ -46,23 +46,82 @@ resource "aws_msk_cluster" "events" {
     arn      = aws_msk_configuration.events.arn
     revision = aws_msk_configuration.events.latest_revision
   }
+
+  logging_info {
+    broker_logs {
+      cloudwatch_logs {
+        enabled   = true
+        log_group = aws_cloudwatch_log_group.msk.name
+      }
+    }
+  }
+}
+
+resource "aws_cloudwatch_log_group" "msk" {
+  name              = "/voicesecure/${var.environment}/msk"
+  retention_in_days = 365
+  kms_key_id        = aws_kms_key.platform.arn
+}
+
+resource "aws_db_parameter_group" "ledger" {
+  name   = "voicesecure-${var.environment}-ledger"
+  family = "postgres16"
+
+  parameter {
+    name  = "log_statement"
+    value = "all"
+  }
+
+  parameter {
+    name  = "rds.force_ssl"
+    value = "1"
+  }
 }
 
 resource "aws_db_instance" "ledger" {
-  identifier                  = "voicesecure-${var.environment}-ledger"
-  engine                      = "postgres"
-  engine_version              = "16"
-  instance_class              = var.rds_instance_class
-  allocated_storage           = var.rds_allocated_storage_gb
-  storage_encrypted           = true
-  kms_key_id                  = aws_kms_key.platform.arn
-  db_subnet_group_name        = aws_db_subnet_group.private.name
-  vpc_security_group_ids      = [aws_security_group.database.id]
-  backup_retention_period     = var.rds_backup_retention_days
-  deletion_protection         = true
-  multi_az                    = true
-  username                    = "voicesecure_admin"
-  manage_master_user_password = true
+  identifier                          = "voicesecure-${var.environment}-ledger"
+  engine                              = "postgres"
+  engine_version                      = "16"
+  instance_class                      = var.rds_instance_class
+  allocated_storage                   = var.rds_allocated_storage_gb
+  storage_encrypted                   = true
+  kms_key_id                          = aws_kms_key.platform.arn
+  db_subnet_group_name                = aws_db_subnet_group.private.name
+  vpc_security_group_ids              = [aws_security_group.database.id]
+  backup_retention_period             = var.rds_backup_retention_days
+  deletion_protection                 = true
+  multi_az                            = true
+  username                            = "voicesecure_admin"
+  manage_master_user_password         = true
+  iam_database_authentication_enabled = true
+  performance_insights_enabled        = true
+  performance_insights_kms_key_id     = aws_kms_key.platform.arn
+  enabled_cloudwatch_logs_exports     = ["postgresql", "upgrade"]
+  auto_minor_version_upgrade          = true
+  monitoring_interval                 = 60
+  monitoring_role_arn                 = aws_iam_role.rds_monitoring.arn
+  copy_tags_to_snapshot               = true
+  parameter_group_name                = aws_db_parameter_group.ledger.name
+}
+
+data "aws_iam_policy_document" "rds_monitoring_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["monitoring.rds.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "rds_monitoring" {
+  name               = "voicesecure-${var.environment}-rds-monitoring"
+  assume_role_policy = data.aws_iam_policy_document.rds_monitoring_assume_role.json
+}
+
+resource "aws_iam_role_policy_attachment" "rds_monitoring" {
+  role       = aws_iam_role.rds_monitoring.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
 }
 
 resource "aws_elasticache_replication_group" "api_rate_limits" {
@@ -78,4 +137,5 @@ resource "aws_elasticache_replication_group" "api_rate_limits" {
   kms_key_id                 = aws_kms_key.platform.arn
   subnet_group_name          = aws_elasticache_subnet_group.private.name
   security_group_ids         = [aws_security_group.redis.id]
+  auth_token                 = var.redis_auth_token
 }
