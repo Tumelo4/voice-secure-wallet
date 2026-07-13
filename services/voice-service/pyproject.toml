@@ -14,7 +14,8 @@ authors = [{ name = "VoiceSecure Wallet" }]
 [project.optional-dependencies]
 test = [
   "build>=1.2.2",
-  "pytest>=8.3,<9",
+  "pytest>=9.0.3,<10; python_version >= '3.10'",
+  "pytest>=8.3,<9; python_version < '3.10'",
   "pytest-cov>=6,<7",
 ]
 

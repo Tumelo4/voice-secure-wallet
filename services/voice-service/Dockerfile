@@ -1,4 +1,8 @@
-FROM python:3.11.11-slim-bookworm
+FROM python:3.11.13-slim-trixie
+RUN apt-get update \
+    && apt-get upgrade --yes \
+    && rm -rf /var/lib/apt/lists/* \
+    && python -m pip install --no-cache-dir --upgrade pip setuptools wheel
 RUN groupadd --system voicesecure && useradd --system --gid voicesecure --home /app voicesecure
 WORKDIR /app
 COPY pyproject.toml README.md ./
