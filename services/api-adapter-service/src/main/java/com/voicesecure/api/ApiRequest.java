@@ -21,6 +21,11 @@ public record ApiRequest(String method, String path, Map<String, String> headers
         body = body == null ? "" : body;
     }
 
+    @Override
+    public Map<String, String> headers() {
+        return new LinkedHashMap<>(headers);
+    }
+
     public String header(String name) {
         Objects.requireNonNull(name, "name");
         return headers.get(name.trim().toLowerCase(Locale.ROOT));
