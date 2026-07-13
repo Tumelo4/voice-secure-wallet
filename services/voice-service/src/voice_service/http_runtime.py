@@ -38,7 +38,9 @@ class HttpPaymentOutcomePublisher(PaymentOutcomePublisher):
             headers={"Authorization": f"Bearer {self._bearer_token}", "Content-Type": "application/json",
                      "X-Trace-Id": f"voice-{result.verification_id}"},
         )
-        with urllib.request.urlopen(request, timeout=5) as response:
+        # The URL is assembled from the deployment-controlled PAYMENT_API_URL,
+        # never from request data; non-HTTP schemes cannot enter this path.
+        with urllib.request.urlopen(request, timeout=5) as response:  # nosec B310
             if response.status < 200 or response.status >= 300:
                 raise VoiceServiceError("payment outcome callback failed")
 
@@ -102,7 +104,9 @@ class VoiceHttpApplication:
 
 
 def run() -> None:  # pragma: no cover - exercised by the container health smoke test
-    host = os.getenv("VOICE_HOST", "0.0.0.0")
+    # Container ingress requires binding all interfaces; network exposure is
+    # restricted by the platform security group and service authentication.
+    host = os.getenv("VOICE_HOST", "0.0.0.0")  # nosec B104
     port = int(os.getenv("VOICE_PORT", "8090"))
     publisher = None
     if os.getenv("PAYMENT_API_URL"):
