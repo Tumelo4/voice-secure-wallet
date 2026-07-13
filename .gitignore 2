@@ -1,8 +1,0 @@
-.codex_tmp/
-VoiceSecure_Wallet_Agent_Build_Plan_v2.pdf
-*.class
-build/
-out/
-__pycache__/
-*.pyc
-.DS_Store
