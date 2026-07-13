@@ -4,7 +4,7 @@ This slice adds the first production-facing API boundary described by the build
 plan:
 
 - framework-free HTTP request and response contracts;
-- `POST /payments` command mapping into `payment-service`;
+- `POST /v1/payments` command mapping into `payment-service`;
 - `GET /wallets/{accountId}/balance` query mapping into `wallet-service`;
 - idempotency-key and trace-header validation;
 - JSON error responses for validation, idempotency conflicts, missing wallets,

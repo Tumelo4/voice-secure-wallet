@@ -19,4 +19,8 @@ public interface SupportRepository {
     List<SupportAuditEntry> auditLog();
 
     List<SupportCase> cases();
+
+    void savePendingRepair(PendingRepair repair);
+
+    Optional<PendingRepair> findPendingRepair(UUID repairId);
 }

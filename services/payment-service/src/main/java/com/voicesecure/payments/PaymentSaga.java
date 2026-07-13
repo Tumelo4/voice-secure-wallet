@@ -28,6 +28,10 @@ public final class PaymentSaga {
     private static final String PAYMENT_COMPENSATION_IN_PROGRESS = "payment.compensation_initiated";
     private static final String PAYMENT_COMPENSATED = "payment.compensated";
     private static final String PAYMENT_COMPENSATION_FAILED = "payment.compensation_failed";
+    private static final String PAYMENT_EXTERNAL_STATUS_UNKNOWN = "payment.external_status_unknown";
+    private static final String PAYMENT_RECONCILIATION_REQUIRED = "payment.reconciliation_required";
+    private static final String PAYMENT_RECONCILIATION_CONFIRMED = "payment.reconciliation_confirmed";
+    private static final String PAYMENT_MANUAL_REVIEW = "payment.manual_review_required";
 
     private final UUID sagaId;
     private final UUID idempotencyKey;
@@ -40,6 +44,8 @@ public final class PaymentSaga {
     private final Instant createdAt;
     private Instant updatedAt;
     private Instant completedAt;
+    private long version;
+    private long persistedVersion;
     private double fraudScore;
     private AuthPolicy authPolicy;
     private FallbackMethod fallbackMethod;
@@ -64,6 +70,7 @@ public final class PaymentSaga {
                 timestamps.createdAt(),
                 timestamps.updatedAt(),
                 null,
+                0,
                 0.0,
                 null,
                 null,
@@ -87,6 +94,7 @@ public final class PaymentSaga {
             Instant createdAt,
             Instant updatedAt,
             Instant completedAt,
+            long version,
             double fraudScore,
             AuthPolicy authPolicy,
             FallbackMethod fallbackMethod,
@@ -105,6 +113,8 @@ public final class PaymentSaga {
         this.createdAt = Objects.requireNonNull(createdAt, "createdAt");
         this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt");
         this.completedAt = completedAt;
+        this.version = version;
+        this.persistedVersion = version;
         this.fraudScore = fraudScore;
         this.authPolicy = authPolicy;
         this.fallbackMethod = fallbackMethod;
@@ -171,6 +181,18 @@ public final class PaymentSaga {
         return fraudScore;
     }
 
+    public long version() {
+        return version;
+    }
+
+    long persistedVersion() {
+        return persistedVersion;
+    }
+
+    void markPersisted() {
+        persistedVersion = version;
+    }
+
     public AuthPolicy authPolicy() {
         return authPolicy;
     }
@@ -204,6 +226,7 @@ public final class PaymentSaga {
                 createdAt,
                 updatedAt,
                 completedAt,
+                version,
                 fraudScore,
                 authPolicy,
                 fallbackMethod,
@@ -227,6 +250,7 @@ public final class PaymentSaga {
                 snapshot.createdAt(),
                 snapshot.updatedAt(),
                 snapshot.completedAt(),
+                snapshot.version(),
                 snapshot.fraudScore(),
                 snapshot.authPolicy(),
                 snapshot.fallbackMethod(),
@@ -241,14 +265,12 @@ public final class PaymentSaga {
     }
 
     public boolean matchesRequest(PaymentRequest request) {
-        return sagaId.equals(request.sagaId())
-                && idempotencyKey.equals(request.idempotencyKey())
+        return idempotencyKey.equals(request.idempotencyKey())
                 && userId.equals(request.userId())
                 && fromAccountId.equals(request.fromAccountId())
                 && toAccountId.equals(request.toAccountId())
                 && amount == request.amount()
-                && currency.equals(request.currency())
-                && traceId.equals(request.traceId());
+                && currency.equals(request.currency());
     }
 
     public void approveFraud(FraudDecision decision) {
@@ -345,6 +367,37 @@ public final class PaymentSaga {
         transition(PaymentSagaState.COMPENSATION_IN_PROGRESS, null, null);
     }
 
+    public void externalOutcomeUnknown(String providerReference) {
+        ensureState(PaymentSagaState.LEDGER_COMMITTING, "unknown external outcome");
+        transition(PaymentSagaState.UNKNOWN_EXTERNAL_STATUS, PAYMENT_EXTERNAL_STATUS_UNKNOWN,
+                payload("providerReference", requireReason(providerReference)));
+    }
+
+    public void beginReconciliation() {
+        ensureState(PaymentSagaState.UNKNOWN_EXTERNAL_STATUS, "reconciliation start");
+        transition(PaymentSagaState.RECONCILIATION_REQUIRED, PAYMENT_RECONCILIATION_REQUIRED,
+                payload("reason", "external result requires reconciliation"));
+    }
+
+    public void reconciliationConfirmedPosted() {
+        ensureState(PaymentSagaState.RECONCILIATION_REQUIRED, "posted reconciliation result");
+        emit(PAYMENT_RECONCILIATION_CONFIRMED, payload("result", "POSTED"));
+        transition(PaymentSagaState.LEDGER_COMMITTED, null, null);
+        transition(PaymentSagaState.COMPLETING, PAYMENT_COMPLETING, payload("traceId", traceId));
+    }
+
+    public void reconciliationConfirmedNotPosted() {
+        ensureState(PaymentSagaState.RECONCILIATION_REQUIRED, "not-posted reconciliation result");
+        emit(PAYMENT_RECONCILIATION_CONFIRMED, payload("result", "NOT_POSTED"));
+        transition(PaymentSagaState.COMPENSATION_IN_PROGRESS, PAYMENT_COMPENSATION_IN_PROGRESS,
+                payload("reason", "release reserved funds after reconciliation"));
+    }
+
+    public void reconciliationInconclusive(String reason) {
+        ensureState(PaymentSagaState.RECONCILIATION_REQUIRED, "inconclusive reconciliation result");
+        transition(PaymentSagaState.MANUAL_REVIEW, PAYMENT_MANUAL_REVIEW, payload("reason", requireReason(reason)));
+    }
+
     public void complete() {
         ensureState(PaymentSagaState.COMPLETING, "payment completion");
         emit(PAYMENT_COMPLETED, payload("sagaId", sagaId.toString()));
@@ -371,6 +424,7 @@ public final class PaymentSaga {
     private void transition(PaymentSagaState nextState, String eventType, String payload) {
         this.state = Objects.requireNonNull(nextState, "nextState");
         this.stateHistory.add(nextState);
+        this.version++;
         this.updatedAt = Instant.now();
         if (eventType != null) {
             emit(eventType, payload == null ? "" : payload);
@@ -397,6 +451,11 @@ public final class PaymentSaga {
 
     private String formatScore(double score) {
         return String.format(java.util.Locale.ROOT, "%.3f", score);
+    }
+
+    private static String requireReason(String value) {
+        if (value == null || value.trim().isEmpty()) throw new PaymentException("reason is required");
+        return value.trim();
     }
 
     private record ConstructionTimestamps(Instant createdAt, Instant updatedAt) {

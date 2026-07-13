@@ -11,7 +11,8 @@ public record RepairRequest(
         String currency,
         List<Posting> postings,
         String justification,
-        String requestedBy
+        String requestedBy,
+        String approvedBy
 ) {
     public RepairRequest {
         Objects.requireNonNull(repairId, "repairId");
@@ -20,12 +21,16 @@ public record RepairRequest(
         Objects.requireNonNull(currency, "currency");
         Objects.requireNonNull(justification, "justification");
         Objects.requireNonNull(requestedBy, "requestedBy");
+        Objects.requireNonNull(approvedBy, "approvedBy");
         postings = List.copyOf(postings);
         if (justification.trim().length() < 12) {
             throw new LedgerException("repair justification must be at least 12 characters");
         }
         if (requestedBy.trim().isEmpty()) {
             throw new LedgerException("repair requester is required");
+        }
+        if (approvedBy.trim().isEmpty() || requestedBy.trim().equals(approvedBy.trim())) {
+            throw new LedgerException("repair requires a distinct approver");
         }
         long sum = postings.stream().mapToLong(Posting::signedAmount).sum();
         if (sum != 0) {

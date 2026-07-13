@@ -2,8 +2,12 @@ export type BankingTransactionIntent = "pay" | "send" | "topup";
 
 export interface TransactionDraft {
   intent: BankingTransactionIntent;
+  sourceAccountId: string;
+  sourceAccount: string;
+  beneficiaryId: string;
   recipient: string;
   amount: string;
+  currency: string;
   note: string;
 }
 
@@ -23,8 +27,12 @@ export interface VoiceSecureFlow {
 export function createTransactionDraft(intent: BankingTransactionIntent = "pay"): TransactionDraft {
   return {
     intent,
-    recipient: "Maya Nkosi",
+    sourceAccountId: "",
+    sourceAccount: "",
+    beneficiaryId: "",
+    recipient: "",
     amount: "750.00",
+    currency: "ZAR",
     note: "Dinner split",
   };
 }
@@ -39,6 +47,18 @@ export function createVoiceSecureFlow(draft: TransactionDraft): VoiceSecureFlow 
     statusLabel: "Listening",
     fallbackOptions: ["PIN", "Face ID", "Fingerprint"],
   };
+}
+
+export function validateTransactionDraft(draft: TransactionDraft): string | null {
+  if (!draft.sourceAccountId.trim() || !draft.sourceAccount.trim()) return "Choose a source account.";
+  if (!draft.beneficiaryId.trim() || !draft.recipient.trim()) return "Choose a beneficiary.";
+  const amount = draft.amount.trim();
+  if (!/^\d+(\.\d{1,2})?$/.test(amount) || !/[1-9]/.test(amount)) {
+    return "Enter a valid amount with no more than two decimal places.";
+  }
+  if (!draft.note.trim()) return "Add a payment reference.";
+  if (draft.note.trim().length > 80) return "Payment reference must be 80 characters or fewer.";
+  return null;
 }
 
 export function advanceVoiceSecureFlow(flow: VoiceSecureFlow, outcome: VoiceSecureOutcome): VoiceSecureFlow {

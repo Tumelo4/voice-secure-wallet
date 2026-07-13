@@ -18,6 +18,9 @@ test = [
   "pytest-cov>=6,<7",
 ]
 
+[project.scripts]
+voicesecure-voice = "voice_service.http_runtime:run"
+
 [tool.setuptools]
 package-dir = { "" = "src" }
 
@@ -31,6 +34,7 @@ testpaths = ["tests"]
 [tool.coverage.run]
 branch = true
 source = ["voice_service"]
+omit = ["src/voice_service/__main__.py"]
 
 [tool.coverage.report]
 show_missing = true

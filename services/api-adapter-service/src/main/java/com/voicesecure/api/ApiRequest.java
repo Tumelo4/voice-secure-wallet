@@ -26,6 +26,13 @@ public record ApiRequest(String method, String path, Map<String, String> headers
         return headers.get(name.trim().toLowerCase(Locale.ROOT));
     }
 
+    public ApiRequest withHeader(String name, String value) {
+        Objects.requireNonNull(name, "name");
+        Map<String, String> nextHeaders = new LinkedHashMap<>(headers);
+        nextHeaders.put(name, value == null ? "" : value);
+        return new ApiRequest(method, path, nextHeaders, body);
+    }
+
     private static Map<String, String> normalizeHeaders(Map<String, String> headers) {
         Map<String, String> normalized = new LinkedHashMap<>();
         if (headers == null) {

@@ -1,0 +1,177 @@
+openapi: 3.1.0
+info:
+  title: VoiceSecure Wallet Customer API
+  version: 1.0.0
+  description: Customer-safe API. Identity is derived exclusively from the bearer token.
+  license: { name: Proprietary, identifier: LicenseRef-Proprietary }
+servers:
+  - url: https://api.example.invalid
+security:
+  - oidc: [payments:write]
+paths:
+  /v1/me/accounts:
+    get:
+      summary: List the authenticated customer's accounts
+      operationId: listMyAccounts
+      security: [{ oidc: [accounts:read] }]
+      responses:
+        '200':
+          description: Accounts owned by the authenticated customer.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accounts]
+                properties:
+                  accounts:
+                    type: array
+                    items: { $ref: '#/components/schemas/Account' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /v1/me/beneficiaries:
+    get:
+      summary: List the authenticated customer's beneficiaries
+      operationId: listMyBeneficiaries
+      security: [{ oidc: [beneficiaries:read] }]
+      responses:
+        '200':
+          description: Masked beneficiaries owned by the authenticated customer.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [beneficiaries]
+                properties:
+                  beneficiaries:
+                    type: array
+                    items: { $ref: '#/components/schemas/Beneficiary' }
+        '401': { $ref: '#/components/responses/Error' }
+    post:
+      summary: Create a beneficiary for the authenticated customer
+      operationId: createBeneficiary
+      security: [{ oidc: [beneficiaries:write] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateBeneficiary' }
+      responses:
+        '201':
+          description: Beneficiary created subject to verification and cooling off.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Beneficiary' }
+        '400': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /v1/payments:
+    post:
+      summary: Start an idempotent payment
+      operationId: startPayment
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StartPayment' }
+      responses:
+        '202':
+          description: Payment accepted and awaiting authorisation or processing.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentStatus' }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /v1/payments/{paymentReference}:
+    parameters:
+      - name: paymentReference
+        in: path
+        required: true
+        schema: { type: string, pattern: '^VSW-[A-Za-z0-9_-]{16}$' }
+    get:
+      summary: Read an owned payment's current state
+      operationId: getPaymentStatus
+      responses:
+        '200':
+          description: Current customer-safe payment state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentStatus' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+components:
+  securitySchemes:
+    oidc:
+      type: openIdConnect
+      openIdConnectUrl: https://identity.example.invalid/.well-known/openid-configuration
+  responses:
+    Error:
+      description: Safe, stable API error.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+  schemas:
+    Money:
+      type: object
+      additionalProperties: false
+      required: [value, currency]
+      properties:
+        value: { type: string, pattern: '^[0-9]+\.[0-9]{2}$' }
+        currency: { type: string, enum: [ZAR] }
+    StartPayment:
+      type: object
+      additionalProperties: false
+      required: [sourceAccountId, beneficiaryId, amount, reference]
+      properties:
+        sourceAccountId: { type: string, format: uuid }
+        beneficiaryId: { type: string, format: uuid }
+        amount: { $ref: '#/components/schemas/Money' }
+        reference: { type: string, minLength: 1, maxLength: 80 }
+    PaymentStatus:
+      type: object
+      additionalProperties: false
+      required: [paymentReference, state, authPolicy, message]
+      properties:
+        paymentReference: { type: string }
+        state: { type: string, enum: [AUTHORISATION_REQUIRED, PROCESSING, COMPLETED, FAILED, REVIEW_REQUIRED] }
+        authPolicy: { type: string, enum: [VOICE, VOICE_AND_PIN, PIN, MANUAL_REVIEW] }
+        message: { type: string }
+    Account:
+      type: object
+      additionalProperties: false
+      required: [accountId, displayName, maskedAccountNumber, currency]
+      properties:
+        accountId: { type: string, format: uuid }
+        displayName: { type: string }
+        maskedAccountNumber: { type: string }
+        currency: { type: string, enum: [ZAR] }
+    CreateBeneficiary:
+      type: object
+      additionalProperties: false
+      required: [displayName, bankCode, accountNumber]
+      properties:
+        displayName: { type: string, minLength: 1, maxLength: 80 }
+        bankCode: { type: string, minLength: 1, maxLength: 20 }
+        accountNumber: { type: string, minLength: 4, maxLength: 34 }
+    Beneficiary:
+      type: object
+      additionalProperties: false
+      required: [beneficiaryId, displayName, maskedAccountNumber, currency, status, availableAt]
+      properties:
+        beneficiaryId: { type: string, format: uuid }
+        displayName: { type: string }
+        maskedAccountNumber: { type: string }
+        currency: { type: string, enum: [ZAR] }
+        status: { type: string, enum: [PENDING_VERIFICATION, COOLING_OFF, ACTIVE, BLOCKED] }
+        availableAt: { type: string, format: date-time }
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code: { type: string, pattern: '^[A-Z0-9_]+$' }
+        message: { type: string }

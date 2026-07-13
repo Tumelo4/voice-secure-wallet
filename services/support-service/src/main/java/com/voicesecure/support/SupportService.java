@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import com.voicesecure.ledger.Posting;
 
 public final class SupportService {
     private final SupportRepository repository;
@@ -58,33 +59,53 @@ public final class SupportService {
         return supportCase;
     }
 
-    public LedgerBatch requestRepair(RepairRequest repairRequest) {
+    public PendingRepair requestRepair(
+            UUID repairId, UUID sagaId, String currency, List<Posting> postings, String justification, String requestedBy
+    ) {
+        UUID caseId = UUID.randomUUID();
+        Instant now = Instant.now();
+        PendingRepair pending = new PendingRepair(
+                repairId, caseId, sagaId, currency, postings, justification, requestedBy,
+                PendingRepair.Status.PENDING_APPROVAL, "", now);
         SupportCase supportCase = SupportCase.repairEscalation(
-                UUID.randomUUID(),
-                repairRequest.repairId(),
-                repairRequest.sagaId(),
-                repairRequest.justification(),
-                repairRequest.requestedBy(),
-                Instant.now()
+                caseId, repairId, sagaId, justification, requestedBy, now
         );
         repository.saveCase(supportCase);
+        repository.savePendingRepair(pending);
         repository.appendAudit(new SupportAuditEntry(
                 UUID.randomUUID(),
                 supportCase.caseId(),
                 "support.repair_requested",
-                repairRequest.requestedBy(),
-                "repair=" + repairRequest.repairId() + ", saga=" + repairRequest.sagaId(),
+                requestedBy,
+                "repair=" + repairId + ", saga=" + sagaId,
                 supportCase.updatedAt()
         ));
+        return pending;
+    }
+
+    public LedgerBatch approveRepair(UUID repairId, UUID idempotencyKey, String approvedBy) {
+        PendingRepair pending = repository.findPendingRepair(repairId)
+                .orElseThrow(() -> new SupportException("pending repair not found"));
+        String approver = Objects.requireNonNull(approvedBy, "approvedBy").trim();
+        if (approver.isEmpty() || approver.equals(pending.requestedBy())) {
+            throw new SupportException("repair approver must be different from requester");
+        }
+        if (pending.status() != PendingRepair.Status.PENDING_APPROVAL) throw new SupportException("repair is not pending approval");
+        RepairRequest repairRequest = new RepairRequest(
+                pending.repairId(), pending.sagaId(), idempotencyKey, pending.currency(), pending.postings(),
+                pending.justification(), pending.requestedBy(), approver);
         LedgerBatch batch = ledgerRepairPort.repair(repairRequest);
         repository.ingestLedgerBatch(batch);
+        repository.savePendingRepair(new PendingRepair(
+                pending.repairId(), pending.caseId(), pending.sagaId(), pending.currency(), pending.postings(),
+                pending.justification(), pending.requestedBy(), PendingRepair.Status.APPLIED, approver, pending.createdAt()));
         repository.appendAudit(new SupportAuditEntry(
                 UUID.randomUUID(),
-                supportCase.caseId(),
+                pending.caseId(),
                 "support.repair_linked",
-                repairRequest.requestedBy(),
-                "repair=" + repairRequest.repairId() + ", saga=" + repairRequest.sagaId(),
-                supportCase.updatedAt()
+                approver,
+                "repair=" + pending.repairId() + ", saga=" + pending.sagaId() + ", requestedBy=" + pending.requestedBy(),
+                Instant.now()
         ));
         return batch;
     }

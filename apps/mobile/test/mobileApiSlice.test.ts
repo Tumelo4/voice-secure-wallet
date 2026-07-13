@@ -40,13 +40,10 @@ test("payment start thunk dispatches loading then success state", async () => {
   const client = new StubMobileApiClient();
   const dispatch = statefulDispatch();
   const command: StartPaymentCommand = {
-    sagaId: "saga-1",
-    idempotencyKey: "idem-1",
-    userId: "user-1",
-    fromAccountId: "wallet-from",
-    toAccountId: "wallet-to",
-    amount: 750,
-    currency: "ZAR",
+    sourceAccountId: "wallet-from",
+    beneficiaryId: "wallet-to",
+    amount: { value: "750.00", currency: "ZAR" },
+    reference: "Dinner split",
   };
 
   await startPayment(command, {
@@ -58,7 +55,7 @@ test("payment start thunk dispatches loading then success state", async () => {
   assert.equal(client.paymentCommands[0], command);
   assert.equal(dispatch.state.paymentStart.status, "succeeded");
   assert.equal(dispatch.state.paymentStart.traceId, "trace-payment-flow-1");
-  assert.equal(dispatch.state.paymentStart.data?.state, "VOICE_VERIFICATION_PENDING");
+  assert.equal(dispatch.state.paymentStart.data?.state, "AUTHORISATION_REQUIRED");
 });
 
 test("API client errors become Redux-friendly failed request state", async () => {
@@ -130,11 +127,10 @@ class StubMobileApiClient implements MobileApiClientPort {
       throw this.paymentError;
     }
     return {
-      sagaId: command.sagaId,
-      state: "VOICE_VERIFICATION_PENDING",
-      traceId: "trace-payment-runtime-1",
+      paymentReference: "VSW-12345678",
+      state: "AUTHORISATION_REQUIRED",
       authPolicy: "VOICE_OTP",
-      eventCount: 4,
+      message: "Payment submitted for secure verification.",
     };
   }
 }
@@ -168,12 +164,9 @@ function walletBalance(): WalletBalanceResult {
 
 function paymentCommand(): StartPaymentCommand {
   return {
-    sagaId: "saga-1",
-    idempotencyKey: "idem-1",
-    userId: "user-1",
-    fromAccountId: "wallet-from",
-    toAccountId: "wallet-to",
-    amount: 750,
-    currency: "ZAR",
+    sourceAccountId: "wallet-from",
+    beneficiaryId: "wallet-to",
+    amount: { value: "750.00", currency: "ZAR" },
+    reference: "Dinner split",
   };
 }

@@ -3,6 +3,7 @@ package com.voicesecure.ledger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -14,7 +15,8 @@ public final class LedgerServiceTests {
                 new TestCase("idempotency returns the original accepted batch", LedgerServiceTests::idempotencyPreventsDuplicates),
                 new TestCase("idempotency rejects conflicting commands", LedgerServiceTests::idempotencyRejectsConflictingCommands),
                 new TestCase("concurrent transfers cannot overdraft", LedgerServiceTests::concurrentTransfersCannotOverdraft),
-                new TestCase("repair requires justification and appends audit-backed entries", LedgerServiceTests::repairFlowIsBalancedAndAudited)
+                new TestCase("repair requires justification and appends audit-backed entries", LedgerServiceTests::repairFlowIsBalancedAndAudited),
+                new TestCase("reservations separate available and reserved balances", LedgerServiceTests::reservationsSeparateBalances)
         };
 
         for (TestCase test : tests) {
@@ -41,6 +43,24 @@ public final class LedgerServiceTests {
         assertEquals(750L, fixture.repository.balances().get(fixture.source).balance(), "source balance");
         assertEquals(250L, fixture.repository.balances().get(fixture.destination).balance(), "destination balance");
         assertEquals(1, fixture.repository.outboxEvents().size(), "outbox event count");
+    }
+
+    private static void reservationsSeparateBalances() {
+        Fixture fixture = fixture(1_000, 0);
+        UUID reservationId = UUID.randomUUID();
+        UUID paymentId = UUID.randomUUID();
+        FundReservation reservation = fixture.service.reserveFunds(
+                reservationId, paymentId, fixture.source, 400, "ZAR", Duration.ofMinutes(15));
+        assertEquals(FundReservation.Status.ACTIVE, reservation.status(), "active reservation");
+        AccountBalance reserved = fixture.repository.balances().get(fixture.source);
+        assertEquals(1_000L, reserved.balance(), "current balance unchanged");
+        assertEquals(600L, reserved.availableBalance(), "available balance reduced");
+        assertEquals(400L, reserved.reservedBalance(), "reserved balance");
+        assertThrows(LedgerException.class, () -> fixture.service.transfer(
+                UUID.randomUUID(), UUID.randomUUID(), fixture.source, fixture.destination, 700, "ZAR"),
+                "reserved funds cannot be overspent");
+        fixture.service.releaseFunds(reservationId);
+        assertEquals(1_000L, fixture.repository.balances().get(fixture.source).availableBalance(), "release restores available balance");
     }
 
     private static void rejectsInvalidPostings() {
@@ -96,7 +116,8 @@ public final class LedgerServiceTests {
                 "ZAR",
                 List.of(Posting.repairDebit(fixture.destination, 25), Posting.repairCredit(fixture.source, 25)),
                 "COMPENSATION_FAILED drill corrective entry",
-                "sre@example.com"
+                "sre@example.com",
+                "finance@example.com"
         );
         fixture.service.repair(repair);
 
@@ -109,7 +130,8 @@ public final class LedgerServiceTests {
                         "ZAR",
                         repair.postings(),
                         repair.justification(),
-                        repair.requestedBy()
+                        repair.requestedBy(),
+                        repair.approvedBy()
                 )),
                 "same repair idempotency key with different repair id should fail"
         );
@@ -170,7 +192,8 @@ public final class LedgerServiceTests {
                         "ZAR",
                         List.of(Posting.repairDebit(fixture.destination, 50), Posting.repairCredit(fixture.source, 50)),
                         "too short",
-                        "sre@example.com"
+                        "sre@example.com",
+                        "finance@example.com"
                 ),
                 "short repair justification should fail"
         );
@@ -182,7 +205,8 @@ public final class LedgerServiceTests {
                 "ZAR",
                 List.of(Posting.repairDebit(fixture.destination, 50), Posting.repairCredit(fixture.source, 50)),
                 "COMPENSATION_FAILED drill corrective entry",
-                "sre@example.com"
+                "sre@example.com",
+                "finance@example.com"
         );
 
         LedgerBatch batch = fixture.service.repair(repair);
@@ -226,6 +250,10 @@ public final class LedgerServiceTests {
         if (expected != actual) {
             throw new AssertionError(message);
         }
+    }
+
+    private static void assertEquals(Object expected, Object actual, String message) {
+        if (!expected.equals(actual)) throw new AssertionError(message + ": expected " + expected + " but got " + actual);
     }
 
     private static void assertThrows(Class<? extends Throwable> expected, ThrowingRunnable runnable, String message) {

@@ -5,6 +5,7 @@ import {
   advanceVoiceSecureFlow,
   createTransactionDraft,
   createVoiceSecureFlow,
+  validateTransactionDraft,
 } from "../src/state/bankingVoiceSecure.ts";
 
 test("voice secure flow starts with a friendly listening prompt", () => {
@@ -42,4 +43,17 @@ test("voice secure flow reveals fallback after two failed attempts", () => {
   assert.equal(secondAttempt.stage, "fallback");
   assert.equal(secondAttempt.attempts, 2);
   assert.equal(secondAttempt.message, "We couldn't verify your voice. Try again or use PIN, Face ID, or fingerprint.");
+});
+
+test("payment review blocks invalid money and missing customer references", () => {
+  const selectedDraft = {
+    ...createTransactionDraft(),
+    sourceAccountId: "account-1",
+    sourceAccount: "Everyday •••• 5124",
+    beneficiaryId: "beneficiary-1",
+    recipient: "Tumi",
+  };
+  assert.equal(validateTransactionDraft({ ...selectedDraft, amount: "10.999" }), "Enter a valid amount with no more than two decimal places.");
+  assert.equal(validateTransactionDraft({ ...selectedDraft, note: " " }), "Add a payment reference.");
+  assert.equal(validateTransactionDraft(selectedDraft), null);
 });

@@ -3,7 +3,7 @@
 This slice connects the React Native TypeScript UI layer to the service API
 contract without hardwiring network calls into components:
 
-- typed `VoiceSecureApiClient` for `POST /payments` and
+- typed `VoiceSecureApiClient` for `POST /v1/payments` and
   `GET /wallets/{accountId}/balance`;
 - `ApiTransport` port so React Native fetch, mocks, or future offline adapters
   can be swapped in;

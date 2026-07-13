@@ -14,20 +14,18 @@ export interface WalletBalanceCommandForm {
 export type WalletBalanceCommandField = keyof WalletBalanceCommandForm;
 
 export interface PaymentCommandForm {
-  sagaId: string;
-  idempotencyKey: string;
-  userId: string;
-  fromAccountId: string;
-  toAccountId: string;
+  sourceAccountId: string;
+  beneficiaryId: string;
   amount: string;
   currency: string;
+  reference: string;
 }
 
 export type PaymentCommandField = keyof PaymentCommandForm;
 
 export function createWalletBalanceCommandForm(): WalletBalanceCommandForm {
   return {
-    accountId: "",
+    accountId: "11111111-1111-4111-8111-111111111111",
   };
 }
 
@@ -52,13 +50,11 @@ export function walletAccountIdFromForm(form: WalletBalanceCommandForm): string 
 
 export function createPaymentCommandForm(): PaymentCommandForm {
   return {
-    sagaId: "",
-    idempotencyKey: "",
-    userId: "",
-    fromAccountId: "",
-    toAccountId: "",
+    sourceAccountId: "11111111-1111-4111-8111-111111111111",
+    beneficiaryId: "22222222-2222-4222-8222-222222222222",
     amount: "",
     currency: "ZAR",
+    reference: "",
   };
 }
 
@@ -75,13 +71,13 @@ export function updatePaymentCommandForm(
 
 export function paymentCommandFromForm(form: PaymentCommandForm): StartPaymentCommand {
   return {
-    sagaId: requiredText(form.sagaId, "saga id"),
-    idempotencyKey: requiredText(form.idempotencyKey, "idempotency key"),
-    userId: requiredText(form.userId, "user id"),
-    fromAccountId: requiredText(form.fromAccountId, "from account id"),
-    toAccountId: requiredText(form.toAccountId, "to account id"),
-    amount: requiredPositiveAmount(form.amount),
-    currency: requiredText(form.currency, "currency").toUpperCase(),
+    sourceAccountId: requiredText(form.sourceAccountId, "source account"),
+    beneficiaryId: requiredText(form.beneficiaryId, "beneficiary"),
+    amount: {
+      value: requiredPositiveAmount(form.amount),
+      currency: requiredText(form.currency, "currency").toUpperCase(),
+    },
+    reference: requiredText(form.reference, "reference"),
   };
 }
 
@@ -128,15 +124,18 @@ function requiredText(value: string, field: string): string {
   return nextValue;
 }
 
-function requiredPositiveAmount(value: string): number {
-  const amount = Number(clean(value));
-  if (!Number.isFinite(amount)) {
+function requiredPositiveAmount(value: string): string {
+  const cleaned = clean(value);
+  if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) {
     throw formError("amount must be a number");
   }
-  if (amount <= 0) {
+  const [whole, fraction = ""] = cleaned.split(".");
+  const normalizedWhole = whole.replace(/^0+(?=\d)/, "");
+  const normalizedFraction = fraction.padEnd(2, "0");
+  if (normalizedWhole === "0" && normalizedFraction === "00") {
     throw formError("amount must be greater than zero");
   }
-  return amount;
+  return `${normalizedWhole}.${normalizedFraction}`;
 }
 
 function clean(value: string): string {

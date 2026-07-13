@@ -76,7 +76,11 @@ public final class ApiRuntime implements ApiEndpoint {
             return finish(request, principalId, traceId, response);
         }
 
-        return finish(request, principalId, traceId, endpoint.handle(request));
+        ApiRequest authenticatedRequest = request.withHeader(
+                ApiSecurityContext.AUTHENTICATED_PRINCIPAL_HEADER,
+                principalId
+        );
+        return finish(request, principalId, traceId, endpoint.handle(authenticatedRequest));
     }
 
     private ApiResponse finish(ApiRequest request, String principalId, String traceId, ApiResponse response) {

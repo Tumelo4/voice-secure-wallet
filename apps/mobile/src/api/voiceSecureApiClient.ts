@@ -25,21 +25,20 @@ export interface VoiceSecureApiClientConfig {
 }
 
 export interface StartPaymentCommand {
-  sagaId: string;
-  idempotencyKey: string;
-  userId: string;
-  fromAccountId: string;
-  toAccountId: string;
-  amount: number;
-  currency: string;
+  sourceAccountId: string;
+  beneficiaryId: string;
+  amount: {
+    value: string;
+    currency: string;
+  };
+  reference: string;
 }
 
 export interface PaymentStartResult {
-  sagaId: string;
-  state: "VOICE_VERIFICATION_PENDING" | string;
-  traceId: string;
+  paymentReference: string;
+  state: "AUTHORISATION_REQUIRED" | "PROCESSING" | "COMPLETED" | "FAILED" | "REVIEW_REQUIRED" | string;
   authPolicy: string;
-  eventCount: number;
+  message: string;
 }
 
 export interface WalletBalanceResult {
@@ -48,6 +47,36 @@ export interface WalletBalanceResult {
   balance: number;
   version: number;
   updatedAt: string;
+}
+
+export interface CustomerAccount {
+  accountId: string;
+  displayName: string;
+  maskedAccountNumber: string;
+  currency: string;
+}
+
+export interface CustomerAccountsResult {
+  accounts: CustomerAccount[];
+}
+
+export interface BeneficiarySummary {
+  beneficiaryId: string;
+  displayName: string;
+  maskedAccountNumber: string;
+  currency: string;
+  status: "PENDING_VERIFICATION" | "COOLING_OFF" | "ACTIVE" | "BLOCKED";
+  availableAt: string;
+}
+
+export interface CustomerBeneficiariesResult {
+  beneficiaries: BeneficiarySummary[];
+}
+
+export interface CreateBeneficiaryCommand {
+  displayName: string;
+  bankCode: string;
+  accountNumber: string;
 }
 
 interface ApiErrorBody {
@@ -70,6 +99,7 @@ export class ApiClientError extends Error {
 }
 
 export class VoiceSecureApiClient {
+  private readonly paymentAttemptKeys = new Map<string, string>();
   private readonly tokenProvider: AccessTokenProvider;
   private readonly traceIdFactory: () => string;
   private readonly transport: ApiTransport;
@@ -81,16 +111,27 @@ export class VoiceSecureApiClient {
   }
 
   async startPayment(command: StartPaymentCommand): Promise<PaymentStartResult> {
-    const { idempotencyKey, ...body } = command;
-    return this.sendJson<PaymentStartResult>({
-      method: "POST",
-      path: "/payments",
-      headers: {
-        "Content-Type": "application/json",
-        "Idempotency-Key": requireNonBlank(idempotencyKey, "idempotencyKey"),
-      },
-      body: JSON.stringify(body),
-    });
+    const fingerprint = JSON.stringify(command);
+    const idempotencyKey = this.paymentAttemptKeys.get(fingerprint) ?? createIdempotencyKey();
+    this.paymentAttemptKeys.set(fingerprint, idempotencyKey);
+    try {
+      const result = await this.sendJson<PaymentStartResult>({
+        method: "POST",
+        path: "/v1/payments",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
+        body: fingerprint,
+      });
+      this.paymentAttemptKeys.delete(fingerprint);
+      return result;
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status < 500) {
+        this.paymentAttemptKeys.delete(fingerprint);
+      }
+      throw error;
+    }
   }
 
   async getWalletBalance(accountId: string): Promise<WalletBalanceResult> {
@@ -98,6 +139,35 @@ export class VoiceSecureApiClient {
       method: "GET",
       path: `/wallets/${encodeURIComponent(requireNonBlank(accountId, "accountId"))}/balance`,
       headers: {},
+    });
+  }
+
+  async getPaymentStatus(paymentReference: string): Promise<PaymentStartResult> {
+    return this.sendJson<PaymentStartResult>({
+      method: "GET",
+      path: `/v1/payments/${encodeURIComponent(requireNonBlank(paymentReference, "paymentReference"))}`,
+      headers: {},
+    });
+  }
+
+  async getCustomerAccounts(): Promise<CustomerAccountsResult> {
+    return this.sendJson<CustomerAccountsResult>({
+      method: "GET",
+      path: "/v1/me/accounts",
+      headers: {},
+    });
+  }
+
+  async getCustomerBeneficiaries(): Promise<CustomerBeneficiariesResult> {
+    return this.sendJson<CustomerBeneficiariesResult>({ method: "GET", path: "/v1/me/beneficiaries", headers: {} });
+  }
+
+  async createBeneficiary(command: CreateBeneficiaryCommand): Promise<BeneficiarySummary> {
+    return this.sendJson<BeneficiarySummary>({
+      method: "POST",
+      path: "/v1/me/beneficiaries",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(command),
     });
   }
 
@@ -118,6 +188,18 @@ export class VoiceSecureApiClient {
     }
     return parseJson<T>(response.body, "response body");
   }
+}
+
+function createIdempotencyKey(): string {
+  const cryptoApi = globalThis.crypto;
+  if (cryptoApi && typeof cryptoApi.randomUUID === "function") {
+    return cryptoApi.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (character) => {
+    const random = Math.floor(Math.random() * 16);
+    const value = character === "x" ? random : (random & 0x3) | 0x8;
+    return value.toString(16);
+  });
 }
 
 function resolveTokenProvider(config: VoiceSecureApiClientConfig): AccessTokenProvider {

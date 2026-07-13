@@ -3,6 +3,7 @@ package com.voicesecure.ledger;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.time.Duration;
 
 public final class LedgerService {
     private final LedgerRepository repository;
@@ -23,9 +24,6 @@ public final class LedgerService {
             long amount,
             String currency
     ) {
-        if (amount <= 0) {
-            throw new LedgerException("transfer amount must be positive");
-        }
         LedgerTransaction transaction = new LedgerTransaction(
                 sagaId,
                 idempotencyKey,
@@ -40,6 +38,16 @@ public final class LedgerService {
 
     public LedgerBatch repair(RepairRequest repairRequest) {
         return repository.appendRepair(repairRequest);
+    }
+
+    public FundReservation reserveFunds(
+            UUID reservationId, UUID paymentId, UUID accountId, long amount, String currency, Duration ttl
+    ) {
+        return repository.reserve(reservationId, paymentId, accountId, amount, currency, ttl);
+    }
+
+    public FundReservation releaseFunds(UUID reservationId) {
+        return repository.release(reservationId);
     }
 
     public ReconciliationReport reconcile() {
