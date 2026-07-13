@@ -79,3 +79,14 @@ variable "redis_node_type" {
   type        = string
   default     = "cache.m7g.large"
 }
+
+variable "redis_auth_token" {
+  description = "Sensitive Redis AUTH token supplied by the deployment secret store."
+  type        = string
+  sensitive   = true
+
+  validation {
+    condition     = length(var.redis_auth_token) >= 32
+    error_message = "redis_auth_token must contain at least 32 characters."
+  }
+}

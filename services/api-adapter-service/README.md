@@ -27,7 +27,7 @@ selection, JSON response shaping, runtime guards, socket-to-request translation,
 production ingress policy validation, and error mapping for the first two
 production-facing routes plus the support repair route:
 
-- `POST /payments`
+- `POST /v1/payments`
 - `GET /wallets/{accountId}/balance`
 - `POST /support/repairs`
 
@@ -106,7 +106,7 @@ ApiRouter router = new ApiRouter(List.of(
 
 ApiResponse response = router.handle(new ApiRequest(
         "POST",
-        "/payments",
+        "/v1/payments",
         Map.of("Idempotency-Key", idempotencyKey.toString(), "X-Trace-Id", "trace-api-1"),
         paymentJson
 ));
@@ -131,7 +131,7 @@ ApiRuntime runtime = new ApiRuntime(
 
 ApiResponse guardedResponse = runtime.handle(new ApiRequest(
         "POST",
-        "/payments",
+        "/v1/payments",
         Map.of(
                 "Authorization", "Bearer " + accessToken,
                 "Idempotency-Key", idempotencyKey.toString(),

@@ -2,6 +2,8 @@ package com.voicesecure.payments;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
 
 public final class PaymentSagaTests {
     public static void main(String[] args) {
@@ -14,7 +16,10 @@ public final class PaymentSagaTests {
                 new TestCase("compensation failure becomes critical", PaymentSagaTests::compensationFailureBecomesCritical),
                 new TestCase("idempotent start returns the original saga", PaymentSagaTests::idempotentStartReturnsOriginalSaga),
                 new TestCase("idempotent start rejects conflicting request", PaymentSagaTests::idempotentStartRejectsConflictingRequest),
-                new TestCase("payment request requires trace id", PaymentSagaTests::paymentRequestRequiresTraceId)
+                new TestCase("concurrent duplicate starts return one saga", PaymentSagaTests::concurrentDuplicateStartsReturnOneSaga),
+                new TestCase("payment request requires trace id", PaymentSagaTests::paymentRequestRequiresTraceId),
+                new TestCase("unknown external outcome requires reconciliation", PaymentSagaTests::unknownOutcomeRequiresReconciliation),
+                new TestCase("inconclusive reconciliation enters manual review", PaymentSagaTests::inconclusiveReconciliationEntersManualReview)
         };
 
         for (TestCase test : tests) {
@@ -153,6 +158,69 @@ public final class PaymentSagaTests {
                 ),
                 "blank trace id should fail"
         );
+    }
+
+    private static void concurrentDuplicateStartsReturnOneSaga() {
+        Fixture fixture = fixture();
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        AtomicReference<PaymentSaga> first = new AtomicReference<>();
+        AtomicReference<PaymentSaga> second = new AtomicReference<>();
+        Thread one = new Thread(() -> first.set(startTogether(fixture, ready, start)));
+        Thread two = new Thread(() -> second.set(startTogether(fixture, ready, start)));
+        one.start();
+        two.start();
+        try {
+            ready.await();
+            start.countDown();
+            one.join();
+            two.join();
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("concurrency test interrupted", ex);
+        }
+        assertSame(first.get(), second.get(), "concurrent retry should return the same saga");
+        assertEquals(1L, fixture.repository.findByIdempotencyKey(fixture.request.idempotencyKey()).stream().count(), "one saga persisted");
+    }
+
+    private static PaymentSaga startTogether(Fixture fixture, CountDownLatch ready, CountDownLatch start) {
+        ready.countDown();
+        try {
+            start.await();
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError(ex);
+        }
+        return fixture.service.start(fixture.request, new FraudDecision(0.10, AuthPolicy.VOICE_ONLY, true, ""));
+    }
+
+    private static void unknownOutcomeRequiresReconciliation() {
+        PaymentSaga saga = authorisedAndReservedSaga();
+        saga.ledgerCommitStarted();
+        saga.externalOutcomeUnknown("provider-123");
+        assertEquals(PaymentSagaState.UNKNOWN_EXTERNAL_STATUS, saga.state(), "unknown status");
+        saga.beginReconciliation();
+        saga.reconciliationConfirmedPosted();
+        saga.complete();
+        assertEquals(PaymentSagaState.COMPLETED, saga.state(), "reconciled completion");
+    }
+
+    private static void inconclusiveReconciliationEntersManualReview() {
+        PaymentSaga saga = authorisedAndReservedSaga();
+        saga.ledgerCommitStarted();
+        saga.externalOutcomeUnknown("provider-unknown");
+        saga.beginReconciliation();
+        saga.reconciliationInconclusive("provider records disagree with settlement file");
+        assertEquals(PaymentSagaState.MANUAL_REVIEW, saga.state(), "manual review");
+        assertEquals(false, saga.isTerminal(), "manual review must remain actionable");
+    }
+
+    private static PaymentSaga authorisedAndReservedSaga() {
+        Fixture fixture = fixture();
+        PaymentSaga saga = fixture.service.start(fixture.request, new FraudDecision(0.1, AuthPolicy.VOICE_ONLY, true, ""));
+        saga.voiceApproved();
+        saga.fundsReserved();
+        return saga;
     }
 
     private static Fixture fixture() {

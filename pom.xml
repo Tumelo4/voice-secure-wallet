@@ -10,6 +10,7 @@
   <packaging>pom</packaging>
 
   <modules>
+    <module>build-support</module>
     <module>services/event-core</module>
     <module>services/identity-service</module>
     <module>services/compliance-service</module>
@@ -17,6 +18,7 @@
     <module>services/payment-service</module>
     <module>services/notification-service</module>
     <module>services/wallet-service</module>
+    <module>services/beneficiary-service</module>
     <module>services/fraud-service</module>
     <module>services/recovery-service</module>
     <module>services/support-service</module>
@@ -25,12 +27,14 @@
     <module>services/api-adapter-service</module>
     <module>tests/contract-tests</module>
     <module>tests/acceptance-tests</module>
+    <module>quality/architecture-tests</module>
   </modules>
 
   <properties>
     <maven.compiler.release>17</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <junit.version>5.11.4</junit.version>
+    <testcontainers.version>2.0.5</testcontainers.version>
   </properties>
 
   <dependencyManagement>
@@ -51,6 +55,12 @@
       <artifactId>junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>com.voicesecure</groupId>
+      <artifactId>test-fixtures</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -60,6 +70,29 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
           <version>3.13.0</version>
+          <configuration>
+            <excludes><exclude>**/* 2.java</exclude></excludes>
+            <testExcludes><testExclude>**/* 2.java</testExclude></testExcludes>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.pitest</groupId>
+          <artifactId>pitest-maven</artifactId>
+          <version>1.22.0</version>
+          <configuration>
+            <mutationThreshold>80</mutationThreshold>
+            <coverageThreshold>90</coverageThreshold>
+            <timestampedReports>false</timestampedReports>
+            <outputFormats><param>HTML</param><param>XML</param></outputFormats>
+            <targetTests><param>com.voicesecure.testing.MainMethodSuiteTest</param></targetTests>
+          </configuration>
+          <dependencies>
+            <dependency>
+              <groupId>org.pitest</groupId>
+              <artifactId>pitest-junit5-plugin</artifactId>
+              <version>1.2.3</version>
+            </dependency>
+          </dependencies>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -70,25 +103,13 @@
     </pluginManagement>
     <plugins>
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <version>3.6.0</version>
-        <executions>
-          <execution>
-            <id>add-shared-test-adapter</id>
-            <phase>generate-test-sources</phase>
-            <goals><goal>add-test-source</goal></goals>
-            <configuration>
-              <sources><source>${maven.multiModuleProjectDirectory}/build-support/src/test/java</source></sources>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <workingDirectory>${maven.multiModuleProjectDirectory}</workingDirectory>
+          <dependenciesToScan>
+            <dependency>com.voicesecure:test-fixtures</dependency>
+          </dependenciesToScan>
           <systemPropertyVariables>
             <voicesecure.testClassesDirectory>${project.build.testOutputDirectory}</voicesecure.testClassesDirectory>
           </systemPropertyVariables>
@@ -96,4 +117,13 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>integration</id>
+      <modules>
+        <module>tests/integration-tests</module>
+      </modules>
+    </profile>
+  </profiles>
 </project>

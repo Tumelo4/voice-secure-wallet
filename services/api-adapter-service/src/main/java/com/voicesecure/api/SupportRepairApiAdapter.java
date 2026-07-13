@@ -3,7 +3,7 @@ package com.voicesecure.api;
 import com.voicesecure.ledger.LedgerBatch;
 import com.voicesecure.ledger.LedgerException;
 import com.voicesecure.ledger.Posting;
-import com.voicesecure.ledger.RepairRequest;
+import com.voicesecure.support.PendingRepair;
 import com.voicesecure.support.SupportException;
 import com.voicesecure.support.SupportService;
 import java.util.List;
@@ -22,27 +22,29 @@ public final class SupportRepairApiAdapter implements ApiEndpoint {
 
     @Override
     public boolean supports(ApiRequest request) {
-        return "POST".equals(request.method()) && "/support/repairs".equals(request.path());
+        return "POST".equals(request.method()) && (
+                "/support/repairs".equals(request.path()) || approvalRepairId(request.path()) != null);
     }
 
     @Override
     public ApiResponse handle(ApiRequest request) {
         try {
-            String traceId = requiredHeader(request, "X-Trace-Id");
-            RepairRequest repairRequest = new RepairRequest(
-                    uuidField(request.body(), "repairId"),
-                    uuidField(request.body(), "sagaId"),
-                    requiredUuidHeader(request, "Idempotency-Key"),
+            String principal = ApiSecurityContext.requirePrincipal(request);
+            UUID approvalId = approvalRepairId(request.path());
+            if (approvalId != null) {
+                LedgerBatch batch = supportService.approveRepair(
+                        approvalId, requiredUuidHeader(request, "Idempotency-Key"), principal);
+                return ApiResponse.json(200, appliedBody(approvalId, batch));
+            }
+            long amount = ApiJson.longField(request.body(), "amount");
+            PendingRepair pending = supportService.requestRepair(
+                    uuidField(request.body(), "repairId"), uuidField(request.body(), "sagaId"),
                     ApiJson.stringField(request.body(), "currency"),
                     List.of(
-                            Posting.repairDebit(uuidField(request.body(), "sourceAccountId"), ApiJson.longField(request.body(), "amount")),
-                            Posting.repairCredit(uuidField(request.body(), "destinationAccountId"), ApiJson.longField(request.body(), "amount"))
-                    ),
-                    ApiJson.stringField(request.body(), "justification"),
-                    ApiJson.stringField(request.body(), "requestedBy")
-            );
-            LedgerBatch batch = supportService.requestRepair(repairRequest);
-            return ApiResponse.json(200, repairBody(repairRequest, batch, traceId));
+                            Posting.repairDebit(uuidField(request.body(), "sourceAccountId"), amount),
+                            Posting.repairCredit(uuidField(request.body(), "destinationAccountId"), amount)),
+                    ApiJson.stringField(request.body(), "justification"), principal);
+            return ApiResponse.json(202, pendingBody(pending));
         } catch (LedgerException ex) {
             if (ex.getMessage() != null && ex.getMessage().contains("idempotency key reused")) {
                 return ApiResponse.error(409, "IDEMPOTENCY_CONFLICT", ex.getMessage());
@@ -74,22 +76,27 @@ public final class SupportRepairApiAdapter implements ApiEndpoint {
         return value;
     }
 
-    private static String repairBody(RepairRequest repairRequest, LedgerBatch batch, String traceId) {
+    private static String pendingBody(PendingRepair repair) {
         return "{"
-                + "\"repairId\":" + ApiJson.quote(repairRequest.repairId().toString()) + ","
-                + "\"sagaId\":" + ApiJson.quote(repairRequest.sagaId().toString()) + ","
-                + "\"requestedBy\":" + ApiJson.quote(repairRequest.requestedBy()) + ","
-                + "\"currency\":" + ApiJson.quote(repairRequest.currency()) + ","
-                + "\"amount\":" + repairAmount(repairRequest) + ","
-                + "\"entryCount\":" + batch.entries().size() + ","
-                + "\"status\":\"APPLIED\","
-                + "\"traceId\":" + ApiJson.quote(traceId)
+                + "\"repairId\":" + ApiJson.quote(repair.repairId().toString()) + ","
+                + "\"status\":\"PENDING_APPROVAL\""
                 + "}";
     }
 
-    private static long repairAmount(RepairRequest repairRequest) {
-        return repairRequest.postings().stream()
-                .mapToLong(posting -> Math.abs(posting.signedAmount()))
-                .sum() / 2;
+    private static String appliedBody(UUID repairId, LedgerBatch batch) {
+        return "{"
+                + "\"repairId\":" + ApiJson.quote(repairId.toString()) + ","
+                + "\"entryCount\":" + batch.entries().size() + ","
+                + "\"status\":\"APPLIED\""
+                + "}";
+    }
+
+    private static UUID approvalRepairId(String path) {
+        String prefix = "/support/repairs/";
+        String suffix = "/approve";
+        if (!path.startsWith(prefix) || !path.endsWith(suffix)) return null;
+        String value = path.substring(prefix.length(), path.length() - suffix.length());
+        if (value.isBlank()) return null;
+        try { return UUID.fromString(value); } catch (IllegalArgumentException exception) { return null; }
     }
 }

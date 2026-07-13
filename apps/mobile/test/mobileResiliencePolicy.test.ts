@@ -32,26 +32,26 @@ test("retry policy does not retry auth, validation, or exhausted attempts", () =
   assert.equal(decideRetry({ status: 503, code: "NETWORK_UNAVAILABLE", message: "network unavailable" }, 4).shouldRetry, false);
 });
 
-test("offline payment queue enqueues idempotently by idempotency key", () => {
-  const command = paymentCommand({ idempotencyKey: "idem-1" });
+test("offline payment queue deduplicates identical customer payment intents", () => {
+  const command = paymentCommand({ reference: "Dinner-1" });
   const queuedOnce = enqueueOfflinePayment(createOfflineQueueState(), command, "2026-07-02T10:00:00Z");
   const queuedTwice = enqueueOfflinePayment(queuedOnce, command, "2026-07-02T10:01:00Z");
 
   assert.equal(queuedTwice.payments.length, 1);
-  assert.equal(queuedTwice.payments[0].command.idempotencyKey, "idem-1");
+  assert.equal(queuedTwice.payments[0].command.reference, "Dinner-1");
   assert.equal(queuedTwice.payments[0].queuedAt, "2026-07-02T10:00:00Z");
 });
 
 test("offline payment queue enforces a local maximum depth", () => {
   const state: OfflinePaymentQueueState = {
     payments: [
-      { command: paymentCommand({ idempotencyKey: "idem-1" }), queuedAt: "2026-07-02T10:00:00Z", attempts: 0 },
+      { command: paymentCommand({ reference: "Dinner-1" }), queuedAt: "2026-07-02T10:00:00Z", attempts: 0 },
     ],
     maxDepth: 1,
   };
 
   assert.throws(
-    () => enqueueOfflinePayment(state, paymentCommand({ idempotencyKey: "idem-2" }), "2026-07-02T10:01:00Z"),
+    () => enqueueOfflinePayment(state, paymentCommand({ reference: "Dinner-2" }), "2026-07-02T10:01:00Z"),
     /offline payment queue is full/
   );
 });
@@ -59,14 +59,14 @@ test("offline payment queue enforces a local maximum depth", () => {
 test("offline drain sends queued payments in order and removes successes", async () => {
   const client = new RecordingPaymentClient();
   const state = enqueueOfflinePayment(
-    enqueueOfflinePayment(createOfflineQueueState(), paymentCommand({ sagaId: "saga-1", idempotencyKey: "idem-1" }), "2026-07-02T10:00:00Z"),
-    paymentCommand({ sagaId: "saga-2", idempotencyKey: "idem-2" }),
+    enqueueOfflinePayment(createOfflineQueueState(), paymentCommand({ reference: "Dinner-1" }), "2026-07-02T10:00:00Z"),
+    paymentCommand({ reference: "Dinner-2" }),
     "2026-07-02T10:01:00Z"
   );
 
   const result = await drainOfflinePaymentQueue(state, { client });
 
-  assert.deepEqual(client.sagaIds, ["saga-1", "saga-2"]);
+  assert.deepEqual(client.references, ["Dinner-1", "Dinner-2"]);
   assert.equal(result.state.payments.length, 0);
   assert.equal(result.sent, 2);
   assert.equal(result.blocked, false);
@@ -77,14 +77,14 @@ test("offline drain keeps retryable failures queued and stops behind the blocker
     failure: new ApiClientError(503, "NETWORK_UNAVAILABLE", "network unavailable"),
   });
   const state = enqueueOfflinePayment(
-    enqueueOfflinePayment(createOfflineQueueState(), paymentCommand({ sagaId: "saga-1", idempotencyKey: "idem-1" }), "2026-07-02T10:00:00Z"),
-    paymentCommand({ sagaId: "saga-2", idempotencyKey: "idem-2" }),
+    enqueueOfflinePayment(createOfflineQueueState(), paymentCommand({ reference: "Dinner-1" }), "2026-07-02T10:00:00Z"),
+    paymentCommand({ reference: "Dinner-2" }),
     "2026-07-02T10:01:00Z"
   );
 
   const result = await drainOfflinePaymentQueue(state, { client });
 
-  assert.deepEqual(client.sagaIds, ["saga-1"]);
+  assert.deepEqual(client.references, ["Dinner-1"]);
   assert.equal(result.state.payments.length, 2);
   assert.equal(result.state.payments[0].attempts, 1);
   assert.equal(result.retry?.delayMs, 500);
@@ -92,7 +92,7 @@ test("offline drain keeps retryable failures queued and stops behind the blocker
 });
 
 class RecordingPaymentClient {
-  readonly sagaIds: string[] = [];
+  readonly references: string[] = [];
   private readonly failure?: unknown;
 
   constructor(config: { failure?: unknown } = {}) {
@@ -100,29 +100,25 @@ class RecordingPaymentClient {
   }
 
   async startPayment(command: StartPaymentCommand): Promise<PaymentStartResult> {
-    this.sagaIds.push(command.sagaId);
+    this.references.push(command.reference);
     if (this.failure) {
       throw this.failure;
     }
     return {
-      sagaId: command.sagaId,
-      state: "VOICE_VERIFICATION_PENDING",
-      traceId: "trace-offline-drain-1",
+      paymentReference: "VSW-12345678",
+      state: "AUTHORISATION_REQUIRED",
       authPolicy: "VOICE_OTP",
-      eventCount: 4,
+      message: "Payment submitted for secure verification.",
     };
   }
 }
 
 function paymentCommand(overrides: Partial<StartPaymentCommand> = {}): StartPaymentCommand {
   return {
-    sagaId: "saga-1",
-    idempotencyKey: "idem-1",
-    userId: "user-1",
-    fromAccountId: "wallet-from",
-    toAccountId: "wallet-to",
-    amount: 750,
-    currency: "ZAR",
+    sourceAccountId: "wallet-from",
+    beneficiaryId: "wallet-to",
+    amount: { value: "750.00", currency: "ZAR" },
+    reference: "Dinner-1",
     ...overrides,
   };
 }

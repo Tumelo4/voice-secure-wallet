@@ -1,5 +1,7 @@
 package com.voicesecure.payments;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -17,6 +19,13 @@ public final class InMemoryPaymentSagaRepository implements PaymentSagaRepositor
     @Override
     public synchronized Optional<PaymentSaga> findByIdempotencyKey(UUID idempotencyKey) {
         return Optional.ofNullable(byIdempotencyKey.get(idempotencyKey));
+    }
+
+    @Override
+    public synchronized List<PaymentSaga> findNonTerminalUpdatedBefore(Instant cutoff) {
+        return bySagaId.values().stream()
+                .filter(saga -> !saga.isTerminal() && saga.updatedAt().isBefore(cutoff))
+                .toList();
     }
 
     @Override

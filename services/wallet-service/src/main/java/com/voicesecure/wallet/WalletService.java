@@ -69,6 +69,25 @@ public final class WalletService {
                 .orElseThrow(() -> new WalletException("wallet balance not found: " + accountId));
     }
 
+    public WalletBalance balanceForUser(UUID userId, UUID accountId) {
+        WalletAccount account = account(accountId);
+        if (!account.userId().equals(Objects.requireNonNull(userId, "userId"))) {
+            throw new WalletException("wallet account is not available");
+        }
+        return balance(accountId);
+    }
+
+    public WalletAccount account(UUID accountId) {
+        return repository.findAccount(accountId)
+                .orElseThrow(() -> new WalletException("wallet account not found"));
+    }
+
+    public boolean ownsAccount(UUID userId, UUID accountId) {
+        return repository.findAccount(accountId)
+                .map(account -> account.userId().equals(userId))
+                .orElse(false);
+    }
+
     public List<WalletAccount> accountsForUser(UUID userId) {
         return repository.accountsForUser(userId);
     }

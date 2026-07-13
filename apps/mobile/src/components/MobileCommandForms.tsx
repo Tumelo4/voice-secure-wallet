@@ -2,6 +2,16 @@ import { Pressable, Text, TextInput, View } from "react-native";
 import { useState } from "react";
 import type { StartPaymentCommand } from "../api/voiceSecureApiClient";
 import type { BankingLayoutMode } from "./bankingLayout";
+
+const accountOptions = [
+  { id: "11111111-1111-4111-8111-111111111111", label: "Everyday • 5124" },
+  { id: "33333333-3333-4333-8333-333333333333", label: "Savings • 2088" },
+] as const;
+
+const beneficiaryOptions = [
+  { id: "22222222-2222-4222-8222-222222222222", label: "Maya Nkosi" },
+  { id: "44444444-4444-4444-8444-444444444444", label: "City Power" },
+] as const;
 import {
   createPaymentCommandForm,
   createWalletBalanceCommandForm,
@@ -46,7 +56,7 @@ export function MobileCommandForms({
   const submitPayment = () => {
     try {
       const command = paymentCommandFromForm(paymentForm);
-      setFormMessage(`Transfer ready for ${command.currency} ${command.amount}.`);
+      setFormMessage(`Transfer ready for ${command.amount.currency} ${command.amount.value}.`);
       void onPaymentCommand?.(command);
     } catch (error) {
       setFormMessage(messageFrom(error));
@@ -65,17 +75,17 @@ export function MobileCommandForms({
 
       <View className="mt-4 rounded-[24px] border border-slate-200 bg-slate-50 p-4">
         <Text className="text-[11px] font-medium tracking-[0.06em] text-slate-600">Check balance</Text>
-        <TextInput
-          accessibilityLabel="Wallet account id"
-          autoCapitalize="none"
-          autoCorrect={false}
-          returnKeyType="done"
-          className="mt-3 min-h-[52px] rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-900"
-          onChangeText={(value) => setWalletForm((form) => updateWalletBalanceCommandForm(form, "accountId", value))}
-          placeholderTextColor="#64748b"
-          placeholder="wallet-account-id"
-          value={walletForm.accountId}
-        />
+        <Text className="mt-3 text-sm font-medium text-slate-700">Account</Text>
+        <View className="mt-2 flex-row flex-wrap">
+          {accountOptions.map((account) => (
+            <ChoiceChip
+              key={account.id}
+              label={account.label}
+              selected={walletForm.accountId === account.id}
+              onPress={() => setWalletForm((form) => updateWalletBalanceCommandForm(form, "accountId", account.id))}
+            />
+          ))}
+        </View>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Load wallet balance"
@@ -91,14 +101,37 @@ export function MobileCommandForms({
 
       <View className="mt-4 rounded-[24px] border border-slate-200 bg-slate-50 p-4">
         <Text className="text-[11px] font-medium tracking-[0.06em] text-slate-600">Send payment</Text>
-        <View className="mt-2 flex-row flex-wrap justify-between">
-          <CommandInput compact={isCompact} label="Saga id" value={paymentForm.sagaId} onChange={(value) => setPaymentForm((form) => updatePaymentCommandForm(form, "sagaId", value))} />
-          <CommandInput compact={isCompact} label="Idempotency key" value={paymentForm.idempotencyKey} onChange={(value) => setPaymentForm((form) => updatePaymentCommandForm(form, "idempotencyKey", value))} />
-          <CommandInput compact={isCompact} label="User id" value={paymentForm.userId} onChange={(value) => setPaymentForm((form) => updatePaymentCommandForm(form, "userId", value))} />
-          <CommandInput compact={isCompact} label="From account" value={paymentForm.fromAccountId} onChange={(value) => setPaymentForm((form) => updatePaymentCommandForm(form, "fromAccountId", value))} />
-          <CommandInput compact={isCompact} label="To account" value={paymentForm.toAccountId} onChange={(value) => setPaymentForm((form) => updatePaymentCommandForm(form, "toAccountId", value))} />
+        <Text className="mt-3 text-sm font-medium text-slate-700">From</Text>
+        <View className="mt-2 flex-row flex-wrap">
+          {accountOptions.map((account) => (
+            <ChoiceChip
+              key={account.id}
+              label={account.label}
+              selected={paymentForm.sourceAccountId === account.id}
+              onPress={() => setPaymentForm((form) => updatePaymentCommandForm(form, "sourceAccountId", account.id))}
+            />
+          ))}
+        </View>
+        <Text className="mt-3 text-sm font-medium text-slate-700">Beneficiary</Text>
+        <View className="mt-2 flex-row flex-wrap">
+          {beneficiaryOptions.map((beneficiary) => (
+            <ChoiceChip
+              key={beneficiary.id}
+              label={beneficiary.label}
+              selected={paymentForm.beneficiaryId === beneficiary.id}
+              onPress={() => setPaymentForm((form) => updatePaymentCommandForm(form, "beneficiaryId", beneficiary.id))}
+            />
+          ))}
+        </View>
+        <View className="mt-3 flex-row flex-wrap justify-between">
           <CommandInput compact={isCompact} label="Amount" value={paymentForm.amount} onChange={(value) => setPaymentForm((form) => updatePaymentCommandForm(form, "amount", value))} />
-          <CommandInput compact={isCompact} label="Currency" value={paymentForm.currency} onChange={(value) => setPaymentForm((form) => updatePaymentCommandForm(form, "currency", value))} />
+          <View className="mb-3" style={{ width: isCompact ? "100%" : "48%" }}>
+            <Text className="mb-1 text-xs font-medium text-slate-600">Currency</Text>
+            <View accessibilityLabel="Payment currency" className="min-h-[52px] justify-center rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3">
+              <Text className="text-base font-semibold text-slate-700">{paymentForm.currency}</Text>
+            </View>
+          </View>
+          <CommandInput compact={isCompact} label="Payment reference" value={paymentForm.reference} onChange={(value) => setPaymentForm((form) => updatePaymentCommandForm(form, "reference", value))} />
         </View>
         <Pressable
           accessibilityRole="button"
@@ -115,6 +148,22 @@ export function MobileCommandForms({
 
       <Text accessibilityLiveRegion="polite" className="mt-3 text-sm font-medium text-blue-800">{formMessage}</Text>
     </View>
+  );
+}
+
+function ChoiceChip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected }}
+      className={`mb-2 mr-2 min-h-[48px] justify-center rounded-full border px-4 py-3 ${
+        selected ? "border-blue-700 bg-blue-50" : "border-slate-300 bg-white"
+      }`}
+      onPress={onPress}
+    >
+      <Text className={`text-sm font-semibold ${selected ? "text-blue-800" : "text-slate-700"}`}>{label}</Text>
+    </Pressable>
   );
 }
 

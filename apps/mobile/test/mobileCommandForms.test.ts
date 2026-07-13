@@ -61,7 +61,8 @@ test("invalid command forms fail locally without calling the API client", async 
   const dispatch = statefulDispatch();
   const invalidPayment = updatePaymentCommandForm(paymentForm(), "amount", "0");
 
-  await submitWalletBalanceCommandForm(createWalletBalanceCommandForm(), {
+  const invalidWallet = updateWalletBalanceCommandForm(createWalletBalanceCommandForm(), "accountId", " ");
+  await submitWalletBalanceCommandForm(invalidWallet, {
     client,
     traceIdFactory: () => "trace-wallet-invalid",
   })(dispatch.dispatch);
@@ -97,11 +98,10 @@ class StubMobileApiClient implements MobileApiClientPort {
   async startPayment(command: StartPaymentCommand): Promise<PaymentStartResult> {
     this.paymentCommands.push(command);
     return {
-      sagaId: command.sagaId,
-      state: "VOICE_VERIFICATION_PENDING",
-      traceId: "trace-payment-runtime-1",
+      paymentReference: "VSW-12345678",
+      state: "AUTHORISATION_REQUIRED",
       authPolicy: "VOICE_OTP",
-      eventCount: 4,
+      message: "Payment submitted for secure verification.",
     };
   }
 }
@@ -125,24 +125,19 @@ function statefulDispatch(initialState: MobileApiState = createMobileApiState())
 
 function paymentForm() {
   let form = createPaymentCommandForm();
-  form = updatePaymentCommandForm(form, "sagaId", " saga-screen-1 ");
-  form = updatePaymentCommandForm(form, "idempotencyKey", " idem-screen-1 ");
-  form = updatePaymentCommandForm(form, "userId", " user-1 ");
-  form = updatePaymentCommandForm(form, "fromAccountId", " wallet-from ");
-  form = updatePaymentCommandForm(form, "toAccountId", " wallet-to ");
+  form = updatePaymentCommandForm(form, "sourceAccountId", " wallet-from ");
+  form = updatePaymentCommandForm(form, "beneficiaryId", " wallet-to ");
   form = updatePaymentCommandForm(form, "amount", "750.25");
   form = updatePaymentCommandForm(form, "currency", " zar ");
+  form = updatePaymentCommandForm(form, "reference", " Dinner split ");
   return form;
 }
 
 function paymentCommand(): StartPaymentCommand {
   return {
-    sagaId: "saga-screen-1",
-    idempotencyKey: "idem-screen-1",
-    userId: "user-1",
-    fromAccountId: "wallet-from",
-    toAccountId: "wallet-to",
-    amount: 750.25,
-    currency: "ZAR",
+    sourceAccountId: "wallet-from",
+    beneficiaryId: "wallet-to",
+    amount: { value: "750.25", currency: "ZAR" },
+    reference: "Dinner split",
   };
 }

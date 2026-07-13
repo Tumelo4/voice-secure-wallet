@@ -1,0 +1,4 @@
+.git
+.codex_tmp
+**/target
+apps/mobile/node_modules

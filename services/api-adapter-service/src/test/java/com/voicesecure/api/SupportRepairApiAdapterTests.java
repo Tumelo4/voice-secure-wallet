@@ -11,7 +11,7 @@ import java.util.UUID;
 public final class SupportRepairApiAdapterTests {
     public static void main(String[] args) {
         TestCase[] tests = {
-                new TestCase("support repair POST applies a balanced repair and records audit evidence", SupportRepairApiAdapterTests::supportRepairPostAppliesRepair),
+                new TestCase("support repair requires separate maker and checker", SupportRepairApiAdapterTests::supportRepairRequiresMakerChecker),
                 new TestCase("support repair POST requires a meaningful justification", SupportRepairApiAdapterTests::supportRepairPostRequiresJustification)
         };
 
@@ -22,24 +22,33 @@ public final class SupportRepairApiAdapterTests {
         System.out.println("Support repair API adapter tests passed: " + tests.length);
     }
 
-    private static void supportRepairPostAppliesRepair() {
+    private static void supportRepairRequiresMakerChecker() {
         Fixture fixture = fixture();
         UUID repairId = UUID.fromString("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
         UUID sagaId = UUID.fromString("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
         UUID idempotencyKey = UUID.fromString("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
 
-        ApiResponse response = fixture.router.handle(new ApiRequest(
+        ApiResponse requested = fixture.router.handle(new ApiRequest(
                 "POST",
                 "/support/repairs",
-                Map.of("Idempotency-Key", idempotencyKey.toString(), "X-Trace-Id", "trace-support-api-1"),
-                repairBody(repairId, sagaId, fixture.sourceAccountId, fixture.destinationAccountId, 50, "COMPENSATION_FAILED drill corrective entry", "sre@example.com")
+                headers("maker@example.com", idempotencyKey, "trace-support-api-1"),
+                repairBody(repairId, sagaId, fixture.sourceAccountId, fixture.destinationAccountId, 50, "COMPENSATION_FAILED drill corrective entry")
         ));
+        assertEquals(202, requested.status(), "request status");
+        assertContains(requested.body(), "PENDING_APPROVAL", "pending status");
+        assertEquals(0, fixture.ledgerRepository.entries().size(), "request must not mutate ledger");
 
-        assertEquals(200, response.status(), "repair status");
-        assertContains(response.body(), "\"repairId\":\"" + repairId + "\"", "repair id");
-        assertContains(response.body(), "\"entryCount\":2", "entry count");
-        assertContains(response.body(), "\"status\":\"APPLIED\"", "repair status");
-        assertContains(response.body(), "\"traceId\":\"trace-support-api-1\"", "trace id");
+        ApiResponse selfApproval = fixture.router.handle(new ApiRequest(
+                "POST", "/support/repairs/" + repairId + "/approve",
+                headers("maker@example.com", idempotencyKey, "trace-self"), ""));
+        assertEquals(400, selfApproval.status(), "self approval blocked");
+
+        ApiResponse approved = fixture.router.handle(new ApiRequest(
+                "POST", "/support/repairs/" + repairId + "/approve",
+                headers("checker@example.com", idempotencyKey, "trace-approve"), ""));
+        assertEquals(200, approved.status(), "approval status");
+        assertContains(approved.body(), "\"entryCount\":2", "entry count");
+        assertContains(approved.body(), "\"status\":\"APPLIED\"", "repair status");
         assertEquals(1, fixture.supportRepository.cases().size(), "support case count");
         assertEquals(1L, fixture.supportRepository.auditLog().stream().filter(entry -> entry.action().equals("support.repair_requested")).count(), "requested audit entry");
         assertEquals(1L, fixture.supportRepository.auditLog().stream().filter(entry -> entry.action().equals("support.repair_linked")).count(), "linked audit entry");
@@ -56,8 +65,8 @@ public final class SupportRepairApiAdapterTests {
         ApiResponse response = fixture.router.handle(new ApiRequest(
                 "POST",
                 "/support/repairs",
-                Map.of("Idempotency-Key", idempotencyKey.toString(), "X-Trace-Id", "trace-support-api-2"),
-                repairBody(repairId, sagaId, fixture.sourceAccountId, fixture.destinationAccountId, 50, "too short", "sre@example.com")
+                headers("maker@example.com", idempotencyKey, "trace-support-api-2"),
+                repairBody(repairId, sagaId, fixture.sourceAccountId, fixture.destinationAccountId, 50, "too short")
         ));
 
         assertEquals(400, response.status(), "validation status");
@@ -88,8 +97,7 @@ public final class SupportRepairApiAdapterTests {
             UUID sourceAccountId,
             UUID destinationAccountId,
             long amount,
-            String justification,
-            String requestedBy
+            String justification
     ) {
         return "{"
                 + "\"repairId\":\"" + repairId + "\","
@@ -98,9 +106,15 @@ public final class SupportRepairApiAdapterTests {
                 + "\"destinationAccountId\":\"" + destinationAccountId + "\","
                 + "\"amount\":" + amount + ","
                 + "\"currency\":\"ZAR\","
-                + "\"justification\":\"" + justification + "\","
-                + "\"requestedBy\":\"" + requestedBy + "\""
+                + "\"justification\":\"" + justification + "\""
                 + "}";
+    }
+
+    private static Map<String, String> headers(String principal, UUID idempotencyKey, String traceId) {
+        return Map.of(
+                ApiSecurityContext.AUTHENTICATED_PRINCIPAL_HEADER, principal,
+                "Idempotency-Key", idempotencyKey.toString(),
+                "X-Trace-Id", traceId);
     }
 
     private static void assertEquals(Object expected, Object actual, String message) {

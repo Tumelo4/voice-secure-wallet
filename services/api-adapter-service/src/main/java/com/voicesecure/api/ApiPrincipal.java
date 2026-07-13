@@ -16,6 +16,11 @@ public record ApiPrincipal(String principalId, Set<String> scopes) {
         scopes = normalizeScopes(scopes);
     }
 
+    @Override
+    public Set<String> scopes() {
+        return new LinkedHashSet<>(scopes);
+    }
+
     public static ApiPrincipal of(String principalId, String... scopes) {
         LinkedHashSet<String> normalizedScopes = new LinkedHashSet<>();
         if (scopes != null) {

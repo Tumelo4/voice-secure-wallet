@@ -10,7 +10,7 @@ public final class PaymentSagaService {
         this.repository = Objects.requireNonNull(repository, "repository");
     }
 
-    public PaymentSaga start(PaymentRequest request, FraudDecision decision) {
+    public synchronized PaymentSaga start(PaymentRequest request, FraudDecision decision) {
         PaymentSaga existing = repository.findByIdempotencyKey(request.idempotencyKey()).orElse(null);
         if (existing != null) {
             if (!existing.matchesRequest(request)) {
@@ -35,6 +35,9 @@ public final class PaymentSagaService {
         if (saga.isTerminal()) {
             return saga;
         }
+        if (saga.state() != PaymentSagaState.VOICE_VERIFICATION_PENDING) {
+            return saga;
+        }
 
         switch (outcome.status()) {
             case APPROVED -> saga.voiceApproved();
@@ -46,6 +49,10 @@ public final class PaymentSagaService {
         }
         repository.save(saga);
         return saga;
+    }
+
+    public PaymentSaga find(UUID sagaId) {
+        return requireSaga(sagaId);
     }
 
     public PaymentSaga recordFallbackOutcome(UUID sagaId, FallbackOutcome outcome) {

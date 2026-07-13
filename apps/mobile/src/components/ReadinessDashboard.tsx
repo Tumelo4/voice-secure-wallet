@@ -10,7 +10,6 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { MobileCommandForms } from "./MobileCommandForms";
 import {
   bankingAccountCards,
   bankingCardDeck,
@@ -34,15 +33,20 @@ import {
 } from "./bankingLayout";
 import {
   advanceVoiceSecureFlow,
-  approveVoiceSecureFallback,
   createTransactionDraft,
   createVoiceSecureFlow,
+  validateTransactionDraft,
   type BankingTransactionIntent,
   type TransactionDraft,
   type VoiceSecureFlow,
 } from "../state/bankingVoiceSecure";
+import type {
+  BeneficiarySummary,
+  CustomerAccount,
+  VoiceSecureApiClient,
+} from "../api/voiceSecureApiClient";
 
-export function ReadinessDashboard() {
+export function ReadinessDashboard({ apiClient }: { apiClient: VoiceSecureApiClient }) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const layoutMode = bankingLayoutModeForWidth(width);
@@ -52,8 +56,42 @@ export function ReadinessDashboard() {
   const [activeTab, setActiveTab] = useState<BankingTabKey>("home");
   const [draft, setDraft] = useState<TransactionDraft>(() => createTransactionDraft("pay"));
   const [flow, setFlow] = useState<VoiceSecureFlow | null>(null);
-  const [walletCommandStatus, setWalletCommandStatus] = useState("Ready to check balance.");
-  const [paymentCommandStatus, setPaymentCommandStatus] = useState("Ready to send payment.");
+  const [reviewingPayment, setReviewingPayment] = useState(false);
+  const [accounts, setAccounts] = useState<CustomerAccount[]>([]);
+  const [beneficiaries, setBeneficiaries] = useState<BeneficiarySummary[]>([]);
+  const [optionsMessage, setOptionsMessage] = useState("Loading your accounts and beneficiaries…");
+  const [submissionMessage, setSubmissionMessage] = useState<string | null>(null);
+  const [paymentReference, setPaymentReference] = useState<string | null>(null);
+  const [submittingPayment, setSubmittingPayment] = useState(false);
+  const paymentSubmissionActive = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+    void Promise.all([apiClient.getCustomerAccounts(), apiClient.getCustomerBeneficiaries()])
+      .then(([accountResult, beneficiaryResult]) => {
+        if (!active) return;
+        const availableBeneficiaries = beneficiaryResult.beneficiaries.filter((item) => item.status === "ACTIVE");
+        setAccounts(accountResult.accounts);
+        setBeneficiaries(availableBeneficiaries);
+        setOptionsMessage(availableBeneficiaries.length ? "Ready to pay securely." : "No active beneficiaries are available.");
+        setDraft((current) => {
+          const account = accountResult.accounts[0];
+          const beneficiary = availableBeneficiaries[0];
+          return {
+            ...current,
+            sourceAccountId: account?.accountId ?? "",
+            sourceAccount: account ? `${account.displayName} ${account.maskedAccountNumber}` : "",
+            beneficiaryId: beneficiary?.beneficiaryId ?? "",
+            recipient: beneficiary?.displayName ?? "",
+            currency: account?.currency ?? "ZAR",
+          };
+        });
+      })
+      .catch(() => {
+        if (active) setOptionsMessage("Sign in or reconnect to load your payment options.");
+      });
+    return () => { active = false; };
+  }, [apiClient]);
 
   const micPulse = useRef(new Animated.Value(0)).current;
   const wavePulse = useRef(new Animated.Value(0)).current;
@@ -114,15 +152,50 @@ export function ReadinessDashboard() {
     setDraft((current) => ({ ...current, intent }));
     setActiveTab("payments");
     setFlow(null);
+    setReviewingPayment(false);
   };
 
-  const beginVoiceSecure = (nextDraft: TransactionDraft = draft) => {
+  const beginVoiceSecure = async (nextDraft: TransactionDraft = draft) => {
+    if (paymentSubmissionActive.current) return;
+    paymentSubmissionActive.current = true;
+    setSubmittingPayment(true);
+    setSubmissionMessage("Creating your payment securely…");
     setDraft(nextDraft);
-    setFlow(createVoiceSecureFlow(nextDraft));
+    try {
+      const result = await apiClient.startPayment({
+        sourceAccountId: nextDraft.sourceAccountId,
+        beneficiaryId: nextDraft.beneficiaryId,
+        amount: { value: nextDraft.amount, currency: nextDraft.currency },
+        reference: nextDraft.note,
+      });
+      setReviewingPayment(false);
+      setSubmissionMessage(`${result.message} Reference ${result.paymentReference}.`);
+      setPaymentReference(result.paymentReference);
+      setFlow(createVoiceSecureFlow(nextDraft));
+    } catch {
+      setSubmissionMessage("We couldn't start this payment. Check your connection and try again.");
+    } finally {
+      paymentSubmissionActive.current = false;
+      setSubmittingPayment(false);
+    }
   };
 
-  const confirmVoice = () => {
-    setFlow((current) => (current ? advanceVoiceSecureFlow(current, "match") : current));
+  const refreshPaymentStatus = async () => {
+    if (!paymentReference) return;
+    try {
+      const result = await apiClient.getPaymentStatus(paymentReference);
+      if (result.state === "COMPLETED") {
+        setFlow((current) => (current ? advanceVoiceSecureFlow(current, "match") : current));
+        setSubmissionMessage(`Payment completed. Reference ${paymentReference}.`);
+      } else if (["FAILED", "VOICE_REJECTED", "VOICE_FALLBACK_FAILED"].includes(result.state)) {
+        setFlow((current) => (current ? advanceVoiceSecureFlow(current, "miss") : current));
+        setSubmissionMessage("The payment was not authorized. Try again or use the offered fallback.");
+      } else {
+        setSubmissionMessage(`Payment is ${customerStateLabel(result.state)}. Reference ${paymentReference}.`);
+      }
+    } catch {
+      setSubmissionMessage("We couldn't refresh this payment yet. It remains pending; try again shortly.");
+    }
   };
 
   const retryVoice = () => {
@@ -130,11 +203,15 @@ export function ReadinessDashboard() {
   };
 
   const useFallback = (method: "PIN" | "Face ID" | "Fingerprint") => {
-    setFlow((current) => (current ? approveVoiceSecureFallback(current, method) : current));
+    setSubmissionMessage(`${method} verification requested. The payment remains pending until the server confirms it.`);
+    void refreshPaymentStatus();
   };
 
   const resetPayment = (tab: BankingTabKey = "home") => {
     setFlow(null);
+    setReviewingPayment(false);
+    setSubmissionMessage(null);
+    setPaymentReference(null);
     setActiveTab(tab);
   };
 
@@ -168,13 +245,7 @@ export function ReadinessDashboard() {
               <HomeTab
                 layoutMode={layoutMode}
                 viewportWidth={width}
-                walletCommandStatus={walletCommandStatus}
-                paymentCommandStatus={paymentCommandStatus}
                 onOpenPayments={openPayments}
-                onWalletCommand={(accountId) => setWalletCommandStatus(`Prepared for ${accountId}.`)}
-                onPaymentCommand={(command) =>
-                  setPaymentCommandStatus(`Prepared for ${command.currency} ${command.amount.toFixed(2)}.`)
-                }
               />
             ) : null}
 
@@ -182,12 +253,20 @@ export function ReadinessDashboard() {
               <PaymentsTab
                 layoutMode={layoutMode}
                 draft={draft}
+                accounts={accounts}
+                beneficiaries={beneficiaries}
+                optionsMessage={optionsMessage}
+                submissionMessage={submissionMessage}
                 flow={flow}
+                reviewing={reviewingPayment}
+                submitting={submittingPayment}
                 micPulse={micPulse}
                 wavePulse={wavePulse}
                 onDraftChange={setDraft}
+                onReview={() => setReviewingPayment(true)}
+                onEdit={() => setReviewingPayment(false)}
                 onBeginVoiceSecure={beginVoiceSecure}
-                onConfirmVoice={confirmVoice}
+                onConfirmVoice={() => { void refreshPaymentStatus(); }}
                 onRetryVoice={retryVoice}
                 onFallback={useFallback}
                 onDone={() => resetPayment("home")}
@@ -236,19 +315,11 @@ function Header({ layoutMode }: { layoutMode: BankingLayoutMode }) {
 function HomeTab({
   layoutMode,
   viewportWidth,
-  walletCommandStatus,
-  paymentCommandStatus,
   onOpenPayments,
-  onWalletCommand,
-  onPaymentCommand,
 }: {
   layoutMode: BankingLayoutMode;
   viewportWidth: number;
-  walletCommandStatus: string;
-  paymentCommandStatus: string;
   onOpenPayments: (intent: BankingTransactionIntent) => void;
-  onWalletCommand: (accountId: string) => void;
-  onPaymentCommand: (command: { amount: number; currency: string }) => void;
 }) {
   const isCompact = layoutMode === "compact";
   const isExpanded = layoutMode === "expanded";
@@ -314,13 +385,6 @@ function HomeTab({
           </View>
         )}
 
-        <MobileCommandForms
-          layoutMode={layoutMode}
-          walletBalanceStatus={walletCommandStatus}
-          paymentStartStatus={paymentCommandStatus}
-          onWalletCommand={onWalletCommand}
-          onPaymentCommand={onPaymentCommand}
-        />
       </View>
 
       <View style={{ flex: isExpanded ? 0.88 : undefined, marginLeft: isExpanded ? 20 : 0, marginTop: isExpanded ? 0 : 24 }}>
@@ -341,10 +405,18 @@ function HomeTab({
 interface PaymentsTabProps {
   layoutMode: BankingLayoutMode;
   draft: TransactionDraft;
+  accounts: CustomerAccount[];
+  beneficiaries: BeneficiarySummary[];
+  optionsMessage: string;
+  submissionMessage: string | null;
   flow: VoiceSecureFlow | null;
+  reviewing: boolean;
+  submitting: boolean;
   micPulse: Animated.Value;
   wavePulse: Animated.Value;
   onDraftChange: (draft: TransactionDraft) => void;
+  onReview: () => void;
+  onEdit: () => void;
   onBeginVoiceSecure: (draft: TransactionDraft) => void;
   onConfirmVoice: () => void;
   onRetryVoice: () => void;
@@ -356,10 +428,18 @@ interface PaymentsTabProps {
 function PaymentsTab({
   layoutMode,
   draft,
+  accounts,
+  beneficiaries,
+  optionsMessage,
+  submissionMessage,
   flow,
+  reviewing,
+  submitting,
   micPulse,
   wavePulse,
   onDraftChange,
+  onReview,
+  onEdit,
   onBeginVoiceSecure,
   onConfirmVoice,
   onRetryVoice,
@@ -380,6 +460,9 @@ function PaymentsTab({
         title="Send money with VoiceSecure"
         detail="Fill in the details, then verify with VoiceSecure before anything is sent."
       />
+      {submissionMessage ? (
+        <Text accessibilityLiveRegion="polite" className="mb-4 text-sm font-medium text-slate-700">{submissionMessage}</Text>
+      ) : null}
 
       {flow?.stage === "confirmed" ? (
         <SuccessCard
@@ -401,13 +484,18 @@ function PaymentsTab({
           onRetryVoice={onRetryVoice}
           onFallback={onFallback}
         />
+      ) : reviewing ? (
+        <PaymentReviewCard draft={draft} submitting={submitting} onConfirm={() => onBeginVoiceSecure(draft)} onEdit={onEdit} />
       ) : (
         <PaymentComposer
           layoutMode={layoutMode}
           draft={draft}
+          accounts={accounts}
+          beneficiaries={beneficiaries}
+          optionsMessage={optionsMessage}
           intentLabel={intentLabel}
           onDraftChange={onDraftChange}
-          onBeginVoiceSecure={onBeginVoiceSecure}
+          onReview={onReview}
         />
       )}
     </View>
@@ -417,17 +505,24 @@ function PaymentsTab({
 function PaymentComposer({
   layoutMode,
   draft,
+  accounts,
+  beneficiaries,
+  optionsMessage,
   intentLabel,
   onDraftChange,
-  onBeginVoiceSecure,
+  onReview,
 }: {
   layoutMode: BankingLayoutMode;
   draft: TransactionDraft;
+  accounts: CustomerAccount[];
+  beneficiaries: BeneficiarySummary[];
+  optionsMessage: string;
   intentLabel: string;
   onDraftChange: (draft: TransactionDraft) => void;
-  onBeginVoiceSecure: (draft: TransactionDraft) => void;
+  onReview: () => void;
 }) {
   const fieldColumns = composerColumns(layoutMode);
+  const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const setField = (field: keyof TransactionDraft, value: string) => {
     onDraftChange({ ...draft, [field]: value });
   };
@@ -445,12 +540,20 @@ function PaymentComposer({
       </Text>
 
       <View className="mt-5 rounded-[24px] border border-slate-200 bg-slate-50 p-4">
-        <LabeledField
-          label="Recipient"
-          value={draft.recipient}
-          placeholder="Maya Nkosi"
-          onChangeText={(value) => setField("recipient", value)}
-        />
+        <Text className="text-sm font-medium text-slate-700">From account</Text>
+        <View accessibilityRole="radiogroup" className="mt-2 flex-row flex-wrap">
+          {accounts.map((account) => {
+            const label = `${account.displayName} ${account.maskedAccountNumber}`;
+            return <SelectionChip key={account.accountId} label={label} selected={draft.sourceAccountId === account.accountId} onPress={() => onDraftChange({ ...draft, sourceAccountId: account.accountId, sourceAccount: label, currency: account.currency })} />;
+          })}
+        </View>
+        <Text className="mt-4 text-sm font-medium text-slate-700">Beneficiary</Text>
+        <View accessibilityRole="radiogroup" className="mt-2 flex-row flex-wrap">
+          {beneficiaries.map((beneficiary) => (
+            <SelectionChip key={beneficiary.beneficiaryId} label={`${beneficiary.displayName} ${beneficiary.maskedAccountNumber}`} selected={draft.beneficiaryId === beneficiary.beneficiaryId} onPress={() => onDraftChange({ ...draft, beneficiaryId: beneficiary.beneficiaryId, recipient: beneficiary.displayName })} />
+          ))}
+        </View>
+        <Text accessibilityLiveRegion="polite" className="mt-2 text-xs text-slate-600">{optionsMessage}</Text>
         <View
           className="mt-4"
           style={{ flexDirection: fieldColumns === 1 ? "column" : "row" }}
@@ -487,8 +590,7 @@ function PaymentComposer({
           selected={draft.intent === "pay"}
           layoutMode={layoutMode}
           onPress={() => {
-            const nextDraft = { ...draft, intent: "pay" as BankingTransactionIntent };
-            onBeginVoiceSecure(nextDraft);
+            onDraftChange({ ...draft, intent: "pay" as BankingTransactionIntent });
           }}
         />
         <ActionPill
@@ -496,8 +598,7 @@ function PaymentComposer({
           selected={draft.intent === "send"}
           layoutMode={layoutMode}
           onPress={() => {
-            const nextDraft = { ...draft, intent: "send" as BankingTransactionIntent };
-            onBeginVoiceSecure(nextDraft);
+            onDraftChange({ ...draft, intent: "send" as BankingTransactionIntent });
           }}
         />
         <ActionPill
@@ -505,14 +606,73 @@ function PaymentComposer({
           selected={draft.intent === "topup"}
           layoutMode={layoutMode}
           onPress={() => {
-            const nextDraft = { ...draft, intent: "topup" as BankingTransactionIntent };
-            onBeginVoiceSecure(nextDraft);
+            onDraftChange({ ...draft, intent: "topup" as BankingTransactionIntent });
           }}
         />
       </View>
-      <Text className="mt-2 text-xs font-medium text-slate-500">
-        VoiceSecure opens the moment you tap an action.
-      </Text>
+      <Pressable
+        accessibilityRole="button"
+        className="mt-2 min-h-[52px] items-center justify-center rounded-full bg-[#0b57d0] px-5 py-4"
+        onPress={() => {
+          const message = validateTransactionDraft(draft);
+          setValidationMessage(message);
+          if (!message) onReview();
+        }}
+      >
+        <Text className="text-sm font-semibold text-white">Review payment</Text>
+      </Pressable>
+      {validationMessage ? (
+        <Text accessibilityLiveRegion="assertive" className="mt-3 text-sm font-medium text-red-700">{validationMessage}</Text>
+      ) : null}
+    </View>
+  );
+}
+
+function PaymentReviewCard({ draft, submitting, onConfirm, onEdit }: { draft: TransactionDraft; submitting: boolean; onConfirm: () => void; onEdit: () => void }) {
+  return (
+    <View className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+      <Text className="text-[11px] font-medium tracking-[0.06em] text-blue-700">Review payment</Text>
+      <Text className="mt-2 text-3xl font-semibold text-slate-900">Confirm the details</Text>
+      <Text className="mt-2 text-sm leading-6 text-slate-600">VoiceSecure will authorize this exact payment.</Text>
+      <View className="mt-5 rounded-[24px] bg-slate-50 p-4">
+        <ReviewRow label="From" value={draft.sourceAccount} />
+        <ReviewRow label="To" value={draft.recipient} />
+        <ReviewRow label="Type" value={transactionIntentLabel(draft.intent)} />
+        <ReviewRow label="Amount" value={`R ${draft.amount}`} />
+        <ReviewRow label="Currency" value="ZAR" />
+        <ReviewRow label="Reference" value={draft.note || "No reference"} />
+        <ReviewRow label="Fee" value="R 0.00" />
+        <ReviewRow label="Total" value={`R ${draft.amount}`} />
+        <ReviewRow label="Authorisation" value="VoiceSecure or fallback MFA" />
+      </View>
+      <Pressable accessibilityRole="button" accessibilityState={{ disabled: submitting }} disabled={submitting} className="mt-5 min-h-[52px] items-center justify-center rounded-full bg-[#0b57d0] px-5" onPress={onConfirm}>
+        <Text className="text-sm font-semibold text-white">{submitting ? "Starting payment…" : "Authorize with VoiceSecure"}</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" className="mt-3 min-h-[48px] items-center justify-center rounded-full border border-slate-300 px-5" onPress={onEdit}>
+        <Text className="text-sm font-semibold text-slate-800">Edit details</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function SelectionChip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected }}
+      className={`mb-2 mr-2 min-h-[48px] justify-center rounded-full border px-4 py-3 ${selected ? "border-blue-700 bg-blue-50" : "border-slate-300 bg-white"}`}
+      onPress={onPress}
+    >
+      <Text className={`text-sm font-semibold ${selected ? "text-blue-800" : "text-slate-700"}`}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function ReviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View className="mb-3 flex-row justify-between">
+      <Text className="text-sm text-slate-600">{label}</Text>
+      <Text className="ml-4 flex-1 text-right text-sm font-semibold text-slate-900">{value}</Text>
     </View>
   );
 }
@@ -1102,6 +1262,10 @@ function transactionIntentLabel(intent: BankingTransactionIntent): string {
     case "topup":
       return "Top up";
   }
+}
+
+function customerStateLabel(state: string): string {
+  return state.toLowerCase().replaceAll("_", " ");
 }
 
 function accountCardClass(tone: (typeof bankingAccountCards)[number]["tone"]): string {

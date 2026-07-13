@@ -17,6 +17,7 @@ public record PaymentSagaSnapshot(
         Instant createdAt,
         Instant updatedAt,
         Instant completedAt,
+        long version,
         double fraudScore,
         AuthPolicy authPolicy,
         FallbackMethod fallbackMethod,
@@ -35,6 +36,7 @@ public record PaymentSagaSnapshot(
         Objects.requireNonNull(createdAt, "createdAt");
         Objects.requireNonNull(updatedAt, "updatedAt");
         Objects.requireNonNull(state, "state");
+        if (version < 0) throw new PaymentException("saga version cannot be negative");
         stateHistory = List.copyOf(Objects.requireNonNull(stateHistory, "stateHistory"));
         events = List.copyOf(Objects.requireNonNull(events, "events"));
         if (stateHistory.isEmpty()) {

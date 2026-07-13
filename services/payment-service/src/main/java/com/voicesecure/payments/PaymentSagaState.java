@@ -14,13 +14,17 @@ public enum PaymentSagaState {
     FUNDS_RESERVATION_FAILED(true),
     FUNDS_RESERVED(false),
     LEDGER_COMMITTING(false),
+    UNKNOWN_EXTERNAL_STATUS(false),
+    RECONCILIATION_REQUIRED(false),
+    MANUAL_REVIEW(false),
     LEDGER_COMMIT_FAILED(false),
     LEDGER_COMMITTED(false),
     COMPLETING(false),
     COMPLETED(true),
     COMPENSATION_IN_PROGRESS(false),
     COMPENSATED(true),
-    COMPENSATION_FAILED(true);
+    COMPENSATION_FAILED(true),
+    FAILED(true);
 
     private final boolean terminal;
 

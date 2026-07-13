@@ -73,7 +73,8 @@ export function enqueueOfflinePayment(
   command: StartPaymentCommand,
   queuedAt: string
 ): OfflinePaymentQueueState {
-  if (state.payments.some((item) => item.command.idempotencyKey === command.idempotencyKey)) {
+  const fingerprint = paymentFingerprint(command);
+  if (state.payments.some((item) => paymentFingerprint(item.command) === fingerprint)) {
     return state;
   }
   if (state.payments.length >= state.maxDepth) {
@@ -90,6 +91,16 @@ export function enqueueOfflinePayment(
       },
     ],
   };
+}
+
+export function paymentFingerprint(command: StartPaymentCommand): string {
+  return [
+    command.sourceAccountId,
+    command.beneficiaryId,
+    command.amount.value,
+    command.amount.currency,
+    command.reference,
+  ].map((value) => value.trim().toUpperCase()).join("|");
 }
 
 export async function drainOfflinePaymentQueue(

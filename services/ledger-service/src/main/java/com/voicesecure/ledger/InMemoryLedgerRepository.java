@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.time.Duration;
 
 public final class InMemoryLedgerRepository implements LedgerRepository {
     private final List<LedgerEntry> entries = new ArrayList<>();
@@ -15,6 +16,7 @@ public final class InMemoryLedgerRepository implements LedgerRepository {
     private final Map<UUID, AccountState> accounts = new LinkedHashMap<>();
     private final Map<UUID, IdempotencyRecord> idempotencyCache = new HashMap<>();
     private final List<RepairRequest> repairAudit = new ArrayList<>();
+    private final Map<UUID, FundReservation> reservations = new HashMap<>();
 
     @Override
     public synchronized void createAccount(UUID accountId, String currency, long openingBalance) {
@@ -24,7 +26,7 @@ public final class InMemoryLedgerRepository implements LedgerRepository {
         if (openingBalance < 0) {
             throw new LedgerException("opening balance cannot be negative");
         }
-        accounts.put(accountId, new AccountState(openingBalance, currency, 0, Instant.now()));
+        accounts.put(accountId, new AccountState(openingBalance, 0, currency, 0, Instant.now()));
     }
 
     @Override
@@ -65,7 +67,7 @@ public final class InMemoryLedgerRepository implements LedgerRepository {
 
         projectedBalances.forEach((accountId, balance) -> {
             AccountState current = accounts.get(accountId);
-            accounts.put(accountId, new AccountState(balance, current.currency, current.version + 1, Instant.now()));
+            accounts.put(accountId, new AccountState(balance, current.reserved, current.currency, current.version + 1, Instant.now()));
         });
 
         entries.addAll(batchEntries);
@@ -87,6 +89,51 @@ public final class InMemoryLedgerRepository implements LedgerRepository {
     }
 
     @Override
+    public synchronized FundReservation reserve(
+            UUID reservationId, UUID paymentId, UUID accountId, long amount, String currency, Duration ttl
+    ) {
+        FundReservation existing = reservations.get(reservationId);
+        if (existing != null) {
+            if (!existing.paymentId().equals(paymentId) || !existing.accountId().equals(accountId)
+                    || existing.amount() != amount || !existing.currency().equals(currency)) {
+                throw new LedgerException("reservation id reused with different request");
+            }
+            return existing;
+        }
+        AccountState account = accounts.get(accountId);
+        if (account == null) throw new LedgerException("account does not exist: " + accountId);
+        if (!account.currency.equals(currency)) throw new LedgerException("reservation currency does not match account currency");
+        if (amount <= 0 || ttl == null || ttl.isZero() || ttl.isNegative()) throw new LedgerException("invalid reservation");
+        if (account.balance - account.reserved < amount) throw new LedgerException("insufficient available funds");
+        Instant now = Instant.now();
+        FundReservation reservation = new FundReservation(
+                reservationId, paymentId, accountId, amount, currency, FundReservation.Status.ACTIVE, now, now.plus(ttl));
+        reservations.put(reservationId, reservation);
+        accounts.put(accountId, new AccountState(account.balance, account.reserved + amount, account.currency, account.version + 1, now));
+        return reservation;
+    }
+
+    @Override
+    public synchronized FundReservation release(UUID reservationId) {
+        FundReservation current = reservations.get(reservationId);
+        if (current == null) throw new LedgerException("reservation not found");
+        if (current.status() != FundReservation.Status.ACTIVE) return current;
+        AccountState account = accounts.get(current.accountId());
+        FundReservation released = new FundReservation(
+                current.reservationId(), current.paymentId(), current.accountId(), current.amount(), current.currency(),
+                FundReservation.Status.RELEASED, current.createdAt(), current.expiresAt());
+        reservations.put(reservationId, released);
+        accounts.put(current.accountId(), new AccountState(
+                account.balance, account.reserved - current.amount(), account.currency, account.version + 1, Instant.now()));
+        return released;
+    }
+
+    @Override
+    public synchronized Optional<FundReservation> findReservation(UUID reservationId) {
+        return Optional.ofNullable(reservations.get(reservationId));
+    }
+
+    @Override
     public synchronized List<LedgerEntry> entries() {
         return List.copyOf(entries);
     }
@@ -101,7 +148,9 @@ public final class InMemoryLedgerRepository implements LedgerRepository {
         Map<UUID, AccountBalance> snapshot = new LinkedHashMap<>();
         accounts.forEach((accountId, state) -> snapshot.put(
                 accountId,
-                new AccountBalance(accountId, state.balance, state.currency, state.version, state.updatedAt)
+                new AccountBalance(
+                        accountId, state.balance, state.balance - state.reserved, state.reserved, 0,
+                        state.currency, state.version, state.updatedAt)
         ));
         return Map.copyOf(snapshot);
     }
@@ -125,9 +174,10 @@ public final class InMemoryLedgerRepository implements LedgerRepository {
     private Map<UUID, Long> projectBalances(LedgerTransaction transaction) {
         Map<UUID, Long> projected = new HashMap<>();
         for (Posting posting : transaction.postings()) {
-            long current = projected.getOrDefault(posting.accountId(), accounts.get(posting.accountId()).balance);
+            AccountState state = accounts.get(posting.accountId());
+            long current = projected.getOrDefault(posting.accountId(), state.balance);
             long next = current + posting.signedAmount();
-            if (next < 0) {
+            if (next < state.reserved) {
                 throw new LedgerException("insufficient funds for account: " + posting.accountId());
             }
             projected.put(posting.accountId(), next);
@@ -170,7 +220,7 @@ public final class InMemoryLedgerRepository implements LedgerRepository {
         ));
     }
 
-    private record AccountState(long balance, String currency, long version, Instant updatedAt) {
+    private record AccountState(long balance, long reserved, String currency, long version, Instant updatedAt) {
     }
 
     private record IdempotencyRecord(LedgerCommand command, LedgerBatch batch) {
@@ -188,7 +238,8 @@ public final class InMemoryLedgerRepository implements LedgerRepository {
             List<Posting> postings,
             UUID repairId,
             String justification,
-            String requestedBy
+            String requestedBy,
+            String approvedBy
     ) {
         private LedgerCommand {
             postings = List.copyOf(postings);
@@ -202,6 +253,7 @@ public final class InMemoryLedgerRepository implements LedgerRepository {
                     transaction.postings(),
                     null,
                     "",
+                    "",
                     ""
             );
         }
@@ -214,7 +266,8 @@ public final class InMemoryLedgerRepository implements LedgerRepository {
                     repairRequest.postings(),
                     repairRequest.repairId(),
                     repairRequest.justification(),
-                    repairRequest.requestedBy()
+                    repairRequest.requestedBy(),
+                    repairRequest.approvedBy()
             );
         }
     }

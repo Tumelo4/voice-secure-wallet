@@ -1,5 +1,7 @@
 package com.voicesecure.api;
 
+import com.voicesecure.beneficiaries.BeneficiaryService;
+import com.voicesecure.beneficiaries.InMemoryBeneficiaryRepository;
 import com.voicesecure.payments.AuthPolicy;
 import com.voicesecure.payments.FraudDecision;
 import com.voicesecure.payments.InMemoryPaymentSagaRepository;
@@ -20,6 +22,7 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.Clock;
 import java.util.UUID;
 
 public final class ApiHttpServerTests {
@@ -57,19 +60,17 @@ public final class ApiHttpServerTests {
 
     private static void forwardsPaymentPost() throws Exception {
         Fixture fixture = fixture(10);
-        UUID sagaId = UUID.fromString("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
-        UUID idempotencyKey = UUID.fromString("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
         try (ApiHttpServer server = ApiHttpServer.start(fixture.runtime)) {
-            HttpResponse<String> response = send(HttpRequest.newBuilder(server.uri("/payments"))
+            HttpResponse<String> response = send(HttpRequest.newBuilder(server.uri("/v1/payments"))
                     .header("Authorization", "Bearer " + fixture.tokenUser1)
-                    .header("Idempotency-Key", idempotencyKey.toString())
                     .header("X-Trace-Id", "trace-http-2")
-                    .POST(HttpRequest.BodyPublishers.ofString(paymentBody(sagaId, 750)))
+                    .header("Idempotency-Key", "dddddddd-dddd-4ddd-8ddd-dddddddddddd")
+                    .POST(HttpRequest.BodyPublishers.ofString(paymentBody(750)))
                     .build());
 
             assertEquals(202, response.statusCode(), "payment status");
-            assertContains(response.body(), "\"state\":\"VOICE_VERIFICATION_PENDING\"", "payment state");
-            assertEquals("/payments", fixture.logSink.entries().get(0).path(), "logged path");
+            assertContains(response.body(), "\"state\":\"AUTHORISATION_REQUIRED\"", "payment state");
+            assertEquals("/v1/payments", fixture.logSink.entries().get(0).path(), "logged path");
         }
     }
 
@@ -94,12 +95,11 @@ public final class ApiHttpServerTests {
                     )))
                     .build());
 
-            assertEquals(200, response.statusCode(), "support repair status");
-            assertContains(response.body(), "\"entryCount\":2", "support repair entry count");
-            assertContains(response.body(), "\"status\":\"APPLIED\"", "support repair status");
+            assertEquals(202, response.statusCode(), "support repair status");
+            assertContains(response.body(), "\"status\":\"PENDING_APPROVAL\"", "support repair status");
             assertEquals("/support/repairs", fixture.logSink.entries().get(0).path(), "logged path");
-            assertEquals(1, fixture.supportRepository.cases().size(), "support repair case count");
-            assertEquals(2, fixture.supportLedgerRepository.entries().size(), "support repair entries");
+            assertEquals(1, fixture.supportRepository.cases().size(), "pending support repair case count");
+            assertEquals(0, fixture.supportLedgerRepository.entries().size(), "support repair entries before approval");
         }
     }
 
@@ -167,16 +167,18 @@ public final class ApiHttpServerTests {
         supportLedgerService.createAccount(supportDestinationAccountId, "ZAR", 0);
         SupportService supportService = new SupportService(supportRepository, supportLedgerService);
         UUID accountId = UUID.fromString("11111111-1111-4111-8111-111111111111");
-        walletService.openWallet(
-                UUID.fromString("22222222-2222-4222-8222-222222222222"),
-                accountId,
-                "Everyday wallet",
-                "ZAR"
-        );
+        walletService.openWallet(user1Id, accountId, "Everyday wallet", "ZAR");
+        UUID destinationId = UUID.fromString("ffffffff-ffff-4fff-8fff-ffffffffffff");
+        walletService.openWallet(UUID.randomUUID(), destinationId, "Maya Nkosi", "ZAR");
+        BeneficiaryService beneficiaryService = new BeneficiaryService(
+                new InMemoryBeneficiaryRepository(), (customer, destination) -> Duration.ZERO, Clock.systemUTC());
+        beneficiaryService.registerVerified(
+                UUID.fromString("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"), user1Id, destinationId,
+                "Maya Nkosi", "0000EEEE", "ZAR");
         walletService.applyBalanceSnapshot(accountId, "ZAR", 1_250, Instant.parse("2026-06-20T12:00:00Z"));
         ApiRouter router = new ApiRouter(java.util.List.of(
                 new HealthApiAdapter(),
-                new PaymentApiAdapter(paymentService, request -> new FraudDecision(0.18, AuthPolicy.VOICE_OTP, true, "")),
+                new PaymentApiAdapter(paymentService, request -> new FraudDecision(0.18, AuthPolicy.VOICE_OTP, true, ""), walletService, beneficiaryService),
                 new WalletApiAdapter(walletService),
                 new SupportRepairApiAdapter(supportService)
         ));
@@ -190,14 +192,12 @@ public final class ApiHttpServerTests {
         return new Fixture(runtime, logSink, accountId, supportRepository, supportLedgerRepository, supportSourceAccountId, supportDestinationAccountId, tokenUser1);
     }
 
-    private static String paymentBody(UUID sagaId, long amount) {
+    private static String paymentBody(long amount) {
         return "{"
-                + "\"sagaId\":\"" + sagaId + "\","
-                + "\"userId\":\"cccccccc-cccc-4ccc-8ccc-cccccccccccc\","
-                + "\"fromAccountId\":\"dddddddd-dddd-4ddd-8ddd-dddddddddddd\","
-                + "\"toAccountId\":\"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee\","
-                + "\"amount\":" + amount + ","
-                + "\"currency\":\"ZAR\""
+                + "\"sourceAccountId\":\"11111111-1111-4111-8111-111111111111\","
+                + "\"beneficiaryId\":\"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee\","
+                + "\"amount\":{\"value\":\"" + amount + ".00\",\"currency\":\"ZAR\"},"
+                + "\"reference\":\"Dinner split\""
                 + "}";
     }
 

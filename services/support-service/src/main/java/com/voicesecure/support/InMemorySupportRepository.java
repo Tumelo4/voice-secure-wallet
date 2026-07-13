@@ -13,6 +13,7 @@ public final class InMemorySupportRepository implements SupportRepository {
     private final Map<UUID, SupportTransactionView> transactionsByEntryId = new LinkedHashMap<>();
     private final Map<UUID, SupportCase> casesById = new LinkedHashMap<>();
     private final List<SupportAuditEntry> auditLog = new ArrayList<>();
+    private final Map<UUID, PendingRepair> repairsById = new LinkedHashMap<>();
 
     @Override
     public synchronized void ingestLedgerBatch(LedgerBatch batch) {
@@ -52,5 +53,15 @@ public final class InMemorySupportRepository implements SupportRepository {
     @Override
     public synchronized List<SupportCase> cases() {
         return List.copyOf(casesById.values());
+    }
+
+    @Override
+    public synchronized void savePendingRepair(PendingRepair repair) {
+        repairsById.put(repair.repairId(), repair);
+    }
+
+    @Override
+    public synchronized Optional<PendingRepair> findPendingRepair(UUID repairId) {
+        return Optional.ofNullable(repairsById.get(repairId));
     }
 }

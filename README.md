@@ -10,6 +10,11 @@ The program is organized as small, testable service slices because every later
 capability depends on a trusted money movement core, a controlled identity
 surface, and enough operational discipline to keep the system safe under load.
 
+> **Maturity:** engineering prototype, not production-ready. “Implemented” in
+> this repository means code and automated evidence exist; it does not imply a
+> deployed control, regulatory approval, live SLO history, or completed recovery
+> drill. See [current capability status](docs/product/current-capability-status.md).
+
 The implementation uses three complementary engineering styles:
 
 - **TDD:** every new behavior starts with a failing test, then the smallest
@@ -87,6 +92,16 @@ be wired to AWS MSK without changing domain event code.
 - Support repair API route requiring a mandatory justification payload.
 - Lightweight Java test runners covering service slices, BDD acceptance
   scenarios, and contract compatibility checks.
+
+## Maturity and evidence
+
+| Area | Repository evidence | Remaining before production |
+| --- | --- | --- |
+| Customer payment API | Authenticated ownership checks, beneficiary IDs, decimal-string money, idempotency conflict tests, validated OpenAPI | Bind voice outcome to payment completion and deploy behind managed OIDC/ingress |
+| Ledger and orchestration | Append-only migrations, reservations, optimistic saga versions, recovery/reconciliation states, PostgreSQL migration job | Live repository concurrency/restore drills and settlement-provider reconciliation |
+| Voice | Authenticated containerized runtime, transaction-bound single-use challenges, 90%+ Python coverage | Independent biometric, spoof, accessibility and physical-device evaluation |
+| Delivery security | Pinned CI actions, scans, SBOM/provenance/signing workflow, immutable digest promotion design | Protect required checks and execute a signed release in the target registry |
+| Operations and compliance | SLO/runbook/threat-model/POPIA/FICA/PCI scope documents | Named-owner approval, production telemetry history, DR exercise and formal assessments |
 
 ## Benchmark
 

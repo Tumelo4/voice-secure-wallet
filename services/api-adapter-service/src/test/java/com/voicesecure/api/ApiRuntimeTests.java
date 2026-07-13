@@ -1,5 +1,7 @@
 package com.voicesecure.api;
 
+import com.voicesecure.beneficiaries.BeneficiaryService;
+import com.voicesecure.beneficiaries.InMemoryBeneficiaryRepository;
 import com.voicesecure.payments.AuthPolicy;
 import com.voicesecure.payments.FraudDecision;
 import com.voicesecure.payments.InMemoryPaymentSagaRepository;
@@ -16,6 +18,7 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.Clock;
 import java.util.Map;
 import java.util.UUID;
 
@@ -44,9 +47,9 @@ public final class ApiRuntimeTests {
 
         ApiResponse response = fixture.runtime.handle(new ApiRequest(
                 "POST",
-                "/payments",
-                Map.of("X-Trace-Id", "trace-runtime-1", "Idempotency-Key", UUID.randomUUID().toString()),
-                paymentBody(UUID.randomUUID(), 100)
+                "/v1/payments",
+                Map.of("X-Trace-Id", "trace-runtime-1"),
+                paymentBody(100)
         ));
 
         assertEquals(401, response.status(), "missing token status");
@@ -151,26 +154,23 @@ public final class ApiRuntimeTests {
 
     private static void forwardsAndLogsValidRequests() {
         Fixture fixture = fixture();
-        UUID sagaId = UUID.fromString("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
-        UUID idempotencyKey = UUID.fromString("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
-
         ApiResponse response = fixture.runtime.handle(new ApiRequest(
                 "POST",
-                "/payments",
+                "/v1/payments",
                 java.util.Map.of(
                         "Authorization", "Bearer " + fixture.tokenUser1,
-                        "Idempotency-Key", idempotencyKey.toString(),
-                        "X-Trace-Id", "trace-runtime-4"
+                        "X-Trace-Id", "trace-runtime-4",
+                        "Idempotency-Key", "55555555-5555-4555-8555-555555555555"
                 ),
-                paymentBody(sagaId, 750)
+                paymentBody(750)
         ));
 
         assertEquals(202, response.status(), "valid payment status");
-        assertContains(response.body(), "\"state\":\"VOICE_VERIFICATION_PENDING\"", "payment state");
+        assertContains(response.body(), "\"state\":\"AUTHORISATION_REQUIRED\"", "payment state");
         ApiRequestLogEntry entry = fixture.logSink.entries().get(0);
         assertEquals("trace-runtime-4", entry.traceId(), "logged trace");
         assertEquals(fixture.user1Id.toString(), entry.principalId(), "logged principal");
-        assertEquals("/payments", entry.path(), "logged path");
+        assertEquals("/v1/payments", entry.path(), "logged path");
         assertEquals(202, entry.status(), "logged status");
     }
 
@@ -189,16 +189,18 @@ public final class ApiRuntimeTests {
         identityService.registerDevice(user1Id, user1DeviceId, generateKeyPair().getPublic());
         identityService.registerDevice(user2Id, user2DeviceId, generateKeyPair().getPublic());
         UUID accountId = UUID.fromString("11111111-1111-4111-8111-111111111111");
-        walletService.openWallet(
-                UUID.fromString("22222222-2222-4222-8222-222222222222"),
-                accountId,
-                "Everyday wallet",
-                "ZAR"
-        );
+        walletService.openWallet(user1Id, accountId, "Everyday wallet", "ZAR");
+        UUID destinationId = UUID.fromString("ffffffff-ffff-4fff-8fff-ffffffffffff");
+        walletService.openWallet(user2Id, destinationId, "Maya Nkosi", "ZAR");
+        BeneficiaryService beneficiaryService = new BeneficiaryService(
+                new InMemoryBeneficiaryRepository(), (customer, destination) -> Duration.ZERO, Clock.systemUTC());
+        beneficiaryService.registerVerified(
+                UUID.fromString("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"), user1Id, destinationId,
+                "Maya Nkosi", "0000EEEE", "ZAR");
         walletService.applyBalanceSnapshot(accountId, "ZAR", 1_250, Instant.parse("2026-06-20T12:00:00Z"));
         CountingApiEndpoint router = new CountingApiEndpoint(new ApiRouter(java.util.List.of(
                 new HealthApiAdapter(),
-                new PaymentApiAdapter(paymentService, request -> new FraudDecision(0.18, AuthPolicy.VOICE_OTP, true, "")),
+                new PaymentApiAdapter(paymentService, request -> new FraudDecision(0.18, AuthPolicy.VOICE_OTP, true, ""), walletService, beneficiaryService),
                 new WalletApiAdapter(walletService),
                 new SupportRepairApiAdapter(supportService)
         )));
@@ -226,14 +228,12 @@ public final class ApiRuntimeTests {
         return new Fixture(runtime, router, logSink, accountId, user1Id, tokenUser1, tokenUser2);
     }
 
-    private static String paymentBody(UUID sagaId, long amount) {
+    private static String paymentBody(long amount) {
         return "{"
-                + "\"sagaId\":\"" + sagaId + "\","
-                + "\"userId\":\"cccccccc-cccc-4ccc-8ccc-cccccccccccc\","
-                + "\"fromAccountId\":\"dddddddd-dddd-4ddd-8ddd-dddddddddddd\","
-                + "\"toAccountId\":\"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee\","
-                + "\"amount\":" + amount + ","
-                + "\"currency\":\"ZAR\""
+                + "\"sourceAccountId\":\"11111111-1111-4111-8111-111111111111\","
+                + "\"beneficiaryId\":\"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee\","
+                + "\"amount\":{\"value\":\"" + amount + ".00\",\"currency\":\"ZAR\"},"
+                + "\"reference\":\"Dinner split\""
                 + "}";
     }
 

@@ -1,0 +1,6 @@
+.git
+.codex_tmp
+**/target
+**/node_modules
+**/__pycache__
+*.pdf

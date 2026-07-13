@@ -9,6 +9,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,7 +41,7 @@ public final class PostgresLedgerRepository implements LedgerRepository {
             ON CONFLICT (idempotency_key) DO NOTHING
             """;
     private static final String SELECT_ACCOUNTS = """
-            SELECT account_id, balance, currency, version, updated_at
+            SELECT account_id, balance, reserved_balance, currency, version, updated_at
             FROM account_balances
             WHERE account_id = ?
             FOR UPDATE
@@ -107,14 +108,31 @@ public final class PostgresLedgerRepository implements LedgerRepository {
                 saga_id,
                 idempotency_key,
                 requested_by,
+                approved_by,
                 justification,
                 created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """;
     private static final String SELECT_BALANCES = """
-            SELECT account_id, balance, currency, version, updated_at
+            SELECT account_id, balance, reserved_balance, currency, version, updated_at
             FROM account_balances
             ORDER BY account_id
+            """;
+    private static final String SELECT_RESERVATION = """
+            SELECT reservation_id, payment_id, account_id, amount, currency, status, created_at, expires_at
+            FROM fund_reservations WHERE reservation_id = ?
+            """;
+    private static final String SELECT_RESERVATION_FOR_UPDATE = SELECT_RESERVATION + " FOR UPDATE";
+    private static final String INSERT_RESERVATION = """
+            INSERT INTO fund_reservations (
+                reservation_id, payment_id, account_id, amount, currency, status, created_at, expires_at
+            ) VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?, ?)
+            """;
+    private static final String UPDATE_RESERVED_BALANCE = """
+            UPDATE account_balances SET reserved_balance = ?, version = ?, updated_at = ? WHERE account_id = ?
+            """;
+    private static final String UPDATE_RESERVATION_STATUS = """
+            UPDATE fund_reservations SET status = ? WHERE reservation_id = ?
             """;
 
     private final DataSource dataSource;
@@ -173,6 +191,67 @@ public final class PostgresLedgerRepository implements LedgerRepository {
     }
 
     @Override
+    public FundReservation reserve(
+            UUID reservationId, UUID paymentId, UUID accountId, long amount, String currency, Duration ttl
+    ) {
+        Objects.requireNonNull(reservationId, "reservationId");
+        Objects.requireNonNull(paymentId, "paymentId");
+        Objects.requireNonNull(accountId, "accountId");
+        if (amount <= 0 || ttl == null || ttl.isZero() || ttl.isNegative()) throw new LedgerException("invalid reservation");
+        return inTransaction(connection -> {
+            Optional<FundReservation> existing = loadReservation(connection, reservationId, false);
+            if (existing.isPresent()) {
+                FundReservation value = existing.get();
+                if (!value.paymentId().equals(paymentId) || !value.accountId().equals(accountId)
+                        || value.amount() != amount || !value.currency().equals(currency)) {
+                    throw new LedgerException("reservation id reused with different request");
+                }
+                return value;
+            }
+            AccountState account = lockAccount(connection, accountId);
+            if (!account.currency().equals(currency)) throw new LedgerException("reservation currency does not match account currency");
+            if (account.balance() - account.reserved() < amount) throw new LedgerException("insufficient available funds");
+            Instant now = Instant.now();
+            FundReservation reservation = new FundReservation(
+                    reservationId, paymentId, accountId, amount, currency,
+                    FundReservation.Status.ACTIVE, now, now.plus(ttl));
+            try (PreparedStatement insert = connection.prepareStatement(INSERT_RESERVATION)) {
+                insert.setObject(1, reservationId); insert.setObject(2, paymentId); insert.setObject(3, accountId);
+                insert.setLong(4, amount); insert.setString(5, currency);
+                insert.setTimestamp(6, Timestamp.from(now)); insert.setTimestamp(7, Timestamp.from(reservation.expiresAt()));
+                insert.executeUpdate();
+            }
+            updateReservedBalance(connection, accountId, account.reserved() + amount, account.version() + 1, now);
+            return reservation;
+        });
+    }
+
+    @Override
+    public FundReservation release(UUID reservationId) {
+        return inTransaction(connection -> {
+            FundReservation current = loadReservation(connection, reservationId, true)
+                    .orElseThrow(() -> new LedgerException("reservation not found"));
+            if (current.status() != FundReservation.Status.ACTIVE) return current;
+            AccountState account = lockAccount(connection, current.accountId());
+            Instant now = Instant.now();
+            try (PreparedStatement update = connection.prepareStatement(UPDATE_RESERVATION_STATUS)) {
+                update.setString(1, FundReservation.Status.RELEASED.name());
+                update.setObject(2, reservationId);
+                update.executeUpdate();
+            }
+            updateReservedBalance(connection, current.accountId(), account.reserved() - current.amount(), account.version() + 1, now);
+            return new FundReservation(
+                    current.reservationId(), current.paymentId(), current.accountId(), current.amount(), current.currency(),
+                    FundReservation.Status.RELEASED, current.createdAt(), current.expiresAt());
+        });
+    }
+
+    @Override
+    public Optional<FundReservation> findReservation(UUID reservationId) {
+        return inTransaction(connection -> loadReservation(connection, reservationId, false));
+    }
+
+    @Override
     public List<LedgerEntry> entries() {
         return inTransaction(connection -> {
             List<LedgerEntry> items = new ArrayList<>();
@@ -226,6 +305,9 @@ public final class PostgresLedgerRepository implements LedgerRepository {
                     AccountBalance balance = new AccountBalance(
                             resultSet.getObject("account_id", UUID.class),
                             resultSet.getLong("balance"),
+                            resultSet.getLong("balance") - resultSet.getLong("reserved_balance"),
+                            resultSet.getLong("reserved_balance"),
+                            0,
                             resultSet.getString("currency"),
                             resultSet.getLong("version"),
                             resultSet.getTimestamp("updated_at").toInstant()
@@ -384,6 +466,7 @@ public final class PostgresLedgerRepository implements LedgerRepository {
                     }
                     AccountState state = new AccountState(
                             resultSet.getLong("balance"),
+                            resultSet.getLong("reserved_balance"),
                             resultSet.getString("currency"),
                             resultSet.getLong("version"),
                             resultSet.getTimestamp("updated_at").toInstant()
@@ -407,7 +490,7 @@ public final class PostgresLedgerRepository implements LedgerRepository {
             }
             long currentBalance = projected.getOrDefault(posting.accountId(), current.balance());
             long next = currentBalance + posting.signedAmount();
-            if (next < 0) {
+            if (next < current.reserved()) {
                 throw new LedgerException("insufficient funds for account: " + posting.accountId());
             }
             projected.put(posting.accountId(), next);
@@ -488,7 +571,9 @@ public final class PostgresLedgerRepository implements LedgerRepository {
             statement.setObject(4, repairRequest.idempotencyKey());
             statement.setString(5, repairRequest.requestedBy());
             statement.setString(6, repairRequest.justification());
-            statement.setTimestamp(7, Timestamp.from(now));
+            statement.setString(6, repairRequest.approvedBy());
+            statement.setString(7, repairRequest.justification());
+            statement.setTimestamp(8, Timestamp.from(now));
             statement.executeUpdate();
         }
     }
@@ -596,7 +681,42 @@ public final class PostgresLedgerRepository implements LedgerRepository {
         T apply(Connection connection) throws SQLException;
     }
 
-    private record AccountState(long balance, String currency, long version, Instant updatedAt) {
+    private AccountState lockAccount(Connection connection, UUID accountId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(SELECT_ACCOUNTS)) {
+            statement.setObject(1, accountId);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) throw new LedgerException("account does not exist: " + accountId);
+                return new AccountState(
+                        resultSet.getLong("balance"), resultSet.getLong("reserved_balance"),
+                        resultSet.getString("currency"), resultSet.getLong("version"),
+                        resultSet.getTimestamp("updated_at").toInstant());
+            }
+        }
+    }
+
+    private Optional<FundReservation> loadReservation(Connection connection, UUID reservationId, boolean forUpdate) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(forUpdate ? SELECT_RESERVATION_FOR_UPDATE : SELECT_RESERVATION)) {
+            statement.setObject(1, reservationId);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) return Optional.empty();
+                return Optional.of(new FundReservation(
+                        resultSet.getObject("reservation_id", UUID.class), resultSet.getObject("payment_id", UUID.class),
+                        resultSet.getObject("account_id", UUID.class), resultSet.getLong("amount"),
+                        resultSet.getString("currency"), FundReservation.Status.valueOf(resultSet.getString("status")),
+                        resultSet.getTimestamp("created_at").toInstant(), resultSet.getTimestamp("expires_at").toInstant()));
+            }
+        }
+    }
+
+    private void updateReservedBalance(Connection connection, UUID accountId, long reserved, long version, Instant now) throws SQLException {
+        try (PreparedStatement update = connection.prepareStatement(UPDATE_RESERVED_BALANCE)) {
+            update.setLong(1, reserved); update.setLong(2, version);
+            update.setTimestamp(3, Timestamp.from(now)); update.setObject(4, accountId);
+            update.executeUpdate();
+        }
+    }
+
+    private record AccountState(long balance, long reserved, String currency, long version, Instant updatedAt) {
     }
 
     private record BatchRecord(
@@ -627,7 +747,8 @@ public final class PostgresLedgerRepository implements LedgerRepository {
             List<Posting> postings,
             UUID repairId,
             String justification,
-            String requestedBy
+            String requestedBy,
+            String approvedBy
     ) {
         private LedgerCommand {
             postings = List.copyOf(postings);
@@ -635,7 +756,7 @@ public final class PostgresLedgerRepository implements LedgerRepository {
 
         static LedgerCommand from(LedgerTransaction transaction, RepairRequest repairRequest) {
             if (repairRequest == null) {
-                return new LedgerCommand("TRANSFER", transaction.sagaId(), transaction.currency(), transaction.postings(), null, "", "");
+                return new LedgerCommand("TRANSFER", transaction.sagaId(), transaction.currency(), transaction.postings(), null, "", "", "");
             }
             return new LedgerCommand(
                     "REPAIR",
@@ -644,7 +765,8 @@ public final class PostgresLedgerRepository implements LedgerRepository {
                     repairRequest.postings(),
                     repairRequest.repairId(),
                     repairRequest.justification(),
-                    repairRequest.requestedBy()
+                    repairRequest.requestedBy(),
+                    repairRequest.approvedBy()
             );
         }
 
@@ -659,6 +781,7 @@ public final class PostgresLedgerRepository implements LedgerRepository {
                     + "|" + repairId
                     + "|" + justification
                     + "|" + requestedBy
+                    + "|" + approvedBy
                     + "|" + postingsJoiner;
         }
     }

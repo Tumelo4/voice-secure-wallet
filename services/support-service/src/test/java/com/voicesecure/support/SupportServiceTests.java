@@ -68,20 +68,12 @@ public final class SupportServiceTests {
         );
         fixture.service.ingestLedgerBatch(transfer);
 
-        RepairRequest repairRequest = new RepairRequest(
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                "ZAR",
-                List.of(
-                        Posting.repairDebit(fixture.destination, 50),
-                        Posting.repairCredit(fixture.source, 50)
-                ),
-                "COMPENSATION_FAILED drill corrective entry",
-                "sre@example.com"
-        );
-
-        LedgerBatch repaired = fixture.service.requestRepair(repairRequest);
+        UUID repairId = UUID.randomUUID();
+        fixture.service.requestRepair(
+                repairId, UUID.randomUUID(), "ZAR",
+                List.of(Posting.repairDebit(fixture.destination, 50), Posting.repairCredit(fixture.source, 50)),
+                "COMPENSATION_FAILED drill corrective entry", "sre@example.com");
+        LedgerBatch repaired = fixture.service.approveRepair(repairId, UUID.randomUUID(), "finance@example.com");
 
         assertEquals(2, repaired.entries().size(), "repair should produce balanced entries");
         assertEquals(1L, fixture.repository.cases().stream().filter(caseRecord -> caseRecord.type() == SupportCaseType.REPAIR_ESCALATION).count(), "repair case should be stored");
@@ -95,20 +87,14 @@ public final class SupportServiceTests {
         SupportService service = new SupportService(repository, repairRequest -> {
             throw new SupportException("ledger unavailable");
         });
-        RepairRequest repairRequest = new RepairRequest(
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                "ZAR",
-                List.of(
-                        Posting.repairDebit(UUID.randomUUID(), 50),
-                        Posting.repairCredit(UUID.randomUUID(), 50)
-                ),
-                "COMPENSATION_FAILED drill corrective entry",
-                "sre@example.com"
-        );
-
-        assertThrows(SupportException.class, () -> service.requestRepair(repairRequest), "ledger failure should bubble up");
+        UUID repairId = UUID.randomUUID();
+        service.requestRepair(
+                repairId, UUID.randomUUID(), "ZAR",
+                List.of(Posting.repairDebit(UUID.randomUUID(), 50), Posting.repairCredit(UUID.randomUUID(), 50)),
+                "COMPENSATION_FAILED drill corrective entry", "sre@example.com");
+        assertThrows(SupportException.class,
+                () -> service.approveRepair(repairId, UUID.randomUUID(), "finance@example.com"),
+                "ledger failure should bubble up");
         assertEquals(1, repository.cases().size(), "repair case should be saved before ledger repair");
         assertEquals(1L, repository.auditLog().stream().filter(entry -> entry.action().equals("support.repair_requested")).count(), "repair request audit should be stored");
     }

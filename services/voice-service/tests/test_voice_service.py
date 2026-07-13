@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import datetime, timedelta, timezone
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from voice_service import (
     AuthPolicy,
@@ -12,6 +12,7 @@ from voice_service import (
     VoiceServiceError,
     VoiceStatus,
     VoiceVerificationRequest,
+    transaction_binding,
 )
 
 
@@ -222,6 +223,28 @@ class VoiceServiceTests(unittest.TestCase):
         self.assertEqual(FallbackMethod.OTP, self.service.fallback_method_for(AuthPolicy.VOICE_ONLY, 1000))
         self.assertEqual(FallbackMethod.OTP, self.service.fallback_method_for(AuthPolicy.VOICE_OTP, 9000))
         self.assertEqual(FallbackMethod.PIN, self.service.fallback_method_for(AuthPolicy.DEVICE_PIN, 9000))
+
+    def test_voice_challenge_is_bound_to_exact_payment(self) -> None:
+        binding = transaction_binding("account-1", "maya", "750", "zar", "Dinner split")
+        challenge = self.service.issue_challenge(self.user_id, self.challenge_phrase, transaction_binding_hash=binding)
+        result = self.service.verify(
+            VoiceVerificationRequest(
+                user_id=self.user_id,
+                challenge_id=challenge.challenge_id,
+                transcript=self.challenge_phrase,
+                embedding=(0.91, 0.19, 0.30, 0.40),
+                liveness_score=0.96,
+                spoof_score=0.05,
+                audio_fingerprint_hash="bound-fingerprint",
+                auth_policy=AuthPolicy.VOICE_ONLY,
+                transaction_amount=75000,
+                voice_threshold=0.75,
+                captured_at=datetime.now(timezone.utc),
+                transaction_binding_hash=transaction_binding("account-1", "maya", "751", "ZAR", "Dinner split"),
+            )
+        )
+        self.assertEqual(VoiceStatus.SPOOF_DETECTED, result.status)
+        self.assertEqual("transaction binding mismatch", result.reason)
 
 
 if __name__ == "__main__":

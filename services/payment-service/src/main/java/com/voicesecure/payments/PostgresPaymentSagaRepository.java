@@ -18,14 +18,14 @@ public final class PostgresPaymentSagaRepository implements PaymentSagaRepositor
     private static final String SELECT_SAGA_BY_ID = """
             SELECT saga_id, idempotency_key, user_id, from_account_id, to_account_id, amount, currency,
                    trace_id, created_at, updated_at, completed_at, fraud_score, auth_policy,
-                   fallback_method, state, state_history, persisted_event_count
+                   fallback_method, state, state_history, persisted_event_count, version
             FROM payment_sagas
             WHERE saga_id = ?
             """;
     private static final String SELECT_SAGA_BY_IDEMPOTENCY = """
             SELECT saga_id, idempotency_key, user_id, from_account_id, to_account_id, amount, currency,
                    trace_id, created_at, updated_at, completed_at, fraud_score, auth_policy,
-                   fallback_method, state, state_history, persisted_event_count
+                   fallback_method, state, state_history, persisted_event_count, version
             FROM payment_sagas
             WHERE idempotency_key = ?
             """;
@@ -40,6 +40,16 @@ public final class PostgresPaymentSagaRepository implements PaymentSagaRepositor
             FROM payment_sagas
             WHERE saga_id = ?
             FOR UPDATE
+            """;
+    private static final String SELECT_STUCK_SAGA_IDS = """
+            SELECT saga_id FROM payment_sagas
+            WHERE completed_at IS NULL AND updated_at < ?
+              AND state NOT IN (
+                'FRAUD_REJECTED', 'VOICE_VERIFICATION_TIMEOUT', 'VOICE_REJECTED',
+                'VOICE_FALLBACK_FAILED', 'FUNDS_RESERVATION_FAILED', 'COMPLETED',
+                'COMPENSATED', 'COMPENSATION_FAILED', 'FAILED'
+              )
+            ORDER BY updated_at, saga_id
             """;
     private static final String INSERT_SAGA = """
             INSERT INTO payment_sagas (
@@ -59,8 +69,9 @@ public final class PostgresPaymentSagaRepository implements PaymentSagaRepositor
                 created_at,
                 updated_at,
                 completed_at,
-                persisted_event_count
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                persisted_event_count,
+                version
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
     private static final String UPDATE_SAGA = """
             UPDATE payment_sagas
@@ -78,8 +89,9 @@ public final class PostgresPaymentSagaRepository implements PaymentSagaRepositor
                 fallback_method = ?,
                 updated_at = ?,
                 completed_at = ?,
-                persisted_event_count = ?
-            WHERE saga_id = ?
+                persisted_event_count = ?,
+                version = ?
+            WHERE saga_id = ? AND version = ?
             """;
     private static final String INSERT_EVENT = """
             INSERT INTO payment_saga_events (
@@ -110,6 +122,23 @@ public final class PostgresPaymentSagaRepository implements PaymentSagaRepositor
     }
 
     @Override
+    public List<PaymentSaga> findNonTerminalUpdatedBefore(Instant cutoff) {
+        List<UUID> ids = inTransaction(connection -> {
+            List<UUID> result = new ArrayList<>();
+            try (PreparedStatement statement = connection.prepareStatement(SELECT_STUCK_SAGA_IDS)) {
+                statement.setTimestamp(1, Timestamp.from(Objects.requireNonNull(cutoff, "cutoff")));
+                try (ResultSet resultSet = statement.executeQuery()) {
+                    while (resultSet.next()) result.add(resultSet.getObject(1, UUID.class));
+                }
+            }
+            return List.copyOf(result);
+        });
+        List<PaymentSaga> sagas = new ArrayList<>();
+        for (UUID id : ids) findBySagaId(id).ifPresent(sagas::add);
+        return List.copyOf(sagas);
+    }
+
+    @Override
     public void save(PaymentSaga saga) {
         Objects.requireNonNull(saga, "saga");
         inTransaction(connection -> {
@@ -120,6 +149,7 @@ public final class PostgresPaymentSagaRepository implements PaymentSagaRepositor
             insert(connection, saga);
             return null;
         });
+        saga.markPersisted();
     }
 
     private Optional<PaymentSaga> load(String sql, UUID key) {
@@ -144,6 +174,7 @@ public final class PostgresPaymentSagaRepository implements PaymentSagaRepositor
                             snapshot.createdAt(),
                             snapshot.updatedAt(),
                             snapshot.completedAt(),
+                            snapshot.version(),
                             snapshot.fraudScore(),
                             snapshot.authPolicy(),
                             snapshot.fallbackMethod(),
@@ -176,8 +207,11 @@ public final class PostgresPaymentSagaRepository implements PaymentSagaRepositor
         PaymentSagaSnapshot snapshot = saga.snapshot();
         try (PreparedStatement statement = connection.prepareStatement(UPDATE_SAGA)) {
             bindSagaUpdate(statement, snapshot, events.size());
-            statement.setObject(16, saga.sagaId());
-            statement.executeUpdate();
+            statement.setObject(17, saga.sagaId());
+            statement.setLong(18, saga.persistedVersion());
+            if (statement.executeUpdate() != 1) {
+                throw new PaymentException("payment saga was concurrently modified");
+            }
         }
         insertEvents(connection, saga, persistedEventCount);
     }
@@ -236,6 +270,7 @@ public final class PostgresPaymentSagaRepository implements PaymentSagaRepositor
                 resultSet.getTimestamp("created_at").toInstant(),
                 resultSet.getTimestamp("updated_at").toInstant(),
                 timestampOrNull(resultSet, "completed_at"),
+                resultSet.getLong("version"),
                 resultSet.getDouble("fraud_score"),
                 enumOrNull(resultSet.getString("auth_policy"), AuthPolicy.class),
                 enumOrNull(resultSet.getString("fallback_method"), FallbackMethod.class),
@@ -280,6 +315,7 @@ public final class PostgresPaymentSagaRepository implements PaymentSagaRepositor
         statement.setTimestamp(15, Timestamp.from(snapshot.updatedAt()));
         setNullableTimestamp(statement, 16, snapshot.completedAt());
         statement.setLong(17, persistedEventCount);
+        statement.setLong(18, snapshot.version());
     }
 
     private void bindSagaUpdate(PreparedStatement statement, PaymentSagaSnapshot snapshot, int persistedEventCount) throws SQLException {
@@ -298,6 +334,7 @@ public final class PostgresPaymentSagaRepository implements PaymentSagaRepositor
         statement.setTimestamp(13, Timestamp.from(snapshot.updatedAt()));
         setNullableTimestamp(statement, 14, snapshot.completedAt());
         statement.setLong(15, persistedEventCount);
+        statement.setLong(16, snapshot.version());
     }
 
     private static void setNullableEnum(PreparedStatement statement, int index, Enum<?> value) throws SQLException {

@@ -3,7 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+from hashlib import sha256
 from math import sqrt
+from decimal import Decimal, InvalidOperation
 from typing import Iterable, Optional, Protocol, Sequence
 from uuid import UUID, uuid4
 
@@ -27,23 +29,17 @@ class AuthPolicy(str, Enum):
     DEVICE_PIN = "DEVICE_PIN"
 
 
-try:
-    frozen_slots_dataclass = dataclass(frozen=True, slots=True)
-except TypeError:
-    # Python 3.9 lacks dataclass(slots=True); keep the model importable there.
-    frozen_slots_dataclass = dataclass(frozen=True)
-
-
-@frozen_slots_dataclass
+@dataclass(frozen=True)
 class VoiceChallenge:
     challenge_id: UUID
     user_id: UUID
     phrase: str
     issued_at: datetime
     expires_at: datetime
+    transaction_binding_hash: str = ""
 
 
-@frozen_slots_dataclass
+@dataclass(frozen=True)
 class VoiceProfile:
     user_id: UUID
     embedding: tuple[float, ...]
@@ -51,7 +47,7 @@ class VoiceProfile:
     sample_count: int
 
 
-@frozen_slots_dataclass
+@dataclass(frozen=True)
 class VoiceVerificationRequest:
     user_id: UUID
     challenge_id: UUID
@@ -64,9 +60,10 @@ class VoiceVerificationRequest:
     transaction_amount: int
     voice_threshold: float
     captured_at: datetime
+    transaction_binding_hash: str = ""
 
 
-@frozen_slots_dataclass
+@dataclass(frozen=True)
 class VoiceVerificationResult:
     verification_id: UUID
     user_id: UUID
@@ -174,7 +171,13 @@ class VoiceService:
         self._repository.save_profile(profile)
         return profile
 
-    def issue_challenge(self, user_id: UUID, phrase: str, ttl_seconds: int = 30) -> VoiceChallenge:
+    def issue_challenge(
+        self,
+        user_id: UUID,
+        phrase: str,
+        ttl_seconds: int = 30,
+        transaction_binding_hash: str = "",
+    ) -> VoiceChallenge:
         if not phrase.strip():
             raise VoiceServiceError("challenge phrase is required")
         if ttl_seconds <= 0:
@@ -186,6 +189,7 @@ class VoiceService:
             phrase=phrase.strip(),
             issued_at=issued_at,
             expires_at=issued_at + timedelta(seconds=ttl_seconds),
+            transaction_binding_hash=transaction_binding_hash.strip(),
         )
         self._repository.save_challenge(challenge)
         return challenge
@@ -205,6 +209,12 @@ class VoiceService:
 
         if challenge.user_id != request.user_id:
             return self._reject(request, "challenge does not belong to user", VoiceStatus.REJECTED)
+
+        if challenge.transaction_binding_hash and not _constant_time_equal(
+            challenge.transaction_binding_hash,
+            request.transaction_binding_hash,
+        ):
+            return self._reject(request, "transaction binding mismatch", VoiceStatus.SPOOF_DETECTED)
 
         if self._repository.challenge_attempted(request.challenge_id):
             return self._reject(request, "challenge already used", VoiceStatus.SPOOF_DETECTED)
@@ -282,7 +292,7 @@ def _cosine_similarity(left: Iterable[float], right: Iterable[float]) -> float:
     right_values = tuple(float(value) for value in right)
     if len(left_values) != len(right_values):
         raise VoiceServiceError("embedding dimensions must match")
-    dot = sum(l * r for l, r in zip(left_values, right_values))
+    dot = sum(left * right for left, right in zip(left_values, right_values))
     left_norm = sqrt(sum(value * value for value in left_values))
     right_norm = sqrt(sum(value * value for value in right_values))
     if left_norm == 0.0 or right_norm == 0.0:
@@ -297,6 +307,40 @@ def _confidence(similarity: float, liveness_score: float, spoof_score: float) ->
 
 def _normalize(value: str) -> str:
     return " ".join(value.lower().strip().split())
+
+
+def transaction_binding(
+    source_account_id: str,
+    beneficiary_id: str,
+    amount: str,
+    currency: str,
+    reference: str,
+) -> str:
+    try:
+        normalized_amount = str(Decimal(amount).quantize(Decimal("0.01")))
+    except (InvalidOperation, ValueError) as error:
+        raise VoiceServiceError("payment amount is invalid") from error
+    canonical = "|".join(
+        (
+            source_account_id.strip(),
+            beneficiary_id.strip(),
+            normalized_amount,
+            currency.strip().upper(),
+            _normalize(reference),
+        )
+    )
+    if not source_account_id.strip() or not beneficiary_id.strip() or not reference.strip():
+        raise VoiceServiceError("transaction binding fields are required")
+    return sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _constant_time_equal(left: str, right: str) -> bool:
+    if len(left) != len(right):
+        return False
+    difference = 0
+    for left_char, right_char in zip(left.encode("utf-8"), right.encode("utf-8")):
+        difference |= left_char ^ right_char
+    return difference == 0
 
 
 def _validate_verification_request(request: VoiceVerificationRequest) -> None:

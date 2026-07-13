@@ -14,15 +14,14 @@ import {
   requestSucceeded,
 } from "../src/state/apiRequestModel.ts";
 
-test("startPayment sends auth, trace, idempotency, and JSON body", async () => {
+test("startPayment sends customer intent and a hidden idempotency header", async () => {
   const transport = new RecordingTransport({
     status: 202,
     body: JSON.stringify({
-      sagaId: "saga-1",
-      state: "VOICE_VERIFICATION_PENDING",
-      traceId: "trace-mobile-1",
+      paymentReference: "VSW-12345678",
+      state: "AUTHORISATION_REQUIRED",
       authPolicy: "VOICE_OTP",
-      eventCount: 4,
+      message: "Payment submitted for secure verification.",
     }),
   });
   const client = new VoiceSecureApiClient({
@@ -32,29 +31,24 @@ test("startPayment sends auth, trace, idempotency, and JSON body", async () => {
   });
 
   const result = await client.startPayment({
-    sagaId: "saga-1",
-    idempotencyKey: "idem-1",
-    userId: "user-1",
-    fromAccountId: "from-1",
-    toAccountId: "to-1",
-    amount: 750,
-    currency: "ZAR",
+    sourceAccountId: "from-1",
+    beneficiaryId: "to-1",
+    amount: { value: "750.00", currency: "ZAR" },
+    reference: "Dinner split",
   });
 
-  assert.equal(result.state, "VOICE_VERIFICATION_PENDING");
+  assert.equal(result.state, "AUTHORISATION_REQUIRED");
   assert.equal(result.authPolicy, "VOICE_OTP");
   assert.equal(transport.requests[0].method, "POST");
-  assert.equal(transport.requests[0].path, "/payments");
+  assert.equal(transport.requests[0].path, "/v1/payments");
   assert.equal(transport.requests[0].headers.Authorization, "Bearer token-user-1");
   assert.equal(transport.requests[0].headers["X-Trace-Id"], "trace-mobile-1");
-  assert.equal(transport.requests[0].headers["Idempotency-Key"], "idem-1");
+  assert.match(transport.requests[0].headers["Idempotency-Key"] ?? "", /^[0-9a-f-]{36}$/i);
   assert.deepEqual(JSON.parse(transport.requests[0].body ?? "{}"), {
-    sagaId: "saga-1",
-    userId: "user-1",
-    fromAccountId: "from-1",
-    toAccountId: "to-1",
-    amount: 750,
-    currency: "ZAR",
+    sourceAccountId: "from-1",
+    beneficiaryId: "to-1",
+    amount: { value: "750.00", currency: "ZAR" },
+    reference: "Dinner split",
   });
 });
 
@@ -83,6 +77,57 @@ test("getWalletBalance maps wallet runtime response", async () => {
   assert.equal(transport.requests[0].path, "/wallets/wallet-1/balance");
   assert.equal(transport.requests[0].headers.Authorization, "Bearer token-user-1");
   assert.equal(transport.requests[0].headers["X-Trace-Id"], "trace-wallet-1");
+});
+
+test("getPaymentStatus reads only a customer-safe payment reference", async () => {
+  const transport = new RecordingTransport({
+    status: 200,
+    body: JSON.stringify({ paymentReference: "VSW-safe_reference", state: "PROCESSING", authPolicy: "VOICE_OTP", message: "Processing." }),
+  });
+  const client = new VoiceSecureApiClient({ token: "token-user-1", traceIdFactory: () => "trace-status", transport });
+
+  const result = await client.getPaymentStatus("VSW-safe_reference");
+
+  assert.equal(result.state, "PROCESSING");
+  assert.equal(transport.requests[0].method, "GET");
+  assert.equal(transport.requests[0].path, "/v1/payments/VSW-safe_reference");
+});
+
+test("getCustomerAccounts loads only the authenticated customer's selectable accounts", async () => {
+  const transport = new RecordingTransport({
+    status: 200,
+    body: JSON.stringify({
+      accounts: [{ accountId: "acc-1", displayName: "Everyday", maskedAccountNumber: "•••• 5124", currency: "ZAR" }],
+    }),
+  });
+  const client = new VoiceSecureApiClient({
+    token: "token-user-1",
+    traceIdFactory: () => "trace-accounts-1",
+    transport,
+  });
+
+  const result = await client.getCustomerAccounts();
+
+  assert.equal(result.accounts[0].maskedAccountNumber, "•••• 5124");
+  assert.equal(transport.requests[0].path, "/v1/me/accounts");
+  assert.equal(transport.requests[0].headers.Authorization, "Bearer token-user-1");
+});
+
+test("beneficiary APIs use customer-safe identifiers and masked details", async () => {
+  const body = JSON.stringify({
+    beneficiaryId: "ben-1", displayName: "Maya", maskedAccountNumber: "•••• 9012",
+    currency: "ZAR", status: "COOLING_OFF", availableAt: "2026-07-14T12:00:00Z",
+  });
+  const transport = new RecordingTransport({ status: 201, body });
+  const client = new VoiceSecureApiClient({ token: "token-user-1", traceIdFactory: () => "trace-beneficiary", transport });
+
+  const created = await client.createBeneficiary({ displayName: "Maya", bankCode: "NED", accountNumber: "123456789012" });
+
+  assert.equal(created.beneficiaryId, "ben-1");
+  assert.equal(transport.requests[0].path, "/v1/me/beneficiaries");
+  assert.deepEqual(JSON.parse(transport.requests[0].body ?? "{}"), {
+    displayName: "Maya", bankCode: "NED", accountNumber: "123456789012",
+  });
 });
 
 test("API errors keep status, code, message, and retry hints", async () => {

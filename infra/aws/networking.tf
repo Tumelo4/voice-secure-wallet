@@ -8,6 +8,53 @@ resource "aws_vpc" "voice_secure" {
   enable_dns_support   = true
 }
 
+resource "aws_default_security_group" "restricted" {
+  vpc_id  = aws_vpc.voice_secure.id
+  ingress = []
+  egress  = []
+}
+
+resource "aws_cloudwatch_log_group" "vpc_flow" {
+  name              = "/voicesecure/${var.environment}/vpc-flow"
+  retention_in_days = 365
+  kms_key_id        = aws_kms_key.platform.arn
+}
+
+data "aws_iam_policy_document" "vpc_flow_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["vpc-flow-logs.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "vpc_flow" {
+  name               = "voicesecure-${var.environment}-vpc-flow"
+  assume_role_policy = data.aws_iam_policy_document.vpc_flow_assume_role.json
+}
+
+resource "aws_iam_role_policy" "vpc_flow" {
+  name = "voicesecure-${var.environment}-vpc-flow"
+  role = aws_iam_role.vpc_flow.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["logs:CreateLogStream", "logs:PutLogEvents", "logs:DescribeLogGroups", "logs:DescribeLogStreams"]
+      Resource = "${aws_cloudwatch_log_group.vpc_flow.arn}:*"
+    }]
+  })
+}
+
+resource "aws_flow_log" "vpc" {
+  iam_role_arn    = aws_iam_role.vpc_flow.arn
+  log_destination = aws_cloudwatch_log_group.vpc_flow.arn
+  traffic_type    = "ALL"
+  vpc_id          = aws_vpc.voice_secure.id
+}
+
 resource "aws_subnet" "private" {
   for_each = {
     for index, cidr in var.private_subnet_cidrs : tostring(index) => cidr
