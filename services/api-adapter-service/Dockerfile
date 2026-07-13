@@ -5,7 +5,10 @@ RUN mvn --batch-mode --no-transfer-progress -pl services/api-adapter-service -am
     && mkdir -p /out/lib \
     && find services -path '*/target/*.jar' -type f ! -name '*-sources.jar' ! -name '*-javadoc.jar' -exec cp {} /out/lib/ \;
 
-FROM eclipse-temurin:17.0.16_8-jre-jammy
+FROM eclipse-temurin:17.0.16_8-jre-noble
+RUN apt-get update \
+    && apt-get upgrade --yes \
+    && rm -rf /var/lib/apt/lists/*
 RUN groupadd --system voicesecure && useradd --system --gid voicesecure --home /app voicesecure
 WORKDIR /app
 COPY --from=build --chown=voicesecure:voicesecure /out/lib/ /app/lib/
