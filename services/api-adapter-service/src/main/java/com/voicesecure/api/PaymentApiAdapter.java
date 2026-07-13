@@ -97,6 +97,7 @@ public final class PaymentApiAdapter implements ApiEndpoint {
             String currency = normalizedCurrency(request.body());
             Money money = Money.parse(ApiJson.stringField(request.body(), "value"), currency);
             long amountMinor = money.minorUnits();
+            paymentReference(request.body());
             UUID idempotencyKey = requiredUuidHeader(request, "Idempotency-Key");
             PaymentRequest paymentRequest = new PaymentRequest(
                     UUID.randomUUID(),
