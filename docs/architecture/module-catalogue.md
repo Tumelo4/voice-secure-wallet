@@ -2,6 +2,7 @@
 
 | Reactor module | Classification | Runtime entry point | Data/API/event responsibility | Container/deployment |
 |---|---|---:|---|---:|
+| `test-fixtures` | Shared test-fixture library | No | Formal reusable JUnit adapter for legacy main-method suites | N/A |
 | `event-core` | Adapter/shared library | No | Event envelopes, publishers and in-memory outbox | No |
 | `identity-service` | Domain/application module | No | Identity repository and token/device rules | No |
 | `compliance-service` | Domain module | No | Compliance screening and audit concepts | No |
@@ -18,6 +19,7 @@
 | `api-adapter-service` | Application/runtime service | Yes | HTTP listener, authentication context and routes | OCI image defined; deployment not proven |
 | `contract-tests` | Test module | No | HTTP/event/schema contracts | N/A |
 | `acceptance-tests` | Test module | No | Cross-module acceptance scenarios | N/A |
+| `integration-tests` (integration profile) | Test module | No | Disposable PostgreSQL and Redpanda compatibility/failure tests | Testcontainers only |
 
 Outside the reactor, `apps/mobile` is a customer application and `services/voice-service` is a separately packaged Python biometric runtime with an OCI image. Neither has production deployment evidence.
 

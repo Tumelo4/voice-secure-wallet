@@ -10,6 +10,7 @@
   <packaging>pom</packaging>
 
   <modules>
+    <module>build-support</module>
     <module>services/event-core</module>
     <module>services/identity-service</module>
     <module>services/compliance-service</module>
@@ -33,6 +34,7 @@
     <maven.compiler.release>17</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <junit.version>5.11.4</junit.version>
+    <testcontainers.version>2.0.5</testcontainers.version>
   </properties>
 
   <dependencyManagement>
@@ -51,6 +53,12 @@
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.voicesecure</groupId>
+      <artifactId>test-fixtures</artifactId>
+      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -95,25 +103,13 @@
     </pluginManagement>
     <plugins>
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <version>3.6.0</version>
-        <executions>
-          <execution>
-            <id>add-shared-test-adapter</id>
-            <phase>generate-test-sources</phase>
-            <goals><goal>add-test-source</goal></goals>
-            <configuration>
-              <sources><source>${maven.multiModuleProjectDirectory}/build-support/src/test/java</source></sources>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <workingDirectory>${maven.multiModuleProjectDirectory}</workingDirectory>
+          <dependenciesToScan>
+            <dependency>com.voicesecure:test-fixtures</dependency>
+          </dependenciesToScan>
           <systemPropertyVariables>
             <voicesecure.testClassesDirectory>${project.build.testOutputDirectory}</voicesecure.testClassesDirectory>
           </systemPropertyVariables>
@@ -121,4 +117,13 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>integration</id>
+      <modules>
+        <module>tests/integration-tests</module>
+      </modules>
+    </profile>
+  </profiles>
 </project>

@@ -9,8 +9,8 @@
 | Idempotent payment start | Integration-tested | Hidden client header, conflict detection and durable saga/reference schema; multi-instance database load testing remains operational evidence |
 | Payment saga | Implemented prototype | Versioned snapshots, recovery scan, reconciliation/manual-review states; production runtime wiring incomplete |
 | Double-entry ledger | Unit-tested | Balance/idempotency/concurrency tests |
-| PostgreSQL ledger | Integration-tested schema | PostgreSQL 16 migration job and local smoke test; repository concurrency integration coverage remains incomplete |
-| Kafka event adapter | Broker-smoke-tested in CI | Pinned Redpanda service proves topic creation and produce/consume; adapter duplicate and outbox recovery behaviours remain deterministic integration tests |
+| PostgreSQL ledger | Testcontainers integration-tested | PostgreSQL 16 migrations, durable posting/reconstruction, append-only triggers and payment restart/optimistic locking run against disposable real databases |
+| Kafka event adapter | Testcontainers integration-tested | Pinned Redpanda covers produce/consume, duplicate delivery, out-of-order records, poison/DLQ handling and consumer restart |
 | Transactional outbox | Prototype | In-memory outbox exists; production relay evidence absent |
 | Voice verification | Packaged prototype | Authenticated HTTP service, single-use transaction-bound challenges, release image and 90%+ test coverage; biometric/device evaluation not operationally proven |
 | Mobile secure storage | Implemented abstraction | Physical-device QA pending |
