@@ -37,7 +37,7 @@ jobs:
       - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with: { distribution: temurin, java-version: "17", cache: maven }
       - run: mvn --batch-mode --no-transfer-progress -pl services/ledger-service -am install -DskipTests
-      - run: mvn --batch-mode --no-transfer-progress -pl services/ledger-service test-compile org.pitest:pitest-maven:mutationCoverage -DtargetClasses=com.voicesecure.ledger.LedgerService -DtargetTests=com.voicesecure.ledger.LedgerMutationTest
+      - run: mvn --batch-mode --no-transfer-progress -pl services/ledger-service test-compile org.pitest:pitest-maven:mutationCoverage -DtargetClasses=com.voicesecure.ledger.application.LedgerService -DtargetTests=com.voicesecure.ledger.LedgerMutationTest
       - run: mvn --batch-mode --no-transfer-progress -pl services/payment-service -am install -DskipTests
       - run: mvn --batch-mode --no-transfer-progress -pl services/payment-service test-compile org.pitest:pitest-maven:mutationCoverage -DtargetClasses=com.voicesecure.payments.Money -DtargetTests=com.voicesecure.payments.MoneyMutationTest
       - run: mvn --batch-mode --no-transfer-progress -pl services/identity-service -am install -DskipTests
