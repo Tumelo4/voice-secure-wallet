@@ -1,5 +1,9 @@
-package com.voicesecure.ledger;
+package com.voicesecure.ledger.infrastructure;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.voicesecure.ledger.*;
+import com.voicesecure.ledger.domain.LedgerRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -21,6 +25,7 @@ import java.util.UUID;
 import javax.sql.DataSource;
 
 public final class PostgresLedgerRepository implements LedgerRepository {
+    private static final ObjectMapper JSON = new ObjectMapper();
     private static final String SELECT_BATCH = """
             SELECT idempotency_key, saga_id, currency, batch_kind, repair_id, justification, requested_by, command_hash, created_at
             FROM ledger_batches
@@ -610,17 +615,16 @@ public final class PostgresLedgerRepository implements LedgerRepository {
     }
 
     private static String payloadJson(LedgerTransaction transaction, List<LedgerEntry> batchEntries) {
-        return "{"
-                + "\"batchId\":\"" + escape(transaction.idempotencyKey().toString()) + "\","
-                + "\"sagaId\":\"" + escape(transaction.sagaId().toString()) + "\","
-                + "\"idempotencyKey\":\"" + escape(transaction.idempotencyKey().toString()) + "\","
-                + "\"currency\":\"" + escape(transaction.currency()) + "\","
-                + "\"entryCount\":" + batchEntries.size()
-                + "}";
-    }
-
-    private static String escape(String value) {
-        return value.replace("\\", "\\\\").replace("\"", "\\\"");
+        try {
+            return JSON.writeValueAsString(Map.of(
+                    "batchId", transaction.idempotencyKey().toString(),
+                    "sagaId", transaction.sagaId().toString(),
+                    "idempotencyKey", transaction.idempotencyKey().toString(),
+                    "currency", transaction.currency(),
+                    "entryCount", batchEntries.size()));
+        } catch (JsonProcessingException exception) {
+            throw new LedgerException("unable to serialize ledger outbox payload", exception);
+        }
     }
 
     private static boolean isUniqueViolation(Throwable cause) {

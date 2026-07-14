@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import urllib.request
+from base64 import b64decode
 from dataclasses import asdict
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -12,6 +13,7 @@ from uuid import UUID
 from . import (
     AuthPolicy,
     InMemoryVoiceRepository,
+    RawAudioSample,
     VoiceService,
     VoiceServiceError,
     VoiceVerificationRequest,
@@ -64,7 +66,10 @@ class VoiceHttpApplication:
         try:
             payload = json.loads(body.decode("utf-8"))
             if method == "POST" and path == "/v1/voice/enrollments":
-                profile = self._service.enroll(UUID(payload["userId"]), payload["samples"])
+                profile = self._service.enroll(
+                    UUID(payload["userId"]),
+                    tuple(_raw_audio(sample) for sample in payload["audioSamples"]),
+                )
                 return 201, {"userId": str(profile.user_id), "sampleCount": profile.sample_count}
             if method == "POST" and path == "/v1/voice/challenges":
                 challenge = self._service.issue_challenge(
@@ -76,13 +81,13 @@ class VoiceHttpApplication:
                     "phrase": challenge.phrase,
                 }
             if method == "POST" and path == "/v1/voice/verifications":
+                forbidden = {"embedding", "livenessScore", "spoofScore", "audioFingerprintHash", "voiceThreshold"}
+                if forbidden.intersection(payload):
+                    raise VoiceServiceError("client-supplied inference fields are forbidden")
                 request = VoiceVerificationRequest(
                     user_id=UUID(payload["userId"]), challenge_id=UUID(payload["challengeId"]),
-                    transcript=payload["transcript"], embedding=tuple(payload["embedding"]),
-                    liveness_score=float(payload["livenessScore"]), spoof_score=float(payload["spoofScore"]),
-                    audio_fingerprint_hash=payload["audioFingerprintHash"],
+                    audio=_raw_audio(payload["audio"]),
                     auth_policy=AuthPolicy(payload["authPolicy"]), transaction_amount=int(payload["transactionAmountMinor"]),
-                    voice_threshold=float(payload["voiceThreshold"]),
                     captured_at=datetime.fromisoformat(payload["capturedAt"].replace("Z", "+00:00")).astimezone(timezone.utc),
                     transaction_binding_hash=payload["transactionBindingHash"],
                 )
@@ -101,6 +106,14 @@ class VoiceHttpApplication:
             return 404, {"code": "ROUTE_NOT_FOUND", "message": "Route not found."}
         except (KeyError, TypeError, ValueError, VoiceServiceError, json.JSONDecodeError):
             return 400, {"code": "VOICE_REQUEST_INVALID", "message": "Review the voice request and try again."}
+
+
+def _raw_audio(payload: Mapping[str, Any]) -> RawAudioSample:
+    return RawAudioSample(
+        content=b64decode(payload["contentBase64"], validate=True),
+        codec=str(payload["codec"]),
+        sample_rate_hz=int(payload["sampleRateHz"]),
+    )
 
 
 def run() -> None:  # pragma: no cover - exercised by the container health smoke test

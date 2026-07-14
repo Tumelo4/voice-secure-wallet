@@ -8,8 +8,8 @@ import com.voicesecure.payments.InMemoryPaymentSagaRepository;
 import com.voicesecure.payments.PaymentSagaService;
 import com.voicesecure.identity.IdentityService;
 import com.voicesecure.identity.InMemoryIdentityRepository;
-import com.voicesecure.ledger.InMemoryLedgerRepository;
-import com.voicesecure.ledger.LedgerService;
+import com.voicesecure.ledger.application.LedgerService;
+import com.voicesecure.ledger.infrastructure.InMemoryLedgerRepository;
 import com.voicesecure.support.InMemorySupportRepository;
 import com.voicesecure.support.SupportService;
 import com.voicesecure.wallet.InMemoryWalletRepository;
@@ -23,7 +23,10 @@ import java.security.KeyPairGenerator;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.Clock;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public final class ApiHttpServerTests {
     public static void main(String[] args) throws Exception {
@@ -32,7 +35,8 @@ public final class ApiHttpServerTests {
                 new TestCase("local listener forwards payment POST JSON", ApiHttpServerTests::forwardsPaymentPost),
                 new TestCase("local listener forwards support repair POST JSON", ApiHttpServerTests::forwardsSupportRepairPost),
                 new TestCase("local listener forwards public health GET", ApiHttpServerTests::forwardsHealthGet),
-                new TestCase("local listener preserves runtime rate-limit retry headers", ApiHttpServerTests::preservesRateLimitHeaders)
+                new TestCase("local listener preserves runtime rate-limit retry headers", ApiHttpServerTests::preservesRateLimitHeaders),
+                new TestCase("Jetty handles concurrent keep-alive requests", ApiHttpServerTests::handlesConcurrentKeepAliveRequests)
         };
 
         for (TestCase test : tests) {
@@ -137,6 +141,26 @@ public final class ApiHttpServerTests {
             assertEquals(429, limited.statusCode(), "rate-limit status");
             assertContains(limited.body(), "\"code\":\"RATE_LIMITED\"", "rate-limit body");
             assertEquals("2", limited.headers().firstValue("Retry-After").orElse(""), "retry header");
+        }
+    }
+
+    private static void handlesConcurrentKeepAliveRequests() throws Exception {
+        Fixture fixture = fixture(100);
+        HttpClient client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
+        try (ApiHttpServer server = ApiHttpServer.start(fixture.runtime)) {
+            List<CompletableFuture<HttpResponse<String>>> requests = new ArrayList<>();
+            for (int index = 0; index < 24; index++) {
+                HttpRequest request = HttpRequest.newBuilder(server.uri("/wallets/" + fixture.accountId + "/balance"))
+                        .header("Authorization", "Bearer " + fixture.tokenUser1)
+                        .header("X-Trace-Id", "trace-concurrent-" + index)
+                        .GET().build();
+                requests.add(client.sendAsync(request, HttpResponse.BodyHandlers.ofString()));
+            }
+            for (CompletableFuture<HttpResponse<String>> request : requests) {
+                HttpResponse<String> response = request.join();
+                assertEquals(200, response.statusCode(), "concurrent response status");
+                assertEquals(HttpClient.Version.HTTP_1_1, response.version(), "HTTP keep-alive protocol");
+            }
         }
     }
 

@@ -1,10 +1,9 @@
 # Phase 18 API Local HTTP Listener
 
-This slice adds a local network listener without crossing into cloud
-infrastructure:
+This slice provides a production-capable embedded transport without crossing
+into cloud infrastructure:
 
-- `ApiHttpServer` wraps the existing `ApiEndpoint` port with the JDK HTTP
-  server;
+- `ApiHttpServer` wraps the existing `ApiEndpoint` port with Javalin/Jetty;
 - socket request method, path, headers, and body map into `ApiRequest`;
 - `ApiRuntime` explicitly implements `ApiEndpoint`, so the same auth, trace,
   rate-limit, routing, and request-log guards run behind the listener;
@@ -29,7 +28,7 @@ infrastructure:
 ## TDD Notes
 
 - **Red:** listener tests first referenced a missing `ApiHttpServer` class.
-- **Green:** the JDK HTTP server adapter and explicit runtime endpoint contract
+- **Green:** the Javalin/Jetty server adapter and explicit runtime endpoint contract
   made real socket wallet, payment, and rate-limit tests pass.
 - **Refactor:** README, release runbook, ubiquitous language, and readiness
   evidence now distinguish local listener work from production infrastructure.

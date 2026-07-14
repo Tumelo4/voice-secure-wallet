@@ -1,5 +1,8 @@
 package com.voicesecure.ledger;
 
+import com.voicesecure.ledger.application.LedgerService;
+import com.voicesecure.ledger.infrastructure.InMemoryLedgerRepository;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;

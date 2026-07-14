@@ -17,15 +17,20 @@ has to be strong enough to be useful and resilient enough to support fallback.
 
 ## Scope
 
-This slice implements enrollment, challenge issuance, liveness scoring,
-replay detection, and fallback selection.
+This slice implements the server-side trust boundary for enrollment,
+challenge issuance, conservative interim liveness/spoof feature extraction,
+replay detection, and fallback selection. It is explicitly
+`NOT_PRODUCTION_READY` until an independently evaluated speaker and anti-spoof
+model replaces the bundled adapter.
 
 ## Benchmark
 
-- Enrollment requires exactly three non-empty voice embeddings.
+- Enrollment requires exactly three non-empty raw-audio samples; embeddings
+  are extracted behind the server-owned `VoiceInferenceAdapter` port.
 - Verification should stay under 25 ms locally for in-memory profiles.
 - Target false-positive rate for shadow-mode launch evidence is below 0.1%.
-- Liveness and spoof scores must stay in the `0.0..1.0` range.
+- Clients cannot submit embeddings, liveness scores, spoof scores, fingerprints,
+  or thresholds. Those values are computed inside the service trust boundary.
 - A challenge is single-use, even when the second attempt has a different
   fingerprint.
 
@@ -41,8 +46,9 @@ challenge = service.issue_challenge(user_id, "open sesame")
 result = service.verify(request)
 ```
 
-`VoiceService` depends on the `VoiceRepository` protocol, so durable storage can
-replace `InMemoryVoiceRepository` without changing verification policy.
+`VoiceService` depends on `VoiceRepository` and `VoiceInferenceAdapter` ports,
+so durable storage and a validated model/vendor adapter can replace the in-memory
+and conservative interim implementations without changing verification policy.
 
 ## Local Test Command
 

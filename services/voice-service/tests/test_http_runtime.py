@@ -1,10 +1,20 @@
 import json
+from base64 import b64encode
 from datetime import datetime, timezone
 
 import pytest
 
 from voice_service import InMemoryVoiceRepository, VoiceService, VoiceServiceError
 from voice_service.http_runtime import HttpPaymentOutcomePublisher, PaymentOutcomePublisher, VoiceHttpApplication
+
+
+def encoded_audio(phrase: str) -> dict:
+    content = phrase.encode() + b"\n" + bytes(range(1, 200))
+    return {
+        "contentBase64": b64encode(content).decode(),
+        "codec": "audio/x-voicesecure-test",
+        "sampleRateHz": 16000,
+    }
 
 
 class RecordingOutcomePublisher(PaymentOutcomePublisher):
@@ -25,7 +35,10 @@ def test_health_is_public_and_service_routes_require_authentication() -> None:
 
 def test_enrollment_contract_does_not_echo_biometric_embedding() -> None:
     app = VoiceHttpApplication(VoiceService(InMemoryVoiceRepository()), "test-token")
-    payload = b'{"userId":"11111111-1111-4111-8111-111111111111","samples":[[1,0],[1,0],[1,0]]}'
+    payload = json.dumps({
+        "userId": "11111111-1111-4111-8111-111111111111",
+        "audioSamples": [encoded_audio("enrollment")] * 3,
+    }).encode()
     status, body = app.handle("POST", "/v1/voice/enrollments", {"x-service-token": "test-token"}, payload)
     assert status == 201
     assert body["sampleCount"] == 3
@@ -37,7 +50,7 @@ def test_challenge_and_verification_contract_complete_a_bound_transaction() -> N
     app = VoiceHttpApplication(VoiceService(InMemoryVoiceRepository()), "test-token", publisher)
     headers = {"x-service-token": "test-token"}
     user_id = "11111111-1111-4111-8111-111111111111"
-    enrollment = {"userId": user_id, "samples": [[1, 0], [1, 0], [1, 0]]}
+    enrollment = {"userId": user_id, "audioSamples": [encoded_audio("Confirm payment")] * 3}
     assert app.handle("POST", "/v1/voice/enrollments", headers, json.dumps(enrollment).encode())[0] == 201
 
     binding = "transaction-binding-sha256"
@@ -52,14 +65,9 @@ def test_challenge_and_verification_contract_complete_a_bound_transaction() -> N
     verification = {
         "userId": user_id,
         "challengeId": challenge["challengeId"],
-        "transcript": "Confirm payment",
-        "embedding": [1, 0],
-        "livenessScore": 0.95,
-        "spoofScore": 0.01,
-        "audioFingerprintHash": "unique-audio-hash",
+        "audio": encoded_audio("Confirm payment"),
         "authPolicy": "VOICE_OTP",
         "transactionAmountMinor": 75000,
-        "voiceThreshold": 0.8,
         "capturedAt": datetime.now(timezone.utc).isoformat(),
         "transactionBindingHash": binding,
         "paymentReference": "VSW-safe_reference",
@@ -71,6 +79,21 @@ def test_challenge_and_verification_contract_complete_a_bound_transaction() -> N
     assert body["status"] == "VERIFIED"
     assert body["fallback_method"] is None
     assert publisher.outcomes[0][0:2] == ("VSW-safe_reference", "VERIFIED")
+
+
+def test_client_supplied_security_scores_are_not_part_of_verification_contract() -> None:
+    app = VoiceHttpApplication(VoiceService(InMemoryVoiceRepository()), "test-token")
+    headers = {"x-service-token": "test-token"}
+    payload = {
+        "userId": "11111111-1111-4111-8111-111111111111",
+        "challengeId": "22222222-2222-4222-8222-222222222222",
+        "audio": encoded_audio("forged"),
+        "livenessScore": 1.0,
+        "spoofScore": 0.0,
+        "embedding": [1.0],
+    }
+    status, _ = app.handle("POST", "/v1/voice/verifications", headers, json.dumps(payload).encode())
+    assert status == 400
 
 
 def test_invalid_payload_and_unknown_route_return_safe_errors() -> None:

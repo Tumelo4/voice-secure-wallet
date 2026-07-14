@@ -4,7 +4,7 @@ import java.security.KeyPair;
 import java.security.PublicKey;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -13,8 +13,17 @@ public final class IdentityService {
     private final JwtCodec jwtCodec;
 
     public IdentityService(IdentityRepository repository, KeyPair signingKeyPair, String keyId) {
+        this(repository, signingKeyPair, keyId, Map.of(keyId, signingKeyPair.getPublic()));
+    }
+
+    public IdentityService(
+            IdentityRepository repository,
+            KeyPair signingKeyPair,
+            String keyId,
+            Map<String, PublicKey> acceptedPublicKeys
+    ) {
         this.repository = Objects.requireNonNull(repository, "repository");
-        this.jwtCodec = new JwtCodec(signingKeyPair, keyId);
+        this.jwtCodec = new JwtCodec(signingKeyPair, keyId, acceptedPublicKeys);
     }
 
     public DeviceRegistration registerDevice(UUID userId, UUID deviceId, PublicKey publicKey) {
@@ -81,7 +90,7 @@ public final class IdentityService {
     }
 
     public JwksDocument jwks() {
-        return new JwksDocument(List.of(jwtCodec.publicJwk()));
+        return new JwksDocument(jwtCodec.publicJwks());
     }
 
     private static String normalizeScope(String scope) {

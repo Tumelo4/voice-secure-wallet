@@ -78,7 +78,7 @@ be wired to AWS MSK without changing domain event code.
 - Java 17 `api-adapter-service` contracts and runtime boundary for payment
   commands, wallet balance reads, support repair requests, auth,
   route-scoped authorization, traceability, rate limiting, and request logging,
-  plus a local JDK HTTP listener, public health routes, and production ingress
+  plus a Javalin/Jetty HTTP runtime, public health routes, and production ingress
   readiness validator.
 - React Native TypeScript `apps/mobile` readiness dashboard using
   NativeWind/Tailwind CSS and Redux Toolkit, with typed API client and fetch
@@ -99,7 +99,7 @@ be wired to AWS MSK without changing domain event code.
 | --- | --- | --- |
 | Customer payment API | Authenticated ownership checks, beneficiary IDs, decimal-string money, idempotency conflict tests, validated OpenAPI | Bind voice outcome to payment completion and deploy behind managed OIDC/ingress |
 | Ledger and orchestration | Append-only migrations, reservations, optimistic saga versions, recovery/reconciliation states, PostgreSQL migration job | Live repository concurrency/restore drills and settlement-provider reconciliation |
-| Voice | Authenticated containerized runtime, transaction-bound single-use challenges, 90%+ Python coverage | Independent biometric, spoof, accessibility and physical-device evaluation |
+| Voice | **Stubbed / server-side trust boundary, not production-ready.** Raw audio is the only biometric input; server-owned inference, transaction-bound single-use challenges, replay tests, and 90%+ Python coverage are present. | Replace the conservative interim feature extractor with an independently evaluated speaker/anti-spoof model; complete accessibility and physical-device evaluation. |
 | Delivery security | Pinned CI actions, scans, SBOM/provenance/signing workflow, immutable digest promotion design | Protect required checks and execute a signed release in the target registry |
 | Operations and compliance | SLO/runbook/threat-model/POPIA/FICA/PCI scope documents | Named-owner approval, production telemetry history, DR exercise and formal assessments |
 
@@ -113,7 +113,7 @@ is executable through the local test suite or represented as launch evidence:
 | Ledger | Balanced reconciliation, no overdraft under concurrent debit attempts, idempotent retries in constant time, and conflicting idempotency keys rejected before append. |
 | Wallet | Ledger events project into balances once, duplicate event IDs are ignored, and non-ledger events are rejected. |
 | Payment | Happy path reaches `COMPLETED`; fraud, voice, reservation, ledger, and compensation failures reach explicit terminal states. |
-| Identity | RS256 access-token verification, unknown `kid` rejection, refresh-token reuse revocation, and device-signature validation. |
+| Identity | Nimbus-backed RS256 access-token verification, rotation-overlap and retired-`kid` tests, multi-key JWKS, malformed-token rejection, refresh-token reuse revocation, and device-signature validation. |
 | Fraud and compliance | PEP/sanctions/AML screening writes one audit trail entry and fraud policy changes happen through `FraudPolicy`. |
 | Event contracts | `fraud.scored` carries auth policy and voice threshold; `compliance.hit` carries hit evidence and cannot be emitted for clear screening results. |
 | Contract compatibility | Pact broker reachability, Pact publication, consumer verification, Schema Registry reachability, schema registration, schema ID pinning, and `BACKWARD_TRANSITIVE` compatibility are validated for critical event contracts. |
@@ -128,7 +128,7 @@ is executable through the local test suite or represented as launch evidence:
 | Launch | Chaos, security, pen test, shadow mode, 10x load, 100/100 fallback, RTO/RPO, CVE scan source, pen-test report evidence, production change ticket, rollback drill, feature-flag lock, monitoring, on-call, support briefing, and 30-minute rollback readiness are validated. |
 | API adapters | Payment POST validates idempotency and trace headers, support repair POST requires a mandatory justification payload, wallet balance reads return JSON, and unknown routes return JSON `404`. |
 | API runtime | Protected routes require bearer tokens and route scopes, invalid tokens return `403`, trace IDs are required before routing, rate limits return `429`, and request outcomes are logged. |
-| API local HTTP listener | Local socket tests prove wallet GET, payment POST JSON, public health GET, runtime auth/trace guards, JSON headers, request logging, and rate-limit `Retry-After` propagation through the JDK HTTP server boundary. |
+| API HTTP runtime | Local socket tests prove wallet GET, payment POST JSON, public health GET, runtime auth/trace guards, JSON headers, request logging, Javalin/Jetty keep-alive transport, and rate-limit `Retry-After` propagation. |
 | API production ingress | TLS 1.3, mTLS, forwarded client certificate identity, OIDC/JWKS, distributed rate limits, WAF, HSTS, trace forwarding, 256 KB request body limits, health-only public paths, and blocked admin exposure are validated before production. |
 | Mobile UI | React Native TypeScript stack declaration, Redux readiness state, mobile accessibility labels, dashboard section order, and NativeWind/Tailwind class tokens are covered by Node tests. |
 | Mobile API client | Payment commands and wallet balance reads use a typed transport port, runtime headers, API error mapping, and Redux-friendly async request states. |

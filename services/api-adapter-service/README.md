@@ -1,7 +1,7 @@
 # api-adapter-service
 
-Java 17 framework-free API adapter, runtime boundary contracts, and local JDK
-HTTP listener for VoiceSecure Wallet.
+Java 17 API adapter, runtime boundary contracts, and Javalin/Jetty HTTP runtime
+for VoiceSecure Wallet.
 
 ## Problem Statement
 
@@ -21,7 +21,7 @@ payment retries that are hard to reason about.
 
 ## Scope
 
-This service models the API adapter, runtime boundary, local JDK HTTP listener,
+This service models the API adapter, runtime boundary, Javalin/Jetty listener,
 and production ingress readiness preflight. It owns request normalization, route
 selection, JSON response shaping, runtime guards, socket-to-request translation,
 production ingress policy validation, and error mapping for the first two
@@ -66,7 +66,7 @@ limits, and public health paths without provisioning any cloud resources.
 - Protected routes require route-scoped bearer tokens.
 - Per-principal rate-limit failures return JSON `429` with `Retry-After`.
 - Runtime outcomes are recorded with principal, trace, method, path, and status.
-- Local JDK HTTP listener forwards socket requests through the same runtime
+- Javalin/Jetty forwards socket requests through the same runtime
   guards and preserves response status, JSON headers, and retry hints.
 - Production ingress readiness requires TLS 1.3, mTLS, forwarded client
   certificate identity, OIDC/JWKS configuration, distributed rate-limit storage,

@@ -40,6 +40,8 @@ jobs:
       - run: mvn --batch-mode --no-transfer-progress -pl services/ledger-service test-compile org.pitest:pitest-maven:mutationCoverage -DtargetClasses=com.voicesecure.ledger.LedgerService -DtargetTests=com.voicesecure.ledger.LedgerMutationTest
       - run: mvn --batch-mode --no-transfer-progress -pl services/payment-service -am install -DskipTests
       - run: mvn --batch-mode --no-transfer-progress -pl services/payment-service test-compile org.pitest:pitest-maven:mutationCoverage -DtargetClasses=com.voicesecure.payments.Money -DtargetTests=com.voicesecure.payments.MoneyMutationTest
+      - run: mvn --batch-mode --no-transfer-progress -pl services/identity-service -am install -DskipTests
+      - run: mvn --batch-mode --no-transfer-progress -pl services/identity-service test-compile org.pitest:pitest-maven:mutationCoverage '-DtargetClasses=com.voicesecure.identity.JwtCodec,com.voicesecure.identity.RefreshTokenFamilyState' -DtargetTests=com.voicesecure.identity.IdentityMutationTest
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -129,6 +131,11 @@ jobs:
         run: python -m pip install -e ".[test]"
       - working-directory: services/voice-service
         run: python -m pytest --junitxml=voice-test-results.xml
+      - working-directory: services/voice-service
+        run: |
+          mutmut run 'voice_service.xǁVoiceServiceǁverify*'
+          survivors=$(mutmut results | grep -c 'VoiceService.*verify')
+          test "$survivors" -le 35
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with: { name: voice-test-results, path: services/voice-service/voice-test-results.xml }
 

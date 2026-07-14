@@ -1,7 +1,7 @@
 package com.voicesecure.api;
 
-import com.voicesecure.ledger.InMemoryLedgerRepository;
-import com.voicesecure.ledger.LedgerService;
+import com.voicesecure.ledger.application.LedgerService;
+import com.voicesecure.ledger.infrastructure.InMemoryLedgerRepository;
 import com.voicesecure.support.InMemorySupportRepository;
 import com.voicesecure.support.SupportService;
 import java.util.List;

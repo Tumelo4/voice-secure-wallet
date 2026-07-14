@@ -48,17 +48,70 @@ class VoiceProfile:
 
 
 @dataclass(frozen=True)
-class VoiceVerificationRequest:
-    user_id: UUID
-    challenge_id: UUID
+class RawAudioSample:
+    content: bytes
+    codec: str
+    sample_rate_hz: int
+
+
+@dataclass(frozen=True)
+class VoiceInference:
     transcript: str
     embedding: tuple[float, ...]
     liveness_score: float
     spoof_score: float
-    audio_fingerprint_hash: str
+    fingerprint_hash: str
+
+
+class VoiceInferenceAdapter(Protocol):
+    def infer(self, sample: RawAudioSample) -> VoiceInference:
+        ...
+
+
+class ServerSideVoiceInferenceAdapter:
+    """Conservative interim inference inside the server trust boundary.
+
+    It extracts deterministic acoustic features and replay indicators from raw
+    bytes. It deliberately cannot approve production speech because there is no
+    production ASR/anti-spoof model yet; deployments must replace this adapter.
+    The text fixture codec exists only for deterministic integration tests.
+    """
+
+    def infer(self, sample: RawAudioSample) -> VoiceInference:
+        _validate_audio_sample(sample)
+        values = tuple(sample.content)
+        fingerprint = sha256(sample.content).hexdigest()
+        transcript = ""
+        acoustic = values
+        if sample.codec == "audio/x-voicesecure-test":
+            transcript_bytes, separator, acoustic_bytes = sample.content.partition(b"\n")
+            if not separator:
+                raise VoiceServiceError("test audio fixture is malformed")
+            transcript = transcript_bytes.decode("utf-8")
+            acoustic = tuple(acoustic_bytes)
+        if not acoustic:
+            raise VoiceServiceError("raw audio content is empty")
+        chunk_size = max(1, len(acoustic) // 8)
+        features = []
+        for offset in range(0, len(acoustic), chunk_size):
+            chunk = acoustic[offset:offset + chunk_size]
+            features.append(sum(chunk) / (len(chunk) * 255.0))
+        embedding = tuple((features + [0.0] * 8)[:8])
+        transitions = sum(1 for left, right in zip(acoustic, acoustic[1:]) if left != right)
+        dynamic_ratio = transitions / max(1, len(acoustic) - 1)
+        unique_ratio = len(set(acoustic)) / min(256, len(acoustic))
+        liveness = min(1.0, (dynamic_ratio * 0.7) + (unique_ratio * 0.3))
+        spoof = max(0.0, min(1.0, 1.0 - ((dynamic_ratio + unique_ratio) / 2.0)))
+        return VoiceInference(transcript, embedding, liveness, spoof, fingerprint)
+
+
+@dataclass(frozen=True)
+class VoiceVerificationRequest:
+    user_id: UUID
+    challenge_id: UUID
+    audio: RawAudioSample
     auth_policy: AuthPolicy
     transaction_amount: int
-    voice_threshold: float
     captured_at: datetime
     transaction_binding_hash: str = ""
 
@@ -152,13 +205,21 @@ class InMemoryVoiceRepository:
 
 
 class VoiceService:
-    def __init__(self, repository: VoiceRepository) -> None:
+    def __init__(
+        self,
+        repository: VoiceRepository,
+        inference: Optional[VoiceInferenceAdapter] = None,
+        voice_threshold: float = 0.75,
+    ) -> None:
         self._repository = repository
+        self._inference = inference or ServerSideVoiceInferenceAdapter()
+        _require_unit_interval(voice_threshold, "voice_threshold")
+        self._voice_threshold = voice_threshold
 
-    def enroll(self, user_id: UUID, samples: Sequence[Sequence[float]]) -> VoiceProfile:
+    def enroll(self, user_id: UUID, samples: Sequence[RawAudioSample]) -> VoiceProfile:
         if len(samples) != 3:
             raise VoiceServiceError("voice enrollment requires exactly 3 samples")
-        vectors = [tuple(float(value) for value in sample) for sample in samples]
+        vectors = [self._inference.infer(sample).embedding for sample in samples]
         for vector in vectors:
             _validate_embedding(vector, "enrollment sample")
         embedding = _average_vectors(vectors)
@@ -220,23 +281,26 @@ class VoiceService:
             return self._reject(request, "challenge already used", VoiceStatus.SPOOF_DETECTED)
         self._repository.mark_challenge_attempted(request.challenge_id)
 
-        if self._repository.fingerprint_seen(request.user_id, request.audio_fingerprint_hash):
+        inference = self._inference.infer(request.audio)
+        _validate_inference(inference)
+
+        if self._repository.fingerprint_seen(request.user_id, inference.fingerprint_hash):
             return self._reject(request, "audio fingerprint replay detected", VoiceStatus.SPOOF_DETECTED)
 
-        normalized_transcript = _normalize(request.transcript)
+        normalized_transcript = _normalize(inference.transcript)
         if normalized_transcript != _normalize(challenge.phrase):
             return self._reject(request, "challenge phrase mismatch", VoiceStatus.REJECTED)
 
-        similarity = _cosine_similarity(profile.embedding, request.embedding)
-        confidence = _confidence(similarity, request.liveness_score, request.spoof_score)
+        similarity = _cosine_similarity(profile.embedding, inference.embedding)
+        confidence = _confidence(similarity, inference.liveness_score, inference.spoof_score)
 
-        if request.spoof_score >= 0.8 or request.liveness_score < 0.35:
+        if inference.spoof_score >= 0.8 or inference.liveness_score < 0.35:
             return self._reject(request, "spoof detection triggered", VoiceStatus.SPOOF_DETECTED, confidence)
 
-        if confidence < request.voice_threshold:
+        if confidence < self._voice_threshold:
             return self._reject(request, "voice confidence below threshold", VoiceStatus.REJECTED, confidence)
 
-        self._repository.remember_fingerprint(request.user_id, request.audio_fingerprint_hash)
+        self._repository.remember_fingerprint(request.user_id, inference.fingerprint_hash)
         result = VoiceVerificationResult(
             verification_id=uuid4(),
             user_id=request.user_id,
@@ -344,14 +408,26 @@ def _constant_time_equal(left: str, right: str) -> bool:
 
 
 def _validate_verification_request(request: VoiceVerificationRequest) -> None:
-    _validate_embedding(request.embedding, "verification embedding")
-    _require_unit_interval(request.liveness_score, "liveness_score")
-    _require_unit_interval(request.spoof_score, "spoof_score")
-    _require_unit_interval(request.voice_threshold, "voice_threshold")
+    _validate_audio_sample(request.audio)
     if request.transaction_amount < 0:
         raise VoiceServiceError("transaction amount cannot be negative")
-    if not request.audio_fingerprint_hash.strip():
-        raise VoiceServiceError("audio fingerprint hash is required")
+
+
+def _validate_audio_sample(sample: RawAudioSample) -> None:
+    if not sample.content:
+        raise VoiceServiceError("raw audio content is empty")
+    if not sample.codec.strip():
+        raise VoiceServiceError("audio codec is required")
+    if sample.sample_rate_hz < 8000 or sample.sample_rate_hz > 192000:
+        raise VoiceServiceError("audio sample rate is unsupported")
+
+
+def _validate_inference(inference: VoiceInference) -> None:
+    _validate_embedding(inference.embedding, "server inference embedding")
+    _require_unit_interval(inference.liveness_score, "server liveness_score")
+    _require_unit_interval(inference.spoof_score, "server spoof_score")
+    if not inference.fingerprint_hash.strip():
+        raise VoiceServiceError("server audio fingerprint is required")
 
 
 def _validate_embedding(embedding: Sequence[float], label: str) -> None:

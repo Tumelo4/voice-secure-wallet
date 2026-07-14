@@ -3,8 +3,8 @@ package com.voicesecure.integration;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.voicesecure.ledger.LedgerService;
-import com.voicesecure.ledger.PostgresLedgerRepository;
+import com.voicesecure.ledger.application.LedgerService;
+import com.voicesecure.ledger.infrastructure.PostgresLedgerRepository;
 import com.voicesecure.payments.AuthPolicy;
 import com.voicesecure.payments.FraudDecision;
 import com.voicesecure.payments.PaymentException;

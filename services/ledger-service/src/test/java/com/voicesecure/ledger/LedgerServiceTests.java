@@ -1,5 +1,8 @@
 package com.voicesecure.ledger;
 
+import com.voicesecure.ledger.application.LedgerService;
+import com.voicesecure.ledger.infrastructure.InMemoryLedgerRepository;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
