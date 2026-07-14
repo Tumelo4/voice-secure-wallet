@@ -7,5 +7,7 @@ final class IdentityMutationTest {
     void exercisesJwtAndRefreshTokenSecurityBranches() throws Exception {
         JwtCodecTests.main(new String[0]);
         IdentityServiceTests.main(new String[0]);
+        RefreshTokenRotationTests.main(new String[0]);
+        DeviceSignatureVerifierTests.main(new String[0]);
     }
 }

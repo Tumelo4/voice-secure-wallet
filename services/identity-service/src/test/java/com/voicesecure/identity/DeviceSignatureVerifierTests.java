@@ -21,6 +21,9 @@ public final class DeviceSignatureVerifierTests {
         if (DeviceSignatureVerifier.verify(keys.getPublic(), "payment:124".getBytes(StandardCharsets.UTF_8), signature)) {
             throw new AssertionError("tampered device payload must be rejected");
         }
+        if (JwtCodec.verifySignature(keys.getPublic(), "payment:124".getBytes(StandardCharsets.UTF_8), signature)) {
+            throw new AssertionError("JWT signature facade must reject a tampered device payload");
+        }
         System.out.println("Device signature verifier tests passed: 2");
     }
 }

@@ -75,6 +75,7 @@ jobs:
           org.owasp:dependency-check-maven:12.1.0:check
           -DfailBuildOnCVSS=7
           -DossindexAnalyzerEnabled=false
+          -DsuppressionFiles=dependency-check-suppressions.xml
 
   mobile-dependencies:
     runs-on: ubuntu-latest
