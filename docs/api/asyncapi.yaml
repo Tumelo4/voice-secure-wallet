@@ -1,0 +1,72 @@
+asyncapi: 3.0.0
+info:
+  title: VoiceSecure Wallet Domain Events
+  version: 1.0.0
+  description: Stable Kafka contracts. Delivery is at-least-once; consumers must deduplicate by eventId.
+defaultContentType: application/json
+channels:
+  payments:
+    address: payments
+    messages:
+      paymentEvent: { $ref: '#/components/messages/PaymentEvent' }
+  ledger:
+    address: ledger
+    messages:
+      ledgerEntryPosted: { $ref: '#/components/messages/LedgerEntryPosted' }
+operations:
+  paymentServicePublishes:
+    action: send
+    channel: { $ref: '#/channels/payments' }
+    messages: [{ $ref: '#/channels/payments/messages/paymentEvent' }]
+  notificationServiceConsumesPayments:
+    action: receive
+    channel: { $ref: '#/channels/payments' }
+    messages: [{ $ref: '#/channels/payments/messages/paymentEvent' }]
+  ledgerServicePublishes:
+    action: send
+    channel: { $ref: '#/channels/ledger' }
+    messages: [{ $ref: '#/channels/ledger/messages/ledgerEntryPosted' }]
+components:
+  messages:
+    PaymentEvent:
+      name: PaymentEvent
+      correlationId: { location: '$message.payload#/traceId' }
+      payload:
+        allOf:
+          - { $ref: '#/components/schemas/EventEnvelope' }
+          - type: object
+            properties:
+              topic: { const: payments }
+              partitionKeyField: { const: payment_id }
+              eventType:
+                type: string
+                enum: [payment.initiated, payment.fraud_check_requested, payment.fraud_approved, payment.fraud_rejected, payment.voice_requested, payment.voice_approved, payment.voice_rejected, payment.voice_timeout, payment.voice_fallback_requested, payment.voice_fallback_verified, payment.voice_fallback_failed, payment.funds_reserved, payment.funds_reservation_failed, payment.ledger_committing, payment.ledger_committed, payment.ledger_commit_failed, payment.completing, payment.completed, payment.compensation_initiated, payment.compensated, payment.compensation_failed, payment.external_status_unknown, payment.reconciliation_required, payment.reconciliation_confirmed, payment.manual_review_required]
+    LedgerEntryPosted:
+      name: LedgerEntryPosted
+      payload:
+        allOf:
+          - { $ref: '#/components/schemas/EventEnvelope' }
+          - type: object
+            properties:
+              topic: { const: ledger }
+              partitionKeyField: { const: account_id }
+              eventType: { const: ledger.entry_posted }
+  schemas:
+    EventEnvelope:
+      type: object
+      additionalProperties: false
+      required: [eventId, topic, partitionKeyField, partitionKeyValue, eventType, eventVersion, aggregateId, aggregateType, occurredAt, traceId, payload]
+      properties:
+        eventId: { type: string, format: uuid }
+        topic: { type: string }
+        partitionKeyField: { type: string }
+        partitionKeyValue: { type: string }
+        eventType: { type: string, pattern: '^[a-z]+\.[a-z_]+' }
+        eventVersion: { type: string, const: '1.0' }
+        aggregateId: { type: string, format: uuid }
+        aggregateType: { type: string }
+        occurredAt: { type: string, format: date-time }
+        traceId: { type: string, minLength: 1 }
+        payload:
+          description: JSON object serialized as a string by the producing bounded context.
+          type: string

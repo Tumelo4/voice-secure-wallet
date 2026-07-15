@@ -26,6 +26,7 @@ public record PaymentEvent(
 
     public EventEnvelope toEnvelope() {
         return EventEnvelopeFactory.create(
+                eventId,
                 EventTopic.PAYMENTS,
                 sagaId,
                 "Payment",

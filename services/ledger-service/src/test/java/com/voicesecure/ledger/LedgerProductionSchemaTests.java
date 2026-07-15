@@ -6,11 +6,13 @@ import java.nio.file.Path;
 
 public final class LedgerProductionSchemaTests {
     private static final Path MIGRATION = Path.of("services", "ledger-service", "src", "main", "resources", "db", "migration", "V002__ledger_production.sql");
+    private static final Path OUTBOX_MIGRATION = Path.of("services", "ledger-service", "src", "main", "resources", "db", "migration", "V006__outbox_delivery_leases.sql");
 
     public static void main(String[] args) throws Exception {
         TestCase[] tests = {
                 new TestCase("ledger production migration declares batch table", LedgerProductionSchemaTests::declaresBatchTable),
-                new TestCase("ledger production migration hardens idempotency and append-only constraints", LedgerProductionSchemaTests::hardensIdempotencyAndAppendOnlyConstraints)
+                new TestCase("ledger production migration hardens idempotency and append-only constraints", LedgerProductionSchemaTests::hardensIdempotencyAndAppendOnlyConstraints),
+                new TestCase("ledger outbox supports durable leased delivery", LedgerProductionSchemaTests::declaresDurableOutbox)
         };
 
         for (TestCase test : tests) {
@@ -18,6 +20,13 @@ public final class LedgerProductionSchemaTests {
             System.out.println("PASS " + test.name);
         }
         System.out.println("Ledger production schema tests passed: " + tests.length);
+    }
+
+    private static void declaresDurableOutbox() throws IOException {
+        String migration = Files.readString(OUTBOX_MIGRATION).replaceAll("\\s+", " ");
+        assertContains(migration, "lease_owner UUID", "delivery lease owner");
+        assertContains(migration, "lease_until TIMESTAMPTZ", "delivery lease expiry");
+        assertContains(migration, "next_attempt_at TIMESTAMPTZ", "retry schedule");
     }
 
     private static void declaresBatchTable() throws IOException {

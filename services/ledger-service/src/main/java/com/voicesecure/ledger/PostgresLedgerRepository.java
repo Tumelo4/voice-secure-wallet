@@ -556,7 +556,7 @@ public final class PostgresLedgerRepository implements LedgerRepository {
                 statement.setString(5, event.eventType());
                 statement.setString(6, "1.0");
                 statement.setString(7, event.payload());
-                statement.setNull(8, java.sql.Types.VARCHAR);
+                statement.setString(8, transaction.sagaId().toString());
                 statement.setTimestamp(9, Timestamp.from(event.occurredAt()));
                 statement.executeUpdate();
             }
@@ -570,7 +570,6 @@ public final class PostgresLedgerRepository implements LedgerRepository {
             statement.setObject(3, repairRequest.sagaId());
             statement.setObject(4, repairRequest.idempotencyKey());
             statement.setString(5, repairRequest.requestedBy());
-            statement.setString(6, repairRequest.justification());
             statement.setString(6, repairRequest.approvedBy());
             statement.setString(7, repairRequest.justification());
             statement.setTimestamp(8, Timestamp.from(now));
