@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "status_vocabulary": {
+    "not_started": "No implementation or repeatable evidence exists.",
+    "stubbed": "A safety boundary or placeholder exists, but production capability is not proven.",
+    "implemented_prototype": "Functional code and focused tests exist; production composition or external evidence is incomplete.",
+    "integration_tested": "The capability is exercised against realistic disposable dependencies.",
+    "deployed_validated": "The capability is running in the target managed environment with operational evidence.",
+    "assessed_approved": "A qualified independent or accountable owner has signed off the control.",
+    "production_ready": "Implementation, deployment, operational, security, compliance, recovery, and release evidence is complete."
+  },
+  "capabilities": [
+    {
+      "id": "transactional-outbox",
+      "name": "Transactional outbox",
+      "status": "implemented_prototype",
+      "implementation_evidence": [
+        "services/event-core/src/main/java/com/voicesecure/events/PostgresOutboxStore.java",
+        "services/event-core/src/main/java/com/voicesecure/events/TransactionalOutboxRelay.java",
+        "services/payment-service/src/main/resources/db/migration/V005__transactional_outbox.sql"
+      ],
+      "test_evidence": ["services/payment-service/src/test/java/com/voicesecure/payments/PaymentProductionSchemaTests.java"],
+      "external_evidence": [],
+      "remaining_gaps": "Crash-window injection, bounded poison/DLQ handling, relay metrics, and managed Kafka evidence.",
+      "owner": "payments-platform",
+      "last_verified_commit": "0084b25d"
+    },
+    {
+      "id": "api-rate-limiting",
+      "name": "API rate limiting",
+      "status": "implemented_prototype",
+      "implementation_evidence": [
+        "services/api-adapter-service/src/main/java/com/voicesecure/api/RateLimitDecision.java",
+        "services/api-adapter-service/src/main/java/com/voicesecure/api/InMemoryApiRateLimiter.java"
+      ],
+      "test_evidence": ["services/api-adapter-service/src/test/java/com/voicesecure/api/InMemoryApiRateLimiterTests.java"],
+      "external_evidence": [],
+      "remaining_gaps": "Redis-backed shared enforcement, risk policies, failure policy, metrics, and multi-instance integration tests.",
+      "owner": "api-platform",
+      "last_verified_commit": "worktree"
+    },
+    {
+      "id": "production-composition-root",
+      "name": "Production HTTP composition root",
+      "status": "not_started",
+      "implementation_evidence": ["services/api-adapter-service/src/main/java/com/voicesecure/api/ApiApplication.java"],
+      "test_evidence": [],
+      "external_evidence": [],
+      "remaining_gaps": "The main HTTP process still uses in-memory financial repositories and refuses production startup.",
+      "owner": "api-platform",
+      "last_verified_commit": "0084b25d"
+    },
+    {
+      "id": "voice-verification",
+      "name": "Voice verification",
+      "status": "stubbed",
+      "implementation_evidence": ["services/voice-service/src/voice_service/__init__.py"],
+      "test_evidence": ["services/voice-service/tests/test_voice_service.py"],
+      "external_evidence": [],
+      "remaining_gaps": "Durable voice data, real mobile capture/upload, independent biometric and spoof evaluation, and named approval.",
+      "owner": "voice-security",
+      "last_verified_commit": "0084b25d"
+    },
+    {
+      "id": "mobile-voice-capture",
+      "name": "Mobile voice capture and upload",
+      "status": "not_started",
+      "implementation_evidence": ["apps/mobile/src/api/voiceSecureApiClient.ts"],
+      "test_evidence": [],
+      "external_evidence": [],
+      "remaining_gaps": "Microphone permission, recording, cancellation, challenge-bound upload, and retry UX.",
+      "owner": "mobile",
+      "last_verified_commit": "0084b25d"
+    },
+    {
+      "id": "voice-persistence",
+      "name": "Durable voice persistence",
+      "status": "not_started",
+      "implementation_evidence": ["services/voice-service/src/voice_service/__init__.py"],
+      "test_evidence": [],
+      "external_evidence": [],
+      "remaining_gaps": "PostgreSQL templates, challenges, replay fingerprints, consent, retention, revocation, and audit metadata.",
+      "owner": "voice-security",
+      "last_verified_commit": "0084b25d"
+    },
+    {
+      "id": "aws-infrastructure",
+      "name": "AWS infrastructure",
+      "status": "implemented_prototype",
+      "implementation_evidence": ["infra/aws/environments/demo/main.tf", "infra/aws/environments/production-reference/main.tf"],
+      "test_evidence": ["services/ops-service/src/test/java/com/voicesecure/ops/TerraformAwsBaselineTests.java"],
+      "external_evidence": [],
+      "remaining_gaps": "No live apply, managed-service integration evidence, soak history, teardown report, or DR drill.",
+      "owner": "platform",
+      "last_verified_commit": "0084b25d"
+    },
+    {
+      "id": "production-readiness",
+      "name": "Production readiness",
+      "status": "not_started",
+      "implementation_evidence": ["docs/release-runbook.md"],
+      "test_evidence": [],
+      "external_evidence": [],
+      "remaining_gaps": "Production composition, live SLOs, DR, penetration test, compliance assessment, biometric evaluation, and signed release evidence.",
+      "owner": "release-owners",
+      "last_verified_commit": "0084b25d"
+    }
+  ]
+}

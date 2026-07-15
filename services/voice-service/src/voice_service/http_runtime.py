@@ -16,6 +16,7 @@ from . import (
     RawAudioSample,
     VoiceService,
     VoiceServiceError,
+    VoiceAuthMode,
     VoiceVerificationRequest,
 )
 
@@ -125,8 +126,20 @@ def run() -> None:  # pragma: no cover - exercised by the container health smoke
     if os.getenv("PAYMENT_API_URL"):
         publisher = HttpPaymentOutcomePublisher(
             os.environ["PAYMENT_API_URL"], os.environ["PAYMENT_API_SERVICE_TOKEN"])
+    try:
+        auth_mode = VoiceAuthMode(os.getenv("VOICE_AUTH_MODE", VoiceAuthMode.DEMO.value).lower())
+    except ValueError as error:
+        raise VoiceServiceError("VOICE_AUTH_MODE must be disabled, demo, shadow, or enforced") from error
+    independently_approved = os.getenv("VOICE_AUTH_INDEPENDENTLY_APPROVED", "false").lower() == "true"
     app = VoiceHttpApplication(
-        VoiceService(InMemoryVoiceRepository()), os.environ["VOICE_SERVICE_TOKEN"], publisher)
+        VoiceService(
+            InMemoryVoiceRepository(),
+            auth_mode=auth_mode,
+            enforced_mode_approved=independently_approved,
+        ),
+        os.environ["VOICE_SERVICE_TOKEN"],
+        publisher,
+    )
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:  # noqa: N802

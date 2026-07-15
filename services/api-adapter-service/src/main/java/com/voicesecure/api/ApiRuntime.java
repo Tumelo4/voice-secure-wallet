@@ -71,8 +71,12 @@ public final class ApiRuntime implements ApiEndpoint {
             );
         }
 
-        if (!rateLimiter.allow(principalId)) {
-            ApiResponse response = ApiResponse.error(429, RATE_LIMITED, "rate limit exceeded").withHeader("Retry-After", "2");
+        RateLimitDecision rateLimit = rateLimiter.evaluate(principalId);
+        if (!rateLimit.allowed()) {
+            ApiResponse response = ApiResponse.error(429, RATE_LIMITED, "rate limit exceeded")
+                    .withHeader("Retry-After", Long.toString(rateLimit.retryAfterSeconds()))
+                    .withHeader("X-RateLimit-Remaining", Integer.toString(rateLimit.remaining()))
+                    .withHeader("X-RateLimit-Reset", Long.toString(rateLimit.resetAt().getEpochSecond()));
             return finish(request, principalId, traceId, response);
         }
 

@@ -2,6 +2,17 @@
 
 Python voice-verification core for VoiceSecure Wallet.
 
+Maturity and remaining external evaluation gaps are tracked in the generated
+[`capability status`](../../docs/product/current-capability-status.md).
+
+The bundled inference adapter is an experimental trust-boundary fixture, not a
+validated biometric authenticator. `VOICE_AUTH_MODE` defaults to `demo` and may
+be `disabled`, `demo`, `shadow`, or `enforced`. Demo and shadow results always
+require fallback authentication. Enforced startup additionally requires
+`VOICE_AUTH_INDEPENDENTLY_APPROVED=true`; that flag records deployment intent
+but does not replace the independent evaluation and named approvals required by
+the capability registry. `VOICE_ONLY` is rejected in every mode.
+
 ## Problem Statement
 
 The platform needs a high-signal, low-friction way to verify a user without

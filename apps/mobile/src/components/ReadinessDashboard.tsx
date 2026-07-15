@@ -705,7 +705,7 @@ function VoiceSecureCard({
         VoiceSecure
       </Text>
       <Text className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-slate-900">
-        Verifying your voice...
+        Voice demo
       </Text>
       <Text className="mt-2 text-sm leading-6 text-slate-600">{flow.prompt}</Text>
 
@@ -743,7 +743,7 @@ function VoiceSecureCard({
       </View>
 
       <Text className="mt-4 text-center text-sm font-medium text-slate-600">
-        Say "Confirm payment" to continue
+        Experimental interaction only - no microphone audio is captured
       </Text>
       <Text className="mt-1 text-center text-sm text-slate-500">{flow.message}</Text>
 
