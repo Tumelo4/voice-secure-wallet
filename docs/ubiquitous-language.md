@@ -83,7 +83,7 @@ certificates, DNS, Kafka, and AWS remain separate infrastructure concerns.
 | Offline payment queue | Device-local queue of payment-start commands keyed by idempotency key so duplicate taps or reconnects do not create duplicate payment commands. |
 | API adapter | Boundary layer that translates HTTP-style requests into domain service calls and maps domain outcomes back to stable JSON responses. |
 | API runtime boundary | Guard layer that verifies bearer tokens, requires trace IDs, enforces route-scoped authorization, rate-limits authenticated principals, forwards valid requests, and records request outcomes. |
-| API local HTTP listener | JDK HTTP server adapter that maps localhost socket requests into `ApiRuntime` and preserves status, JSON headers, and retry hints. |
+| API HTTP runtime | Javalin/Jetty adapter that maps socket requests into `ApiRuntime` and preserves status, JSON headers, keep-alive behavior, and retry hints. |
 | API production ingress readiness | Executable preflight validation for TLS 1.3, mTLS, client certificate forwarding, OIDC/JWKS, distributed rate limits, WAF, HSTS, trace forwarding, body limits, and public route exposure. |
 | Durable infrastructure readiness | Executable preflight validation for Kafka topic durability and AWS high-availability/encryption controls before live provisioning. |
 | Kafka topic spec | Required topic shape including partitions, replication factor, schema compatibility, dead-letter queue, and retention settings. |

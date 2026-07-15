@@ -1,4 +1,7 @@
-package com.voicesecure.ledger;
+package com.voicesecure.ledger.infrastructure;
+
+import com.voicesecure.ledger.*;
+import com.voicesecure.ledger.domain.LedgerRepository;
 
 import java.time.Instant;
 import java.util.ArrayList;

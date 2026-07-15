@@ -5,6 +5,8 @@ import com.voicesecure.events.EventTopic;
 import com.voicesecure.events.OutboxRelayWorker;
 import com.voicesecure.events.PostgresOutboxStore;
 import com.voicesecure.events.TransactionalOutboxRelay;
+import com.voicesecure.ledger.application.LedgerService;
+import com.voicesecure.ledger.infrastructure.PostgresLedgerRepository;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Objects;

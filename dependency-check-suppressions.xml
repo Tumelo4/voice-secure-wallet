@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+  <suppress>
+    <notes><![CDATA[
+      CVE-2026-53914 affects unsafe deserialization of Kotlin compiler build-cache metadata.
+      This application includes kotlin-stdlib only as a Javalin runtime dependency; it does
+      not ship or invoke the Kotlin compiler or consume Kotlin build-cache metadata.
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.jetbrains\.kotlin/kotlin-stdlib@.*$</packageUrl>
+    <cve>CVE-2026-53914</cve>
+  </suppress>
+</suppressions>

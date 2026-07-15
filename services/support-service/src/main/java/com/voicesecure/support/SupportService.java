@@ -2,7 +2,7 @@ package com.voicesecure.support;
 
 import com.voicesecure.ledger.LedgerBatch;
 import com.voicesecure.ledger.LedgerEntry;
-import com.voicesecure.ledger.LedgerService;
+import com.voicesecure.ledger.application.LedgerService;
 import com.voicesecure.ledger.RepairRequest;
 import java.time.Instant;
 import java.util.List;

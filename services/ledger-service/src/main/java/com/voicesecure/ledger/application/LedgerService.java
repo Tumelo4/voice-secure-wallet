@@ -1,4 +1,7 @@
-package com.voicesecure.ledger;
+package com.voicesecure.ledger.application;
+
+import com.voicesecure.ledger.*;
+import com.voicesecure.ledger.domain.LedgerRepository;
 
 import java.util.List;
 import java.util.Objects;

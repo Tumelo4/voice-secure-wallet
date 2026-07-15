@@ -1,23 +1,20 @@
 package com.voicesecure.api;
 
-import com.sun.net.httpserver.Headers;
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpServer;
+import io.javalin.Javalin;
+import io.javalin.http.Context;
+import io.javalin.http.Handler;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+/** Production-capable Jetty/Javalin transport around the stable ApiEndpoint port. */
 public final class ApiHttpServer implements AutoCloseable {
-    private final HttpServer server;
+    private final Javalin server;
 
-    private ApiHttpServer(HttpServer server) {
+    private ApiHttpServer(Javalin server) {
         this.server = Objects.requireNonNull(server, "server");
     }
 
@@ -28,61 +25,45 @@ public final class ApiHttpServer implements AutoCloseable {
     public static ApiHttpServer start(InetSocketAddress address, ApiEndpoint endpoint) throws IOException {
         Objects.requireNonNull(address, "address");
         Objects.requireNonNull(endpoint, "endpoint");
-        HttpServer server = HttpServer.create(address, 0);
-        server.createContext("/", exchange -> handle(exchange, endpoint));
-        server.start();
-        return new ApiHttpServer(server);
+        try {
+            Javalin app = Javalin.create(config -> {
+                config.http.maxRequestSize = 262_144L;
+                config.startup.showJavalinBanner = false;
+                Handler handler = context -> dispatch(context, endpoint);
+                config.routes.get("/*", handler);
+                config.routes.post("/*", handler);
+                config.routes.put("/*", handler);
+                config.routes.patch("/*", handler);
+                config.routes.delete("/*", handler);
+            });
+            app.start(address.getHostString(), address.getPort());
+            return new ApiHttpServer(app);
+        } catch (RuntimeException exception) {
+            throw new IOException("unable to start API HTTP server", exception);
+        }
     }
 
     public URI uri(String path) {
         String normalizedPath = path.startsWith("/") ? path : "/" + path;
-        return URI.create("http://127.0.0.1:" + server.getAddress().getPort() + normalizedPath);
+        return URI.create("http://127.0.0.1:" + server.port() + normalizedPath);
     }
 
     @Override
     public void close() {
-        server.stop(0);
+        server.stop();
     }
 
-    private static void handle(HttpExchange exchange, ApiEndpoint endpoint) throws IOException {
+    private static void dispatch(Context context, ApiEndpoint endpoint) {
         ApiResponse response;
         try {
+            Map<String, String> headers = new LinkedHashMap<>();
+            context.headerMap().forEach(headers::put);
             response = endpoint.handle(new ApiRequest(
-                    exchange.getRequestMethod(),
-                    exchange.getRequestURI().getRawPath(),
-                    requestHeaders(exchange.getRequestHeaders()),
-                    readBody(exchange.getRequestBody())
-            ));
+                    context.method().name(), context.path(), headers, context.body()));
         } catch (RuntimeException error) {
             response = ApiResponse.error(500, "INTERNAL_SERVER_ERROR", "internal server error");
         }
-        writeResponse(exchange, response);
-    }
-
-    private static Map<String, String> requestHeaders(Headers headers) {
-        Map<String, String> values = new LinkedHashMap<>();
-        for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
-            if (!entry.getValue().isEmpty()) {
-                values.put(entry.getKey(), entry.getValue().get(0));
-            }
-        }
-        return values;
-    }
-
-    private static String readBody(InputStream inputStream) throws IOException {
-        return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-    }
-
-    private static void writeResponse(HttpExchange exchange, ApiResponse response) throws IOException {
-        for (Map.Entry<String, String> header : response.headers().entrySet()) {
-            exchange.getResponseHeaders().set(header.getKey(), header.getValue());
-        }
-        byte[] body = response.body().getBytes(StandardCharsets.UTF_8);
-        exchange.sendResponseHeaders(response.status(), body.length);
-        try (OutputStream outputStream = exchange.getResponseBody()) {
-            outputStream.write(body);
-        } finally {
-            exchange.close();
-        }
+        response.headers().forEach(context::header);
+        context.status(response.status()).result(response.body());
     }
 }

@@ -1,4 +1,6 @@
-package com.voicesecure.ledger;
+package com.voicesecure.ledger.domain;
+
+import com.voicesecure.ledger.*;
 
 import java.util.List;
 import java.util.Map;

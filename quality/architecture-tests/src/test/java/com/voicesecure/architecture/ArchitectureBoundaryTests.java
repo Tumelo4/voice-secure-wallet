@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public final class ArchitectureBoundaryTests {
@@ -20,9 +21,34 @@ public final class ArchitectureBoundaryTests {
     public static void main(String[] args) throws Exception {
         Path root = Path.of(System.getProperty("user.dir"));
         assertDomainDoesNotImportInfrastructure(root);
-        assertOnlyRuntimeModuleOwnsHttpServer(root);
+        assertLedgerLayeringIsStructural(root);
+        assertProductionRuntimeDoesNotUseJdkHttpServer(root);
         assertPolicyValidatorsAreNotRuntimeServices(root);
-        System.out.println("Architecture boundary tests passed: 3");
+        System.out.println("Architecture boundary tests passed: 4");
+    }
+
+    private static void assertLedgerLayeringIsStructural(Path root) throws IOException {
+        Path source = root.resolve("services/ledger-service/src/main/java/com/voicesecure/ledger");
+        Map<String, String> requiredLocations = Map.of(
+                "domain/LedgerRepository.java", "package com.voicesecure.ledger.domain;",
+                "application/LedgerService.java", "package com.voicesecure.ledger.application;",
+                "infrastructure/PostgresLedgerRepository.java", "package com.voicesecure.ledger.infrastructure;",
+                "infrastructure/InMemoryLedgerRepository.java", "package com.voicesecure.ledger.infrastructure;");
+        List<String> violations = new ArrayList<>();
+        requiredLocations.forEach((relative, declaration) -> {
+            Path path = source.resolve(relative);
+            if (!Files.exists(path) || !uncheckedRead(path).contains(declaration)) violations.add(relative);
+        });
+        try (var paths = Files.walk(source.resolve("domain"))) {
+            for (Path path : paths.filter(value -> value.toString().endsWith(".java")).toList()) {
+                String content = Files.readString(path);
+                if (content.contains("java.sql") || content.contains("javax.sql")
+                        || content.contains(".infrastructure")) {
+                    violations.add(root.relativize(path).toString());
+                }
+            }
+        }
+        if (!violations.isEmpty()) throw new AssertionError("ledger layering violations: " + violations);
     }
 
     private static void assertDomainDoesNotImportInfrastructure(Path root) throws IOException {
@@ -42,15 +68,17 @@ public final class ArchitectureBoundaryTests {
         if (!violations.isEmpty()) throw new AssertionError("domain/infrastructure boundary violations: " + violations);
     }
 
-    private static void assertOnlyRuntimeModuleOwnsHttpServer(Path root) throws IOException {
+    private static void assertProductionRuntimeDoesNotUseJdkHttpServer(Path root) throws IOException {
         List<Path> violations = new ArrayList<>();
         try (var paths = Files.walk(root.resolve("services"))) {
             for (Path path : paths.filter(value -> value.toString().endsWith(".java")).toList()) {
-                if (path.toString().contains("api-adapter-service")) continue;
-                if (Files.readString(path).contains("HttpServer.create")) violations.add(root.relativize(path));
+                String content = Files.readString(path);
+                if (content.contains("com.sun.net.httpserver") || content.contains("HttpServer.create")) {
+                    violations.add(root.relativize(path));
+                }
             }
         }
-        if (!violations.isEmpty()) throw new AssertionError("unexpected runtime entry points: " + violations);
+        if (!violations.isEmpty()) throw new AssertionError("JDK development HTTP server is forbidden: " + violations);
     }
 
     private static void assertPolicyValidatorsAreNotRuntimeServices(Path root) throws IOException {
