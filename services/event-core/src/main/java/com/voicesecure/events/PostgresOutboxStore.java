@@ -40,6 +40,7 @@ public final class PostgresOutboxStore implements DurableOutboxStore {
                 WITH candidates AS (
                     SELECT id FROM %s
                     WHERE published_at IS NULL
+                      AND dead_lettered_at IS NULL
                       AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
                       AND (lease_until IS NULL OR lease_until <= ?)
                     ORDER BY created_at, id
@@ -81,7 +82,36 @@ public final class PostgresOutboxStore implements DurableOutboxStore {
         Objects.requireNonNull(retryDelay, "retryDelay");
         updateOwned(eventId, workerId,
                 "next_attempt_at = ?, lease_owner = NULL, lease_until = NULL, last_error = ?",
-                failedAt.plus(retryDelay), error == null ? "publication failed" : error.substring(0, Math.min(error.length(), 2_000)));
+                failedAt.plus(retryDelay), truncateError(error));
+    }
+
+    @Override
+    public void markDeadLettered(UUID eventId, UUID workerId, Instant failedAt, String reason) {
+        Objects.requireNonNull(eventId, "eventId");
+        Objects.requireNonNull(workerId, "workerId");
+        Objects.requireNonNull(failedAt, "failedAt");
+        String safeReason = truncateError(reason);
+        inTransaction(connection -> {
+            String sql = "UPDATE " + table + " SET dead_lettered_at = ?, dead_letter_reason = ?, "
+                    + "lease_owner = NULL, lease_until = NULL, next_attempt_at = NULL, last_error = ? "
+                    + "WHERE id = ? AND lease_owner = ? AND published_at IS NULL AND dead_lettered_at IS NULL";
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setTimestamp(1, Timestamp.from(failedAt));
+                statement.setString(2, safeReason);
+                statement.setString(3, safeReason);
+                statement.setObject(4, eventId);
+                statement.setObject(5, workerId);
+                if (statement.executeUpdate() != 1) {
+                    throw new EventEnvelopeException("outbox lease is no longer owned for event " + eventId);
+                }
+            }
+            return null;
+        });
+    }
+
+    private static String truncateError(String error) {
+        String value = error == null || error.isBlank() ? "publication failed" : error;
+        return value.substring(0, Math.min(value.length(), 2_000));
     }
 
     private void updateOwned(UUID eventId, UUID workerId, String assignment, Instant timestamp, String error) {
