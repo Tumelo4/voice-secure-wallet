@@ -1,40 +1,35 @@
-# VoiceSecure AWS Baseline
+# Reusable AWS infrastructure
 
-Terraform baseline for the first production infrastructure shape.
+The AWS baseline is split into capability modules and explicit environment
+compositions. Modules contain resource mechanics; environments own cost,
+availability, retention, exposure, and deletion decisions.
 
-## Scope
+## Layout
 
-This module declares the durable AWS resources required by the platform:
+- `modules/`: networking, encryption, database, cache, messaging,
+  audit-storage, and observability capabilities.
+- `environments/demo/`: temporary engineering environment using local state,
+  two private subnets, single-AZ/single-node data services, smaller instances,
+  short retention, no public edge, and no object lock.
+- `environments/production-reference/`: hardened reference using remote state,
+  three private subnets, Multi-AZ RDS, HA Redis, three-broker MSK, IAM broker
+  authentication, 365-day logs, deletion protection, and compliance object
+  lock.
+- `bootstrap/`: independently applied remote-state bucket and DynamoDB locking.
 
-- private VPC subnets and an S3 VPC endpoint;
-- an S3 remote-state backend with DynamoDB locking for environment-specific keys;
-- KMS key with rotation;
-- least-privilege IAM service roles for API, payment, ledger, wallet,
-  compliance, support, CI deploy, and break-glass access;
-- strict ALB, app, database, Redis, and MSK security groups with least-access
-  ingress rules;
-- Secrets Manager rotation hooks for database and Redis credentials;
-- MSK cluster placeholder for the event backbone;
-- RDS PostgreSQL instance for ledger and wallet data;
-- ElastiCache Redis replication group for distributed rate limits;
-- S3 audit evidence bucket with object lock, versioning, public access block,
-  and TLS-only policy;
-- Secrets Manager secret references without committed secret values.
+The demo is cheaper, not insecure: encryption in transit and at rest, private
+subnets, restricted security groups, KMS, flow logs, IAM-authenticated MSK, and
+public-access blocks remain enabled. It deliberately relaxes availability,
+retention, and deletion protections that make production expensive and durable.
 
-## Boundary
+## Order of operations
 
-This is an infrastructure-as-code baseline, not a live deployment. It should be
-reviewed, planned, and connected to remote state, IAM, strict ingress, mTLS,
-secret rotation, and environment-specific values before applying against AWS.
+1. Apply `bootstrap/` once from an approved administrator session.
+2. Initialize `environments/production-reference/` against that backend.
+3. Supply `TF_VAR_redis_auth_token` through an approved secret broker.
+4. Plan and review before apply. The guarded deployment script also verifies
+   the authenticated AWS account.
 
-The production repository and Kafka adapters expect the resulting RDS
-PostgreSQL endpoint, MSK bootstrap brokers, and Secrets Manager references from
-this baseline.
-
-## Local Validation
-
-The Java service test suite statically verifies the required Terraform resource
-contracts and checks that secret values are not committed. When Terraform is
-installed, `scripts/test-terraform-aws-baseline.sh` also runs `terraform fmt
--check`, `terraform init -backend=false`, and `terraform validate` against this
-module.
+No environment is applied by repository validation. Run
+`scripts/test-terraform-aws-baseline.sh` to format, initialize without backends,
+and validate bootstrap, demo, and production-reference independently.

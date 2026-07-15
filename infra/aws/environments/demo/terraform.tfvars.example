@@ -1,0 +1,3 @@
+aws_region       = "af-south-1"
+name             = "voicesecure-demo-team1"
+redis_auth_token = "supply-through-TF_VAR-not-source-control"

@@ -1,9 +1,9 @@
 name: Container supply chain
 
+# Temporarily manual-only while Phase 2 infrastructure work is in progress.
+# Restore pull_request/push triggers before production release gating resumes.
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read

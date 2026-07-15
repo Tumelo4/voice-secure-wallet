@@ -38,6 +38,7 @@ public final class EventBackboneTests {
         EventEnvelope envelope = paymentEvent.toEnvelope();
 
         assertEquals(EventTopic.PAYMENTS.topicName(), envelope.topic(), "payment topic");
+        assertEquals(paymentEvent.eventId(), envelope.eventId(), "stable payment event id");
         assertEquals(EventTopic.PAYMENTS.partitionKeyField(), envelope.partitionKeyField(), "payment partition field");
         assertEquals(paymentEvent.sagaId().toString(), envelope.partitionKeyValue(), "payment partition key");
         assertEquals(paymentEvent.payload(), envelope.payload(), "payment payload");
