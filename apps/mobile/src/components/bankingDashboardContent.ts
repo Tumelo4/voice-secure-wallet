@@ -246,8 +246,8 @@ export const bankingCardDeck: BankingCardDeckItem[] = [
 export const bankingProfileRows: BankingProfileRow[] = [
   {
     label: "VoiceSecure",
-    value: "On for every transaction",
-    detail: "Every payment passes through a quick voice check.",
+    value: "Experimental demo",
+    detail: "Voice assurance is not active; every payment requires a supported fallback method.",
   },
   {
     label: "Backups",

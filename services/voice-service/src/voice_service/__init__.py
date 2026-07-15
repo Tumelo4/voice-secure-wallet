@@ -29,6 +29,13 @@ class AuthPolicy(str, Enum):
     DEVICE_PIN = "DEVICE_PIN"
 
 
+class VoiceAuthMode(str, Enum):
+    DISABLED = "disabled"
+    DEMO = "demo"
+    SHADOW = "shadow"
+    ENFORCED = "enforced"
+
+
 @dataclass(frozen=True)
 class VoiceChallenge:
     challenge_id: UUID
@@ -210,11 +217,17 @@ class VoiceService:
         repository: VoiceRepository,
         inference: Optional[VoiceInferenceAdapter] = None,
         voice_threshold: float = 0.75,
+        auth_mode: VoiceAuthMode = VoiceAuthMode.DEMO,
+        enforced_mode_approved: bool = False,
     ) -> None:
         self._repository = repository
         self._inference = inference or ServerSideVoiceInferenceAdapter()
         _require_unit_interval(voice_threshold, "voice_threshold")
         self._voice_threshold = voice_threshold
+        self._auth_mode = auth_mode
+        self._enforced_mode_approved = enforced_mode_approved
+        if auth_mode == VoiceAuthMode.ENFORCED and not enforced_mode_approved:
+            raise VoiceServiceError("enforced voice mode requires independent approval")
 
     def enroll(self, user_id: UUID, samples: Sequence[RawAudioSample]) -> VoiceProfile:
         if len(samples) != 3:
@@ -257,6 +270,10 @@ class VoiceService:
 
     def verify(self, request: VoiceVerificationRequest) -> VoiceVerificationResult:
         _validate_verification_request(request)
+        if self._auth_mode == VoiceAuthMode.DISABLED:
+            return self._reject(request, "voice authentication is disabled", VoiceStatus.REJECTED)
+        if request.auth_policy == AuthPolicy.VOICE_ONLY:
+            return self._reject(request, "voice-only authorisation is not permitted", VoiceStatus.REJECTED)
         profile = self._repository.get_profile(request.user_id)
         if profile is None:
             return self._reject(request, "voice profile not enrolled", VoiceStatus.REJECTED)
@@ -299,6 +316,14 @@ class VoiceService:
 
         if confidence < self._voice_threshold:
             return self._reject(request, "voice confidence below threshold", VoiceStatus.REJECTED, confidence)
+
+        if self._auth_mode in {VoiceAuthMode.DEMO, VoiceAuthMode.SHADOW}:
+            return self._reject(
+                request,
+                f"experimental {self._auth_mode.value} result requires fallback authentication",
+                VoiceStatus.REJECTED,
+                confidence,
+            )
 
         self._repository.remember_fingerprint(request.user_id, inference.fingerprint_hash)
         result = VoiceVerificationResult(

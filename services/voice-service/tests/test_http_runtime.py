@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from voice_service import InMemoryVoiceRepository, VoiceService, VoiceServiceError
+from voice_service import InMemoryVoiceRepository, VoiceAuthMode, VoiceService, VoiceServiceError
 from voice_service.http_runtime import HttpPaymentOutcomePublisher, PaymentOutcomePublisher, VoiceHttpApplication
 
 
@@ -47,7 +47,15 @@ def test_enrollment_contract_does_not_echo_biometric_embedding() -> None:
 
 def test_challenge_and_verification_contract_complete_a_bound_transaction() -> None:
     publisher = RecordingOutcomePublisher()
-    app = VoiceHttpApplication(VoiceService(InMemoryVoiceRepository()), "test-token", publisher)
+    app = VoiceHttpApplication(
+        VoiceService(
+            InMemoryVoiceRepository(),
+            auth_mode=VoiceAuthMode.ENFORCED,
+            enforced_mode_approved=True,
+        ),
+        "test-token",
+        publisher,
+    )
     headers = {"x-service-token": "test-token"}
     user_id = "11111111-1111-4111-8111-111111111111"
     enrollment = {"userId": user_id, "audioSamples": [encoded_audio("Confirm payment")] * 3}

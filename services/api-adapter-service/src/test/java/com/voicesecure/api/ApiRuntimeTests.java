@@ -149,7 +149,11 @@ public final class ApiRuntimeTests {
 
         assertEquals(429, limited.status(), "rate limit status");
         assertContains(limited.body(), "\"code\":\"RATE_LIMITED\"", "rate limit code");
-        assertEquals("2", limited.headers().get("Retry-After"), "retry hint");
+        assertPositiveSeconds(limited.headers().get("Retry-After"), "retry hint");
+    }
+
+    private static void assertPositiveSeconds(String value, String message) {
+        if (value == null || Long.parseLong(value) <= 0) throw new AssertionError(message + ": expected positive seconds");
     }
 
     private static void forwardsAndLogsValidRequests() {

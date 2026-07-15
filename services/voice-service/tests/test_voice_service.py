@@ -14,6 +14,7 @@ from voice_service import (
     VoiceInference,
     VoiceService,
     VoiceServiceError,
+    VoiceAuthMode,
     VoiceStatus,
     VoiceVerificationRequest,
     transaction_binding,
@@ -45,7 +46,12 @@ class VoiceServiceTests(unittest.TestCase):
         self.enrollment = [audio("enroll-1"), audio("enroll-2"), audio("enroll-3")]
         for sample in self.enrollment:
             self.inference.add(sample)
-        self.service = VoiceService(self.repository, self.inference)
+        self.service = VoiceService(
+            self.repository,
+            self.inference,
+            auth_mode=VoiceAuthMode.ENFORCED,
+            enforced_mode_approved=True,
+        )
         self.user_id = uuid4()
         self.service.enroll(self.user_id, self.enrollment)
         self.challenge = self.service.issue_challenge(self.user_id, "open sesame")
@@ -55,7 +61,7 @@ class VoiceServiceTests(unittest.TestCase):
             "user_id": self.user_id,
             "challenge_id": self.challenge.challenge_id,
             "audio": sample,
-            "auth_policy": AuthPolicy.VOICE_ONLY,
+            "auth_policy": AuthPolicy.VOICE_OTP,
             "transaction_amount": 2500,
             "captured_at": datetime.now(timezone.utc),
             "transaction_binding_hash": "",
@@ -72,6 +78,29 @@ class VoiceServiceTests(unittest.TestCase):
                 auth_policy=AuthPolicy.VOICE_ONLY, transaction_amount=1, captured_at=datetime.now(timezone.utc),
                 liveness_score=1.0,
             )
+
+    def test_demo_mode_and_voice_only_cannot_authorise_payments(self) -> None:
+        demo_repository = InMemoryVoiceRepository()
+        demo = VoiceService(demo_repository, self.inference)
+        demo.enroll(self.user_id, self.enrollment)
+        challenge = demo.issue_challenge(self.user_id, "open sesame")
+        sample = audio("demo-live")
+        self.inference.add(sample)
+        result = demo.verify(self.request(sample, challenge_id=challenge.challenge_id))
+        self.assertEqual(VoiceStatus.REJECTED, result.status)
+        self.assertTrue(result.fallback_requested)
+        self.assertIn("experimental demo", result.reason)
+
+        voice_only_challenge = self.service.issue_challenge(self.user_id, "open sesame")
+        blocked = self.service.verify(self.request(
+            sample,
+            challenge_id=voice_only_challenge.challenge_id,
+            auth_policy=AuthPolicy.VOICE_ONLY,
+        ))
+        self.assertEqual("voice-only authorisation is not permitted", blocked.reason)
+
+        with self.assertRaisesRegex(VoiceServiceError, "independent approval"):
+            VoiceService(self.repository, self.inference, auth_mode=VoiceAuthMode.ENFORCED)
 
     def test_server_inference_verifies_and_records_fingerprint(self) -> None:
         sample = audio("fresh-live")

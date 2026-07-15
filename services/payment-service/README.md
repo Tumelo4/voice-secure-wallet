@@ -2,6 +2,9 @@
 
 Java 17 saga orchestrator for VoiceSecure Wallet.
 
+Maturity and remaining operational gaps are tracked in the generated
+[`capability status`](../../docs/product/current-capability-status.md).
+
 ## Problem Statement
 
 Payments fail in messy ways when authorization, reservation, ledger posting,
@@ -50,7 +53,7 @@ decision:
 ```java
 PaymentSagaRepository repository = new InMemoryPaymentSagaRepository();
 PaymentSagaService payments = new PaymentSagaService(repository);
-PaymentSaga saga = payments.start(request, new FraudDecision(0.12, AuthPolicy.VOICE_ONLY, true, ""));
+PaymentSaga saga = payments.start(request, new FraudDecision(0.12, AuthPolicy.VOICE_OTP, true, ""));
 payments.recordVoiceOutcome(saga.sagaId(), new VoiceOutcome(VoiceOutcomeStatus.APPROVED, 0.98, "voice matched"));
 payments.markFundsReserved(saga.sagaId());
 payments.startLedgerCommit(saga.sagaId());

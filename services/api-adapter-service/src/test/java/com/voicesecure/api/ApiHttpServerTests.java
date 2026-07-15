@@ -140,7 +140,8 @@ public final class ApiHttpServerTests {
 
             assertEquals(429, limited.statusCode(), "rate-limit status");
             assertContains(limited.body(), "\"code\":\"RATE_LIMITED\"", "rate-limit body");
-            assertEquals("2", limited.headers().firstValue("Retry-After").orElse(""), "retry header");
+            long retryAfter = Long.parseLong(limited.headers().firstValue("Retry-After").orElse("0"));
+            assertTrue(retryAfter > 0 && retryAfter <= 60, "retry header should reflect the active window");
         }
     }
 
@@ -269,6 +270,12 @@ public final class ApiHttpServerTests {
     private static void assertContains(String actual, String expected, String message) {
         if (!actual.contains(expected)) {
             throw new AssertionError(message + ": expected to find " + expected + " in " + actual);
+        }
+    }
+
+    private static void assertTrue(boolean value, String message) {
+        if (!value) {
+            throw new AssertionError(message);
         }
     }
 

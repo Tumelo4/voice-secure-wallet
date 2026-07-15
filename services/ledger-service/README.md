@@ -2,6 +2,9 @@
 
 Java 17 financial core for VoiceSecure Wallet.
 
+Maturity and remaining operational gaps are tracked in the generated
+[`capability status`](../../docs/product/current-capability-status.md).
+
 ## Problem Statement
 
 Money movement needs a single, trusted source of truth. Without a strict ledger

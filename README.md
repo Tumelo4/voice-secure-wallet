@@ -95,13 +95,12 @@ be wired to AWS MSK without changing domain event code.
 
 ## Maturity and evidence
 
-| Area | Repository evidence | Remaining before production |
-| --- | --- | --- |
-| Customer payment API | Authenticated ownership checks, beneficiary IDs, decimal-string money, idempotency conflict tests, validated OpenAPI | Bind voice outcome to payment completion and deploy behind managed OIDC/ingress |
-| Ledger and orchestration | Append-only migrations, reservations, optimistic saga versions, recovery/reconciliation states, PostgreSQL migration job | Live repository concurrency/restore drills and settlement-provider reconciliation |
-| Voice | **Stubbed / server-side trust boundary, not production-ready.** Raw audio is the only biometric input; server-owned inference, transaction-bound single-use challenges, replay tests, and 90%+ Python coverage are present. | Replace the conservative interim feature extractor with an independently evaluated speaker/anti-spoof model; complete accessibility and physical-device evaluation. |
-| Delivery security | Pinned CI actions, scans, SBOM/provenance/signing workflow, immutable digest promotion design | Protect required checks and execute a signed release in the target registry |
-| Operations and compliance | SLO/runbook/threat-model/POPIA/FICA/PCI scope documents | Named-owner approval, production telemetry history, DR exercise and formal assessments |
+The machine-readable source of truth is
+[`docs/product/capabilities.yaml`](docs/product/capabilities.yaml). Its generated
+human-readable view is
+[`current-capability-status.md`](docs/product/current-capability-status.md).
+Repository documentation must link to that registry instead of maintaining a
+second maturity table that can drift from implementation and evidence.
 
 ## Benchmark
 
