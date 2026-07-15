@@ -1,0 +1,7 @@
+AWS DEMONSTRATION EVIDENCE PLACEHOLDER
+
+Replace this file with the redacted output of:
+terraform -chdir=infra/aws/environments/demo plan -var-file=stages/<stage>.tfvars
+
+Do not commit credentials, account IDs, secret values, or unredacted resource identifiers.
+Status: not yet captured from a live AWS account.

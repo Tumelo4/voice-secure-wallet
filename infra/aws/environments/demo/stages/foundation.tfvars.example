@@ -1,0 +1,11 @@
+aws_region       = "af-south-1"
+name             = "voicesecure-demo"
+redis_auth_token = "supply-through-TF_VAR-not-source-control"
+
+enable_rds   = false
+enable_redis = false
+enable_msk   = false
+
+# Add only endpoints used by the application runtime deployed for the demo.
+interface_endpoint_services = ["logs", "monitoring"]
+log_retention_days          = 7

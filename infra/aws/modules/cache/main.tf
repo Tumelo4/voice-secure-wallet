@@ -16,6 +16,9 @@ variable "node_type" {
 variable "node_count" {
   type = number
 }
+variable "multi_az" {
+  type = bool
+}
 variable "auth_token" {
   type      = string
   sensitive = true
@@ -31,14 +34,21 @@ resource "aws_elasticache_replication_group" "this" {
   engine                     = "redis"
   node_type                  = var.node_type
   num_cache_clusters         = var.node_count
-  automatic_failover_enabled = var.node_count > 1
-  multi_az_enabled           = var.node_count > 1
+  automatic_failover_enabled = var.multi_az
+  multi_az_enabled           = var.multi_az
   at_rest_encryption_enabled = true
   transit_encryption_enabled = true
   kms_key_id                 = var.kms_key_arn
   subnet_group_name          = aws_elasticache_subnet_group.this.name
   security_group_ids         = [var.security_group_id]
   auth_token                 = var.auth_token
+
+  lifecycle {
+    precondition {
+      condition     = !var.multi_az || var.node_count > 1
+      error_message = "multi_az requires node_count to be greater than one."
+    }
+  }
 }
 output "primary_endpoint" {
   value = aws_elasticache_replication_group.this.primary_endpoint_address

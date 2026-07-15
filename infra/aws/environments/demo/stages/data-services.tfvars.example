@@ -1,0 +1,10 @@
+aws_region       = "af-south-1"
+name             = "voicesecure-demo"
+redis_auth_token = "supply-through-TF_VAR-not-source-control"
+
+enable_rds   = true
+enable_redis = true
+enable_msk   = false
+
+interface_endpoint_services = ["secretsmanager", "logs", "monitoring", "sts", "kms"]
+log_retention_days          = 7

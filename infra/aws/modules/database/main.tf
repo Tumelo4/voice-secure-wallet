@@ -25,6 +25,9 @@ variable "multi_az" {
 variable "deletion_protection" {
   type = bool
 }
+variable "performance_insights_enabled" {
+  type = bool
+}
 variable "skip_final_snapshot" {
   type = bool
 }
@@ -80,8 +83,8 @@ resource "aws_db_instance" "this" {
   username                            = "voicesecure_admin"
   manage_master_user_password         = true
   iam_database_authentication_enabled = true
-  performance_insights_enabled        = true
-  performance_insights_kms_key_id     = var.kms_key_arn
+  performance_insights_enabled        = var.performance_insights_enabled
+  performance_insights_kms_key_id     = var.performance_insights_enabled ? var.kms_key_arn : null
   enabled_cloudwatch_logs_exports     = ["postgresql", "upgrade"]
   monitoring_interval                 = 60
   monitoring_role_arn                 = aws_iam_role.monitoring.arn

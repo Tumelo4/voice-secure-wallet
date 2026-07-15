@@ -22,6 +22,26 @@ subnets, restricted security groups, KMS, flow logs, IAM-authenticated MSK, and
 public-access blocks remain enabled. It deliberately relaxes availability,
 retention, and deletion protections that make production expensive and durable.
 
+There is no NAT Gateway. The S3 gateway endpoint has no hourly charge; optional
+interface endpoints are selected with `interface_endpoint_services` and permit
+HTTPS only from the application security group. Enable only endpoints required
+by deployed workloads because each endpoint has hourly and data-processing cost.
+
+## Temporary demonstration stages
+
+Use one file from `environments/demo/stages/` at a time:
+
+1. `foundation.tfvars.example` keeps RDS, Redis, and MSK disabled and deploys
+   networking, KMS, audit storage, CloudWatch, and VPC Flow Logs.
+2. `data-services.tfvars.example` temporarily enables RDS and Redis for TLS,
+   managed-credential, payment persistence, and idempotency demonstrations.
+3. `msk.tfvars.example` enables MSK last for event flow, duplicate, DLQ, and
+   consumer-lag evidence.
+
+Copy the selected example outside source control, supply the Redis token through
+`TF_VAR_redis_auth_token`, plan, apply, capture redacted evidence under
+`docs/aws-evidence/`, and destroy chargeable resources immediately afterward.
+
 ## Order of operations
 
 1. Apply `bootstrap/` once from an approved administrator session.
