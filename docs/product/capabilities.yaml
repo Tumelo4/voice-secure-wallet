@@ -13,7 +13,7 @@
     {
       "id": "transactional-outbox",
       "name": "Transactional outbox",
-      "status": "implemented_prototype",
+      "status": "integration_tested",
       "implementation_evidence": [
         "services/event-core/src/main/java/com/voicesecure/events/PostgresOutboxStore.java",
         "services/event-core/src/main/java/com/voicesecure/events/TransactionalOutboxRelay.java",
@@ -23,10 +23,11 @@
       ],
       "test_evidence": [
         "services/event-core/src/test/java/com/voicesecure/events/TransactionalOutboxRelayTests.java",
+        "tests/integration-tests/src/test/java/com/voicesecure/integration/TransactionalOutboxCrashWindowIntegrationTest.java",
         "services/payment-service/src/test/java/com/voicesecure/payments/PaymentProductionSchemaTests.java"
       ],
       "external_evidence": [],
-      "remaining_gaps": "Combined PostgreSQL/Redpanda crash-window injection, downstream effectively-once proof, wiring relay snapshots to the production metrics exporter, and managed Kafka evidence.",
+      "remaining_gaps": "A disposable PostgreSQL/Redpanda test now proves crash-window redelivery and event-id deduplication; production inbox persistence, metrics exporter wiring, and managed Kafka evidence remain.",
       "owner": "payments-platform",
       "last_verified_commit": "worktree"
     },
