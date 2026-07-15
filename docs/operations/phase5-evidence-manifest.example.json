@@ -1,0 +1,6 @@
+{
+  "cutover": {"release_digest":"TBD","change_ticket":"TBD","evidence_uri":"TBD","completed_at":"TBD","immutable_digest_promoted":false,"rollback_armed":false,"signoffs":{"release_owner":{"name":"TBD","approved_at":"TBD"},"platform_owner":{"name":"TBD","approved_at":"TBD"},"payments_owner":{"name":"TBD","approved_at":"TBD"},"security_owner":{"name":"TBD","approved_at":"TBD"},"operations_owner":{"name":"TBD","approved_at":"TBD"}}},
+  "post_launch_monitoring": {"continuous_hours":0,"unresolved_critical_incidents":-1,"slo_dashboard_uri":"TBD","incident_log_uri":"TBD","owner":"TBD"},
+  "first_week_review": {"completed_at":"TBD","report_uri":"TBD","owner":"TBD","actions_tracked":false},
+  "continuous_improvement": {"cadence_days":0,"backlog_uri":"TBD","next_review_at":"TBD","owner":"TBD"}
+}

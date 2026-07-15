@@ -73,3 +73,8 @@ incident response, rollback, or customer recovery.
 If a critical test, operational check, or security gate fails, stop the release.
 Do not promote on hope. Fix the issue, retest, and capture the evidence before
 trying again.
+
+Phase 5 remains blocked until a non-example manifest passes
+`python3 scripts/validate-phase5-evidence.py <manifest>`. The gate requires a
+digest-pinned cutover with five named sign-offs, a full week of monitoring,
+the first-week review, and an owned improvement cadence.
