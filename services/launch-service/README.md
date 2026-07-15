@@ -54,6 +54,12 @@ LaunchReadinessReport report = validator.validate(plan);
 Use `report.blockers()` as the go/no-go list. A ready report means every gate
 and the supporting benchmark evidence satisfy the policy.
 
+Repository launch models do not replace executed staging evidence. Before a
+cutover decision, copy `docs/operations/phase4-evidence-manifest.example.json`
+outside the template path, attach real run references, and run
+`python3 scripts/validate-phase4-evidence.py <manifest>`. The gate requires all
+launch-service categories plus a continuous 48-hour stint and measured rollback.
+
 ## Local Test Command
 
 ```powershell
