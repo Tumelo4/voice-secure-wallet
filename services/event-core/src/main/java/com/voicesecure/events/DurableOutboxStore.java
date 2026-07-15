@@ -11,4 +11,6 @@ public interface DurableOutboxStore {
     void markPublished(UUID eventId, UUID workerId, Instant publishedAt);
 
     void markFailed(UUID eventId, UUID workerId, Instant failedAt, String error, Duration retryDelay);
+
+    void markDeadLettered(UUID eventId, UUID workerId, Instant failedAt, String reason);
 }

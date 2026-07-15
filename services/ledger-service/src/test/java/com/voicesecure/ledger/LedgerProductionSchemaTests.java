@@ -7,6 +7,7 @@ import java.nio.file.Path;
 public final class LedgerProductionSchemaTests {
     private static final Path MIGRATION = Path.of("services", "ledger-service", "src", "main", "resources", "db", "migration", "V002__ledger_production.sql");
     private static final Path OUTBOX_MIGRATION = Path.of("services", "ledger-service", "src", "main", "resources", "db", "migration", "V006__outbox_delivery_leases.sql");
+    private static final Path DEAD_LETTER_MIGRATION = Path.of("services", "ledger-service", "src", "main", "resources", "db", "migration", "V007__outbox_dead_letters.sql");
 
     public static void main(String[] args) throws Exception {
         TestCase[] tests = {
@@ -27,6 +28,9 @@ public final class LedgerProductionSchemaTests {
         assertContains(migration, "lease_owner UUID", "delivery lease owner");
         assertContains(migration, "lease_until TIMESTAMPTZ", "delivery lease expiry");
         assertContains(migration, "next_attempt_at TIMESTAMPTZ", "retry schedule");
+        String deadLetters = Files.readString(DEAD_LETTER_MIGRATION).replaceAll("\\s+", " ");
+        assertContains(deadLetters, "dead_lettered_at TIMESTAMPTZ", "dead-letter timestamp");
+        assertContains(deadLetters, "dead_letter_reason TEXT", "dead-letter reason");
     }
 
     private static void declaresBatchTable() throws IOException {

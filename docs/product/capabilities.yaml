@@ -17,13 +17,17 @@
       "implementation_evidence": [
         "services/event-core/src/main/java/com/voicesecure/events/PostgresOutboxStore.java",
         "services/event-core/src/main/java/com/voicesecure/events/TransactionalOutboxRelay.java",
+        "services/event-core/src/main/java/com/voicesecure/events/OutboxRetryPolicy.java",
         "services/payment-service/src/main/resources/db/migration/V005__transactional_outbox.sql"
       ],
-      "test_evidence": ["services/payment-service/src/test/java/com/voicesecure/payments/PaymentProductionSchemaTests.java"],
+      "test_evidence": [
+        "services/event-core/src/test/java/com/voicesecure/events/TransactionalOutboxRelayTests.java",
+        "services/payment-service/src/test/java/com/voicesecure/payments/PaymentProductionSchemaTests.java"
+      ],
       "external_evidence": [],
-      "remaining_gaps": "Crash-window injection, bounded poison/DLQ handling, relay metrics, and managed Kafka evidence.",
+      "remaining_gaps": "Combined PostgreSQL/Redpanda crash-window injection, downstream effectively-once proof, relay metrics, and managed Kafka evidence.",
       "owner": "payments-platform",
-      "last_verified_commit": "0084b25d"
+      "last_verified_commit": "worktree"
     },
     {
       "id": "api-rate-limiting",
