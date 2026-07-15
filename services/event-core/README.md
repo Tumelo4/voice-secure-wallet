@@ -71,3 +71,12 @@ dead-letter handling is needed.
 ```powershell
 powershell -ExecutionPolicy Bypass -File ..\..\scripts\test-services.ps1
 ```
+
+## Durable relay telemetry
+
+`TransactionalOutboxRelay.telemetry().snapshot()` exposes thread-safe cumulative
+counts for relay runs, run failures, claimed, published, retried, and dead-lettered
+messages together with duration and last success/failure timestamps. Payment and
+ledger production runtimes expose the same snapshot. A deployment must connect
+these values to its metrics exporter and alerts; the snapshot alone is not claimed
+as production monitoring.
