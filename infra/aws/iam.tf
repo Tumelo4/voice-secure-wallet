@@ -105,6 +105,27 @@ resource "aws_iam_role_policy" "payment" {
   })
 }
 
+resource "aws_iam_role_policy" "payment_msk_publish" {
+  name = "voicesecure-${var.environment}-payment-msk-publish"
+  role = aws_iam_role.payment.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["kafka-cluster:Connect", "kafka-cluster:DescribeCluster"]
+        Resource = aws_msk_cluster.events.arn
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["kafka-cluster:DescribeTopic", "kafka-cluster:WriteData"]
+        Resource = "${replace(aws_msk_cluster.events.arn, ":cluster/", ":topic/")}/*"
+      },
+    ]
+  })
+}
+
 resource "aws_iam_role" "ledger" {
   name               = "voicesecure-${var.environment}-ledger"
   assume_role_policy = data.aws_iam_policy_document.service_tasks_assume_role.json
@@ -137,6 +158,27 @@ resource "aws_iam_role_policy" "ledger" {
           aws_s3_bucket.audit_evidence.arn,
           "${aws_s3_bucket.audit_evidence.arn}/*",
         ]
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "ledger_msk_publish" {
+  name = "voicesecure-${var.environment}-ledger-msk-publish"
+  role = aws_iam_role.ledger.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["kafka-cluster:Connect", "kafka-cluster:DescribeCluster"]
+        Resource = aws_msk_cluster.events.arn
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["kafka-cluster:DescribeTopic", "kafka-cluster:WriteData"]
+        Resource = "${replace(aws_msk_cluster.events.arn, ":cluster/", ":topic/")}/*"
       },
     ]
   })

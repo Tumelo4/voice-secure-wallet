@@ -18,6 +18,11 @@ output "msk_bootstrap_brokers_tls" {
   value       = aws_msk_cluster.events.bootstrap_brokers_tls
 }
 
+output "msk_bootstrap_brokers_sasl_iam" {
+  description = "MSK IAM-authenticated TLS bootstrap brokers used by production services."
+  value       = aws_msk_cluster.events.bootstrap_brokers_sasl_iam
+}
+
 output "ledger_database_endpoint" {
   description = "RDS PostgreSQL endpoint."
   value       = aws_db_instance.ledger.endpoint
