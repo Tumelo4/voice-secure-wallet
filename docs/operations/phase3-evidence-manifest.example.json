@@ -1,0 +1,10 @@
+{
+  "environment": "staging",
+  "controls": [
+    {"type": "telemetry_slo", "run_id": "TBD", "completed_at": "TBD", "evidence_uri": "TBD", "approver": "TBD", "passed": false, "observation_hours": 0},
+    {"type": "disaster_recovery", "run_id": "TBD", "completed_at": "TBD", "evidence_uri": "TBD", "approver": "TBD", "passed": false, "target_rto_minutes": 60, "measured_rto_minutes": 0, "target_rpo_minutes": 5, "measured_rpo_minutes": -1},
+    {"type": "production_ingress", "run_id": "TBD", "completed_at": "TBD", "evidence_uri": "TBD", "approver": "TBD", "passed": false, "tls13": false, "mtls": false, "oidc_jwks": false, "waf": false},
+    {"type": "pci_dss", "run_id": "TBD", "completed_at": "TBD", "evidence_uri": "TBD", "approver": "TBD", "passed": false, "independent_assessor": false},
+    {"type": "biometric_evaluation", "run_id": "TBD", "completed_at": "TBD", "evidence_uri": "TBD", "approver": "TBD", "passed": false, "independent_assessor": false}
+  ]
+}
