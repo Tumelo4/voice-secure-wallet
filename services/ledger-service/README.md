@@ -58,9 +58,11 @@ LedgerBatch batch = ledger.transfer(sagaId, idempotencyKey, sourceAccountId, des
 Use `RepairRequest` for corrective entries. A repair must include balanced
 postings, a requester, and a meaningful justification.
 
-For production wiring, use `PostgresLedgerRepository` with a `DataSource`
-pointing at AWS RDS PostgreSQL. The repository expects the `ledger_batches`,
-`ledger_entries`, and `outbox_events` schema from the production migration.
+For production wiring, construct `LedgerProductionRuntime` with the managed
+PostgreSQL `DataSource` and Kafka `EventPublisher`. Ledger writes and outbox rows
+commit atomically; the runtime claims unpublished rows with expiring leases and
+retries failures without allowing concurrent workers to publish the same claim.
+Apply migrations through `V006__outbox_delivery_leases.sql` before startup.
 
 ## Local Test Command
 

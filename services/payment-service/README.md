@@ -61,9 +61,11 @@ payments.complete(saga.sagaId());
 Use `recordFallbackOutcome`, `failFundsReservation`, `failLedgerCommit`, and
 `failCompensation` to exercise failure branches.
 
-For production wiring, use `PostgresPaymentSagaRepository` against AWS RDS
-PostgreSQL. It persists saga snapshots into `payment_sagas` and append-only
-transition events into `payment_saga_events`.
+For production wiring, construct `PaymentProductionRuntime` with the managed
+PostgreSQL `DataSource` and Kafka `EventPublisher`. It uses
+`PostgresPaymentSagaRepository`, writes each transition and its outbox row in
+the same transaction, and runs a leased, retrying outbox relay. Apply migrations
+through `V005__transactional_outbox.sql` before starting the runtime.
 
 ## Local Test Command
 

@@ -104,6 +104,11 @@ public final class PostgresPaymentSagaRepository implements PaymentSagaRepositor
                 payload
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """;
+    private static final String INSERT_OUTBOX = """
+            INSERT INTO payment_outbox_events (
+                id, aggregate_id, aggregate_type, event_type, event_version, payload, trace_id, created_at
+            ) VALUES (?, ?, 'Payment', ?, '1.0', ?, ?, ?)
+            """;
 
     private final DataSource dataSource;
 
@@ -292,6 +297,15 @@ public final class PostgresPaymentSagaRepository implements PaymentSagaRepositor
                 statement.setTimestamp(5, Timestamp.from(event.occurredAt()));
                 statement.setString(6, event.traceId());
                 statement.setString(7, event.payload());
+                statement.executeUpdate();
+            }
+            try (PreparedStatement statement = connection.prepareStatement(INSERT_OUTBOX)) {
+                statement.setObject(1, event.eventId());
+                statement.setObject(2, event.sagaId());
+                statement.setString(3, event.eventType());
+                statement.setString(4, event.payload());
+                statement.setString(5, event.traceId().isBlank() ? event.eventId().toString() : event.traceId());
+                statement.setTimestamp(6, Timestamp.from(event.occurredAt()));
                 statement.executeUpdate();
             }
         }

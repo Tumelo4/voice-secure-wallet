@@ -17,6 +17,20 @@ public final class EventEnvelopeFactory {
             String traceId,
             String payload
     ) {
+        return create(UUID.randomUUID(), topic, aggregateId, aggregateType, eventType, occurredAt, traceId, payload);
+    }
+
+    public static EventEnvelope create(
+            UUID eventId,
+            EventTopic topic,
+            UUID aggregateId,
+            String aggregateType,
+            String eventType,
+            Instant occurredAt,
+            String traceId,
+            String payload
+    ) {
+        Objects.requireNonNull(eventId, "eventId");
         Objects.requireNonNull(topic, "topic");
         Objects.requireNonNull(aggregateId, "aggregateId");
         Objects.requireNonNull(aggregateType, "aggregateType");
@@ -25,7 +39,7 @@ public final class EventEnvelopeFactory {
         Objects.requireNonNull(traceId, "traceId");
         Objects.requireNonNull(payload, "payload");
         return new EventEnvelope(
-                UUID.randomUUID(),
+                eventId,
                 topic.topicName(),
                 topic.partitionKeyField(),
                 aggregateId.toString(),
