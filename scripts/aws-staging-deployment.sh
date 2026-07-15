@@ -7,7 +7,7 @@ if [[ "$action" != "plan" && "$action" != "apply" ]]; then
   exit 64
 fi
 
-required=(AWS_PROFILE EXPECTED_AWS_ACCOUNT_ID TF_VAR_database_secret_rotation_lambda_arn TF_VAR_redis_secret_rotation_lambda_arn TF_VAR_redis_auth_token)
+required=(AWS_PROFILE EXPECTED_AWS_ACCOUNT_ID TF_VAR_redis_auth_token)
 for name in "${required[@]}"; do
   if [[ -z "${!name:-}" ]]; then
     echo "$name must be set" >&2
@@ -26,14 +26,15 @@ if [[ "$actual_account" != "$EXPECTED_AWS_ACCOUNT_ID" ]]; then
   exit 77
 fi
 
-terraform -chdir=infra/aws init -input=false
-terraform -chdir=infra/aws validate
-terraform -chdir=infra/aws plan -input=false -out=staging.tfplan -var='environment=staging'
+environment_dir="infra/aws/environments/production-reference"
+terraform -chdir="$environment_dir" init -input=false
+terraform -chdir="$environment_dir" validate
+terraform -chdir="$environment_dir" plan -input=false -out=staging.tfplan
 
 if [[ "$action" == "apply" ]]; then
   if [[ "${CONFIRM_STAGING_APPLY:-}" != "staging:${EXPECTED_AWS_ACCOUNT_ID}" ]]; then
     echo "set CONFIRM_STAGING_APPLY=staging:${EXPECTED_AWS_ACCOUNT_ID} to authorize apply" >&2
     exit 77
   fi
-  terraform -chdir=infra/aws apply -input=false staging.tfplan
+  terraform -chdir="$environment_dir" apply -input=false staging.tfplan
 fi

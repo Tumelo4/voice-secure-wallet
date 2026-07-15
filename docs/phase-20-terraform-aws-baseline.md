@@ -1,8 +1,10 @@
 # Phase 20 Terraform AWS Baseline
 
-This slice adds a reviewable AWS Terraform baseline without applying it:
+This slice adds a reviewable AWS Terraform baseline without applying it. The
+original single-root configuration has since been refactored into reusable
+capability modules with `demo` and `production-reference` compositions:
 
-- provider and variable files for the first AWS module;
+- independent provider and variable files for each environment;
 - private VPC, private subnets, private route table, and S3 gateway endpoint;
 - KMS key with rotation;
 - MSK cluster and broker configuration for event streaming;
@@ -35,6 +37,12 @@ This slice adds a reviewable AWS Terraform baseline without applying it:
   S3 object-lock, secret-reference, and output resources.
 - **Refactor:** tests normalize Terraform whitespace and documentation now
   separates static IaC validation from live AWS provisioning.
+
+The remote-state bucket and lock table now live under `infra/aws/bootstrap` so
+they are created independently before an environment consumes that backend.
+The demo keeps security controls but selects disposable, lower-availability
+settings; production-reference retains the hardened availability, retention,
+encryption, IAM-authenticated messaging, and deletion controls.
 
 ## Live Provisioning Boundary
 
