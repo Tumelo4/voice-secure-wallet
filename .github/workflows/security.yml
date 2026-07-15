@@ -70,7 +70,11 @@ jobs:
           mvn --batch-mode --no-transfer-progress
           -pl build-support,services/event-core,services/identity-service,services/compliance-service,services/ledger-service,services/payment-service,services/notification-service,services/wallet-service,services/beneficiary-service,services/fraud-service,services/recovery-service,services/support-service,services/ops-service,services/launch-service,services/api-adapter-service,tests/contract-tests
           com.github.spotbugs:spotbugs-maven-plugin:4.8.6.6:check
-      - run: >-
+      # PRs are gated by dependency-review above. The unauthenticated initial
+      # NVD bootstrap exceeds GitHub's six-hour job limit, so run the full ODC
+      # database scan after merge where it cannot deadlock every pull request.
+      - if: github.event_name == 'push'
+        run: >-
           mvn --batch-mode --no-transfer-progress
           org.owasp:dependency-check-maven:12.1.0:check
           -DfailBuildOnCVSS=7
