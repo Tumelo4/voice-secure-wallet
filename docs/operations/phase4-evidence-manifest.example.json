@@ -1,0 +1,11 @@
+{
+  "runs": [
+    {"type":"chaos","run_id":"TBD","completed_at":"TBD","evidence_uri":"TBD","approver":"TBD","passed":false},
+    {"type":"security_scan","run_id":"TBD","completed_at":"TBD","evidence_uri":"TBD","approver":"TBD","passed":false},
+    {"type":"penetration_test","run_id":"TBD","completed_at":"TBD","evidence_uri":"TBD","approver":"TBD","passed":false,"independent_tester":false,"open_critical_findings":-1},
+    {"type":"voice_shadow_mode","run_id":"TBD","completed_at":"TBD","evidence_uri":"TBD","approver":"TBD","passed":false,"authorised_transactions":-1},
+    {"type":"load_test","run_id":"TBD","completed_at":"TBD","evidence_uri":"TBD","approver":"TBD","passed":false,"load_multiplier":0,"p99_within_slo":false},
+    {"type":"staging_stint","run_id":"TBD","completed_at":"TBD","evidence_uri":"TBD","approver":"TBD","passed":false,"continuous_hours":0,"slo_breaches":-1},
+    {"type":"cutover_drill","run_id":"TBD","completed_at":"TBD","evidence_uri":"TBD","approver":"TBD","passed":false,"rollback_executed":false,"rollback_minutes":0}
+  ]
+}
