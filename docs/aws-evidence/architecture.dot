@@ -1,0 +1,26 @@
+digraph aws_demo {
+  graph [rankdir=LR, bgcolor="white", pad="0.3", nodesep="0.5", ranksep="0.8"];
+  node [shape=box, style="rounded,filled", fillcolor="#eef4ff", color="#315b9d", fontname="Helvetica"];
+  edge [color="#526777", fontname="Helvetica", fontsize=10];
+
+  user [label="Demonstration client", fillcolor="#fff4d6", color="#9a6b00"];
+  app [label="Private application workloads"];
+  rds [label="RDS PostgreSQL\nStage 2", fillcolor="#f3e8ff", color="#6b3fa0"];
+  redis [label="ElastiCache\nStage 2", fillcolor="#f3e8ff", color="#6b3fa0"];
+  msk [label="Amazon MSK\nStage 3", fillcolor="#ffe9e9", color="#a33a3a"];
+  endpoints [label="Selected VPC endpoints\nNo NAT Gateway", fillcolor="#e8f8ee", color="#287a49"];
+  foundation [label="KMS · S3 · CloudWatch\nStage 1", fillcolor="#e8f8ee", color="#287a49"];
+
+  subgraph cluster_vpc {
+    label="VPC · private subnets · flow logs";
+    color="#8fa7bf";
+    app; rds; redis; msk; endpoints;
+  }
+
+  user -> app [label="controlled ingress"];
+  app -> rds [label="TLS 5432"];
+  app -> redis [label="TLS 6379"];
+  app -> msk [label="IAM/TLS 9098"];
+  app -> endpoints [label="HTTPS 443"];
+  endpoints -> foundation [label="private AWS APIs"];
+}

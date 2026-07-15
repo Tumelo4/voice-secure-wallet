@@ -1,3 +1,15 @@
 aws_region       = "af-south-1"
 name             = "voicesecure-production"
 redis_auth_token = "supply-through-TF_VAR-not-source-control"
+
+enable_msk                       = true
+enable_rds                       = true
+enable_redis                     = true
+rds_multi_az                     = true
+rds_deletion_protection          = true
+rds_performance_insights_enabled = true
+redis_node_count                 = 2
+redis_multi_az                   = true
+audit_object_lock_enabled        = true
+log_retention_days               = 365
+interface_endpoint_services      = ["secretsmanager", "logs", "monitoring", "sts", "ecr.api", "ecr.dkr", "kms"]

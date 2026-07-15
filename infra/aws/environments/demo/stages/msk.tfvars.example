@@ -1,0 +1,11 @@
+aws_region       = "af-south-1"
+name             = "voicesecure-demo"
+redis_auth_token = "supply-through-TF_VAR-not-source-control"
+
+enable_rds   = true
+enable_redis = true
+enable_msk   = true
+
+# ECR endpoints are required only when images are pulled from private subnets.
+interface_endpoint_services = ["secretsmanager", "logs", "monitoring", "sts", "ecr.api", "ecr.dkr", "kms"]
+log_retention_days          = 7

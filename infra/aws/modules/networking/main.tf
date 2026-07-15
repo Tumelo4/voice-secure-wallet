@@ -13,6 +13,19 @@ variable "app_port" {
 variable "allow_public_ingress" {
   type = bool
 }
+variable "interface_endpoint_services" {
+  description = "Regional AWS interface endpoints required by private workloads. Keep empty to avoid hourly endpoint charges."
+  type        = set(string)
+  default     = []
+  validation {
+    condition = alltrue([
+      for service in var.interface_endpoint_services : contains([
+        "secretsmanager", "logs", "monitoring", "sts", "ecr.api", "ecr.dkr", "kms"
+      ], service)
+    ])
+    error_message = "Supported interface endpoints are secretsmanager, logs, monitoring, sts, ecr.api, ecr.dkr, and kms."
+  }
+}
 
 data "aws_availability_zones" "available" {
   state = "available"
@@ -61,6 +74,47 @@ resource "aws_vpc_endpoint" "s3" {
   service_name      = "com.amazonaws.${data.aws_region.current.name}.s3"
   vpc_endpoint_type = "Gateway"
   route_table_ids   = [aws_route_table.private.id]
+}
+
+resource "aws_security_group" "interface_endpoints" {
+  count                  = length(var.interface_endpoint_services) > 0 ? 1 : 0
+  name                   = "${var.name}-interface-endpoints"
+  description            = "HTTPS from private application workloads to AWS interface endpoints"
+  vpc_id                 = aws_vpc.this.id
+  revoke_rules_on_delete = true
+  ingress                = []
+  egress                 = []
+}
+
+resource "aws_vpc_security_group_ingress_rule" "interface_endpoints_from_app" {
+  count                        = length(var.interface_endpoint_services) > 0 ? 1 : 0
+  security_group_id            = aws_security_group.interface_endpoints[0].id
+  referenced_security_group_id = aws_security_group.app.id
+  from_port                    = 443
+  to_port                      = 443
+  ip_protocol                  = "tcp"
+}
+
+resource "aws_vpc_security_group_egress_rule" "app_to_interface_endpoints" {
+  count                        = length(var.interface_endpoint_services) > 0 ? 1 : 0
+  security_group_id            = aws_security_group.app.id
+  referenced_security_group_id = aws_security_group.interface_endpoints[0].id
+  from_port                    = 443
+  to_port                      = 443
+  ip_protocol                  = "tcp"
+}
+
+resource "aws_vpc_endpoint" "interface" {
+  for_each            = var.interface_endpoint_services
+  vpc_id              = aws_vpc.this.id
+  service_name        = "com.amazonaws.${data.aws_region.current.name}.${each.value}"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [for subnet in aws_subnet.private : subnet.id]
+  security_group_ids  = [aws_security_group.interface_endpoints[0].id]
+  private_dns_enabled = true
+  tags = {
+    Name = "${var.name}-${replace(each.value, ".", "-")}"
+  }
 }
 
 resource "aws_security_group" "alb" {
@@ -187,4 +241,7 @@ output "redis_security_group_id" {
 }
 output "msk_security_group_id" {
   value = aws_security_group.msk.id
+}
+output "interface_endpoint_ids" {
+  value = { for service, endpoint in aws_vpc_endpoint.interface : service => endpoint.id }
 }
