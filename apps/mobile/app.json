@@ -5,10 +5,18 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "assetBundlePatterns": ["**/*"],
-    "plugins": [["expo-secure-store", {
-      "configureAndroidBackup": true,
-      "faceIDPermission": "Allow VoiceSecure Wallet to protect your banking session."
-    }]]
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "plugins": [
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true,
+          "faceIDPermission": "Allow VoiceSecure Wallet to protect your banking session."
+        }
+      ],
+      "expo-audio"
+    ]
   }
 }

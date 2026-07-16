@@ -79,6 +79,34 @@ export interface CreateBeneficiaryCommand {
   accountNumber: string;
 }
 
+export interface VoiceChallengeCommand {
+  paymentReference: string;
+  transactionBindingHash: string;
+}
+
+export interface VoiceChallengeResult {
+  paymentReference: string;
+  challengeId: string;
+  phrase: string;
+  expiresAt: string;
+  authPolicy: string;
+  transactionAmountMinor: number;
+  transactionBindingHash: string;
+}
+
+export interface VoiceVerificationCommand {
+  challenge: VoiceChallengeResult;
+  capturedAt: string;
+  audio: { contentBase64: string; codec: string; sampleRateHz: number };
+}
+
+export interface VoiceVerificationResult {
+  verificationId: string;
+  status: string;
+  fallbackRequested: boolean;
+  reason: string;
+}
+
 interface ApiErrorBody {
   code?: string;
   message?: string;
@@ -100,6 +128,7 @@ export class ApiClientError extends Error {
 
 export class VoiceSecureApiClient {
   private readonly paymentAttemptKeys = new Map<string, string>();
+  private readonly voiceAttemptKeys = new Map<string, string>();
   private readonly tokenProvider: AccessTokenProvider;
   private readonly traceIdFactory: () => string;
   private readonly transport: ApiTransport;
@@ -169,6 +198,44 @@ export class VoiceSecureApiClient {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(command),
     });
+  }
+
+  async issueVoiceChallenge(command: VoiceChallengeCommand): Promise<VoiceChallengeResult> {
+    const challenge = await this.sendJson<Omit<VoiceChallengeResult, "paymentReference">>({
+      method: "POST",
+      path: `/v1/payments/${encodeURIComponent(requireNonBlank(command.paymentReference, "paymentReference"))}/voice-challenge`,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transactionBindingHash: requireNonBlank(command.transactionBindingHash, "transactionBindingHash") }),
+    });
+    return { ...challenge, paymentReference: command.paymentReference };
+  }
+
+  async verifyVoice(command: VoiceVerificationCommand): Promise<VoiceVerificationResult> {
+    const challengeId = requireNonBlank(command.challenge.challengeId, "challengeId");
+    const idempotencyKey = this.voiceAttemptKeys.get(challengeId) ?? createIdempotencyKey();
+    this.voiceAttemptKeys.set(challengeId, idempotencyKey);
+    try {
+      const result = await this.sendJson<VoiceVerificationResult>({
+        method: "POST",
+        path: `/v1/voice/challenges/${encodeURIComponent(challengeId)}/verification`,
+        headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
+        body: JSON.stringify({
+          paymentReference: command.challenge.paymentReference,
+          transactionBindingHash: command.challenge.transactionBindingHash,
+          authPolicy: command.challenge.authPolicy,
+          transactionAmountMinor: command.challenge.transactionAmountMinor,
+          capturedAt: command.capturedAt,
+          audio: command.audio,
+        }),
+      });
+      this.voiceAttemptKeys.delete(challengeId);
+      return result;
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status < 500 && error.status !== 429) {
+        this.voiceAttemptKeys.delete(challengeId);
+      }
+      throw error;
+    }
   }
 
   private async sendJson<T>(request: Omit<ApiTransportRequest, "headers"> & { headers: Record<string, string> }): Promise<T> {

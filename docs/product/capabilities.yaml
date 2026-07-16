@@ -92,13 +92,17 @@
     {
       "id": "mobile-voice-capture",
       "name": "Mobile voice capture and upload",
-      "status": "not_started",
-      "implementation_evidence": ["apps/mobile/src/api/voiceSecureApiClient.ts"],
-      "test_evidence": [],
+      "status": "implemented_prototype",
+      "implementation_evidence": [
+        "apps/mobile/src/api/voiceSecureApiClient.ts",
+        "apps/mobile/src/voice/voiceCaptureSession.ts",
+        "apps/mobile/src/voice/useExpoVoiceRecorder.ts"
+      ],
+      "test_evidence": ["apps/mobile/test/voiceCaptureSession.test.ts"],
       "external_evidence": [],
-      "remaining_gaps": "Microphone permission, recording, cancellation, challenge-bound upload, and retry UX.",
+      "remaining_gaps": "Permission, cache-only recording/deletion, cancellation, challenge-bound upload, expiry, and idempotent transient retry are implemented and unit-tested. Payment-screen integration, customer-safe API gateway routes, and physical-device accessibility/audio validation remain.",
       "owner": "mobile",
-      "last_verified_commit": "0084b25d"
+      "last_verified_commit": "1ca7521e"
     },
     {
       "id": "voice-persistence",
