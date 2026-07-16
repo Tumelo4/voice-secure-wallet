@@ -6,7 +6,7 @@ export interface UiStack {
 
 export interface Phase {
   name: string;
-  status: "complete" | "modeled" | "active";
+  status: "complete" | "partial" | "modeled" | "active";
   evidence: string;
 }
 
