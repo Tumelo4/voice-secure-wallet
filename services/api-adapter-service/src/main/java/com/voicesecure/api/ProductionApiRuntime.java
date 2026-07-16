@@ -78,7 +78,8 @@ public final class ProductionApiRuntime implements AutoCloseable {
                     new HealthApiAdapter(), new WalletApiAdapter(wallets),
                     new BeneficiaryApiAdapter(beneficiaries, dependencies.beneficiaryDirectory()),
                     new PaymentApiAdapter(payments.paymentService(), dependencies.fraud(), wallets, beneficiaries,
-                            PaymentRolloutPolicy.enabled(), references),
+                            PaymentRolloutPolicy.enabled(), references,
+                            new PaymentSettlementCoordinator(payments.paymentService(), ledger.ledgerService())),
                     new SupportRepairApiAdapter(support),
                     new VoiceGatewayApiAdapter(payments.paymentService(), references, dependencies.voice()))),
                     dependencies.tokenVerifier(), dependencies.rateLimiter(), dependencies.logSink());

@@ -179,6 +179,48 @@ public final class PostgresLedgerRepository implements LedgerRepository {
     }
 
     @Override
+    public LedgerBatch consumeReservation(UUID reservationId, LedgerTransaction transaction) {
+        Objects.requireNonNull(reservationId, "reservationId");
+        Objects.requireNonNull(transaction, "transaction");
+        LedgerCommand command = LedgerCommand.from(transaction, null);
+        String commandHash = hash(command);
+        try {
+            return inTransaction(connection -> {
+                Optional<LoadedBatch> existing = loadBatch(connection, transaction.idempotencyKey());
+                if (existing.isPresent()) {
+                    existing.get().ensureMatches(command, commandHash);
+                    return existing.get().batch();
+                }
+                FundReservation reservation = loadReservation(connection, reservationId, true)
+                        .orElseThrow(() -> new LedgerException("reservation not found"));
+                requireMatchingReservation(reservation, transaction);
+                if (reservation.status() == FundReservation.Status.CONSUMED) {
+                    LoadedBatch completed = loadBatch(connection, transaction.idempotencyKey())
+                            .orElseThrow(() -> new LedgerException("consumed reservation has no ledger batch"));
+                    completed.ensureMatches(command, commandHash);
+                    return completed.batch();
+                }
+                if (reservation.status() != FundReservation.Status.ACTIVE) {
+                    throw new LedgerException("reservation is not active");
+                }
+                AccountState source = lockAccount(connection, reservation.accountId());
+                Instant now = Instant.now();
+                try (PreparedStatement update = connection.prepareStatement(UPDATE_RESERVATION_STATUS)) {
+                    update.setString(1, FundReservation.Status.CONSUMED.name());
+                    update.setObject(2, reservationId);
+                    update.executeUpdate();
+                }
+                updateReservedBalance(connection, reservation.accountId(),
+                        source.reserved() - reservation.amount(), source.version() + 1, now);
+                return appendWithinTransaction(connection, transaction, null, command, commandHash);
+            });
+        } catch (LedgerException failure) {
+            if (isUniqueViolation(failure.getCause())) return append(transaction, null);
+            throw failure;
+        }
+    }
+
+    @Override
     public LedgerBatch appendRepair(RepairRequest repairRequest) {
         LedgerTransaction transaction = new LedgerTransaction(
                 repairRequest.sagaId(),
@@ -254,6 +296,17 @@ public final class PostgresLedgerRepository implements LedgerRepository {
     @Override
     public Optional<FundReservation> findReservation(UUID reservationId) {
         return inTransaction(connection -> loadReservation(connection, reservationId, false));
+    }
+
+    private static void requireMatchingReservation(FundReservation reservation, LedgerTransaction transaction) {
+        Posting debit = transaction.postings().stream().filter(posting -> posting.signedAmount() < 0).findFirst()
+                .orElseThrow(() -> new LedgerException("reserved transfer requires a debit"));
+        if (!reservation.paymentId().equals(transaction.sagaId())
+                || !reservation.accountId().equals(debit.accountId())
+                || reservation.amount() != -debit.signedAmount()
+                || !reservation.currency().equals(transaction.currency())) {
+            throw new LedgerException("reservation does not match ledger transaction");
+        }
     }
 
     @Override

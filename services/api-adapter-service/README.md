@@ -53,6 +53,12 @@ fraud, voice, and beneficiary-directory clients; and structured request and
 rate-limit telemetry. Schema migrations remain a separate deployment job and
 must complete before the application starts.
 
+An approved trusted voice-result callback now invokes an idempotent settlement
+coordinator. It reserves funds, atomically consumes that reservation while
+posting the balanced ledger transfer, advances the durable payment saga to
+completion, and compensates by releasing the reservation if ledger posting
+fails. The saga and ledger idempotency keys make retries safe across restart.
+
 ## Current Guarantees
 
 - Payment POST requires `Idempotency-Key` and `X-Trace-Id` headers.

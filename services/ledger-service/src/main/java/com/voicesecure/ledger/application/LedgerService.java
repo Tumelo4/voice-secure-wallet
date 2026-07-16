@@ -53,6 +53,20 @@ public final class LedgerService {
         return repository.release(reservationId);
     }
 
+    public LedgerBatch commitReservedTransfer(
+            UUID reservationId,
+            UUID sagaId,
+            UUID idempotencyKey,
+            UUID fromAccountId,
+            UUID toAccountId,
+            long amount,
+            String currency
+    ) {
+        return repository.consumeReservation(reservationId, new LedgerTransaction(
+                sagaId, idempotencyKey, currency,
+                List.of(Posting.debit(fromAccountId, amount), Posting.credit(toAccountId, amount))));
+    }
+
     public ReconciliationReport reconcile() {
         return ReconciliationReport.from(repository.entries());
     }

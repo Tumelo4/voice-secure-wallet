@@ -13,6 +13,8 @@ public interface LedgerRepository {
 
     LedgerBatch append(LedgerTransaction transaction);
 
+    LedgerBatch consumeReservation(UUID reservationId, LedgerTransaction transaction);
+
     LedgerBatch appendRepair(RepairRequest repairRequest);
 
     FundReservation reserve(UUID reservationId, UUID paymentId, UUID accountId, long amount, String currency, Duration ttl);
