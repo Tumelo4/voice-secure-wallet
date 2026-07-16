@@ -1,0 +1,34 @@
+package com.voicesecure.support;
+
+import com.voicesecure.ledger.EntryType;
+import com.voicesecure.ledger.LedgerBatch;
+import com.voicesecure.ledger.Posting;
+import java.sql.*;
+import java.util.*;
+import javax.sql.DataSource;
+
+public final class PostgresSupportRepository implements SupportRepository {
+    private final DataSource source;
+    public PostgresSupportRepository(DataSource source) { this.source = Objects.requireNonNull(source); }
+    @Override public void ingestLedgerBatch(LedgerBatch batch) {
+        try (Connection c=source.getConnection(); PreparedStatement s=c.prepareStatement("INSERT INTO support_transactions VALUES (?,?,?,?,?,?,?) ON CONFLICT DO NOTHING")) {
+            for (var e:batch.entries()) { s.setObject(1,e.id());s.setObject(2,e.sagaId());s.setObject(3,e.accountId());s.setLong(4,e.signedAmount());s.setString(5,e.currency());s.setString(6,e.entryType().name());s.setTimestamp(7,Timestamp.from(e.createdAt()));s.addBatch(); } s.executeBatch();
+        } catch(SQLException e){throw failure(e);}
+    }
+    @Override public List<SupportTransactionView> searchTransactions(UUID account,String currency) {
+        String sql="SELECT * FROM support_transactions WHERE account_id=?"+(currency==null||currency.isBlank()?"":" AND currency=?")+" ORDER BY posted_at, entry_id";
+        try(Connection c=source.getConnection();PreparedStatement s=c.prepareStatement(sql)){s.setObject(1,account);if(!(currency==null||currency.isBlank()))s.setString(2,currency);List<SupportTransactionView> out=new ArrayList<>();try(ResultSet r=s.executeQuery()){while(r.next())out.add(new SupportTransactionView(uuid(r,"entry_id"),uuid(r,"transaction_id"),uuid(r,"account_id"),r.getLong("signed_amount"),r.getString("currency"),r.getString("entry_type"),r.getTimestamp("posted_at").toInstant()));}return List.copyOf(out);}catch(SQLException e){throw failure(e);}
+    }
+    @Override public void saveCase(SupportCase v){execute("INSERT INTO support_cases VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(case_id) DO UPDATE SET status=EXCLUDED.status,linked_repair_id=EXCLUDED.linked_repair_id,updated_at=EXCLUDED.updated_at",s->{s.setObject(1,v.caseId());s.setString(2,v.type().name());s.setString(3,v.status().name());s.setObject(4,v.subjectId());s.setObject(5,v.transactionId());s.setObject(6,v.linkedRepairId());s.setString(7,v.reason());s.setString(8,v.openedBy());s.setTimestamp(9,Timestamp.from(v.openedAt()));s.setTimestamp(10,Timestamp.from(v.updatedAt()));});}
+    @Override public Optional<SupportCase> findCase(UUID id){return cases(" WHERE case_id=?",id).stream().findFirst();}
+    @Override public List<SupportCase> cases(){return cases(" ORDER BY opened_at, case_id",null);}
+    private List<SupportCase> cases(String suffix,UUID id){try(Connection c=source.getConnection();PreparedStatement s=c.prepareStatement("SELECT * FROM support_cases"+suffix)){if(id!=null)s.setObject(1,id);List<SupportCase> out=new ArrayList<>();try(ResultSet r=s.executeQuery()){while(r.next())out.add(new SupportCase(uuid(r,"case_id"),SupportCaseType.valueOf(r.getString("type")),SupportCaseStatus.valueOf(r.getString("status")),uuid(r,"subject_id"),(UUID)r.getObject("transaction_id"),(UUID)r.getObject("linked_repair_id"),r.getString("reason"),r.getString("opened_by"),r.getTimestamp("opened_at").toInstant(),r.getTimestamp("updated_at").toInstant()));}return List.copyOf(out);}catch(SQLException e){throw failure(e);}}
+    @Override public void appendAudit(SupportAuditEntry v){execute("INSERT INTO support_audit VALUES (?,?,?,?,?,?)",s->{s.setObject(1,v.auditId());s.setObject(2,v.caseId());s.setString(3,v.action());s.setString(4,v.actor());s.setString(5,v.details());s.setTimestamp(6,Timestamp.from(v.occurredAt()));});}
+    @Override public List<SupportAuditEntry> auditLog(){try(Connection c=source.getConnection();PreparedStatement s=c.prepareStatement("SELECT * FROM support_audit ORDER BY occurred_at,audit_id");ResultSet r=s.executeQuery()){List<SupportAuditEntry> out=new ArrayList<>();while(r.next())out.add(new SupportAuditEntry(uuid(r,"audit_id"),uuid(r,"case_id"),r.getString("action"),r.getString("actor"),r.getString("details"),r.getTimestamp("occurred_at").toInstant()));return List.copyOf(out);}catch(SQLException e){throw failure(e);}}
+    @Override public void savePendingRepair(PendingRepair v){try(Connection c=source.getConnection()){c.setAutoCommit(false);try(PreparedStatement s=c.prepareStatement("INSERT INTO support_repairs VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(repair_id) DO UPDATE SET status=EXCLUDED.status,approved_by=EXCLUDED.approved_by")){s.setObject(1,v.repairId());s.setObject(2,v.caseId());s.setObject(3,v.sagaId());s.setString(4,v.currency());s.setString(5,v.justification());s.setString(6,v.requestedBy());s.setString(7,v.status().name());s.setString(8,v.approvedBy());s.setTimestamp(9,Timestamp.from(v.createdAt()));s.executeUpdate();}try(PreparedStatement d=c.prepareStatement("DELETE FROM support_repair_postings WHERE repair_id=?")){d.setObject(1,v.repairId());d.executeUpdate();}try(PreparedStatement s=c.prepareStatement("INSERT INTO support_repair_postings VALUES (?,?,?,?,?)")){int i=0;for(Posting p:v.postings()){s.setObject(1,v.repairId());s.setInt(2,i++);s.setObject(3,p.accountId());s.setLong(4,p.signedAmount());s.setString(5,p.entryType().name());s.addBatch();}s.executeBatch();}c.commit();}catch(SQLException e){throw failure(e);}}
+    @Override public Optional<PendingRepair> findPendingRepair(UUID id){try(Connection c=source.getConnection();PreparedStatement s=c.prepareStatement("SELECT * FROM support_repairs WHERE repair_id=?")){s.setObject(1,id);try(ResultSet r=s.executeQuery()){if(!r.next())return Optional.empty();List<Posting> postings=new ArrayList<>();try(PreparedStatement p=c.prepareStatement("SELECT * FROM support_repair_postings WHERE repair_id=? ORDER BY position")){p.setObject(1,id);try(ResultSet rows=p.executeQuery()){while(rows.next())postings.add(new Posting(uuid(rows,"account_id"),rows.getLong("signed_amount"),EntryType.valueOf(rows.getString("entry_type"))));}}return Optional.of(new PendingRepair(id,uuid(r,"case_id"),uuid(r,"saga_id"),r.getString("currency"),postings,r.getString("justification"),r.getString("requested_by"),PendingRepair.Status.valueOf(r.getString("status")),r.getString("approved_by"),r.getTimestamp("created_at").toInstant()));}}catch(SQLException e){throw failure(e);}}
+    private interface Binder{void bind(PreparedStatement s)throws SQLException;}
+    private void execute(String sql,Binder b){try(Connection c=source.getConnection();PreparedStatement s=c.prepareStatement(sql)){b.bind(s);s.executeUpdate();}catch(SQLException e){throw failure(e);}}
+    private static UUID uuid(ResultSet r,String n)throws SQLException{return (UUID)r.getObject(n);}
+    private static SupportException failure(SQLException e){return new SupportException("support persistence failed: "+e.getSQLState());}
+}
