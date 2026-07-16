@@ -8,12 +8,14 @@ public final class PaymentProductionSchemaTests {
     private static final Path MIGRATION = Path.of("services", "payment-service", "src", "main", "resources", "db", "migration", "V001__payment_saga.sql");
     private static final Path OUTBOX_MIGRATION = Path.of("services", "payment-service", "src", "main", "resources", "db", "migration", "V005__transactional_outbox.sql");
     private static final Path DEAD_LETTER_MIGRATION = Path.of("services", "payment-service", "src", "main", "resources", "db", "migration", "V006__outbox_dead_letters.sql");
+    private static final Path RECOVERY_MIGRATION = Path.of("services", "payment-service", "src", "main", "resources", "db", "migration", "V007__payment_recovery_audit.sql");
 
     public static void main(String[] args) throws Exception {
         TestCase[] tests = {
                 new TestCase("payment production migration declares saga table", PaymentProductionSchemaTests::declaresSagaTable),
                 new TestCase("payment production migration declares event log and state constraints", PaymentProductionSchemaTests::declaresEventLogAndConstraints),
-                new TestCase("payment outbox supports durable leased delivery", PaymentProductionSchemaTests::declaresDurableOutbox)
+                new TestCase("payment outbox supports durable leased delivery", PaymentProductionSchemaTests::declaresDurableOutbox),
+                new TestCase("payment recovery decisions are auditable", PaymentProductionSchemaTests::declaresRecoveryAudit)
         };
 
         for (TestCase test : tests) {
@@ -21,6 +23,13 @@ public final class PaymentProductionSchemaTests {
             System.out.println("PASS " + test.name);
         }
         System.out.println("Payment production schema tests passed: " + tests.length);
+    }
+
+    private static void declaresRecoveryAudit() throws IOException {
+        String migration = Files.readString(RECOVERY_MIGRATION).replaceAll("\\s+", " ");
+        assertContains(migration, "CREATE TABLE payment_recovery_audit", "recovery audit table");
+        assertContains(migration, "trace_id TEXT NOT NULL", "recovery trace id");
+        assertContains(migration, "recovery_action TEXT NOT NULL", "recovery decision");
     }
 
     private static void declaresDurableOutbox() throws IOException {
