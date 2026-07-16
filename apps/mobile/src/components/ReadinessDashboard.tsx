@@ -45,8 +45,9 @@ import type {
   CustomerAccount,
   VoiceSecureApiClient,
 } from "../api/voiceSecureApiClient";
+import { VoiceCaptureSession, type VoiceRecorder } from "../voice/voiceCaptureSession";
 
-export function ReadinessDashboard({ apiClient }: { apiClient: VoiceSecureApiClient }) {
+export function ReadinessDashboard({ apiClient, voiceRecorder }: { apiClient: VoiceSecureApiClient; voiceRecorder: VoiceRecorder }) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const layoutMode = bankingLayoutModeForWidth(width);
@@ -64,6 +65,7 @@ export function ReadinessDashboard({ apiClient }: { apiClient: VoiceSecureApiCli
   const [paymentReference, setPaymentReference] = useState<string | null>(null);
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const paymentSubmissionActive = useRef(false);
+  const voiceSession = useRef<VoiceCaptureSession | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -171,7 +173,17 @@ export function ReadinessDashboard({ apiClient }: { apiClient: VoiceSecureApiCli
       setReviewingPayment(false);
       setSubmissionMessage(`${result.message} Reference ${result.paymentReference}.`);
       setPaymentReference(result.paymentReference);
-      setFlow(createVoiceSecureFlow(nextDraft));
+      const challenge = await apiClient.issueVoiceChallenge({ paymentReference: result.paymentReference });
+      const session = new VoiceCaptureSession(apiClient, voiceRecorder, challenge);
+      voiceSession.current = session;
+      await session.begin();
+      const nextFlow = createVoiceSecureFlow(nextDraft);
+      if (session.state.status === "recording") {
+        setFlow({ ...nextFlow, prompt: `Say \"${challenge.phrase}\" to continue`, message: "Listening securely…", statusLabel: "Recording" });
+      } else {
+        setFlow(advanceVoiceSecureFlow(advanceVoiceSecureFlow(nextFlow, "miss"), "miss"));
+        setSubmissionMessage(session.state.status === "failed" ? session.state.message : "Voice capture is unavailable. Use fallback MFA.");
+      }
     } catch {
       setSubmissionMessage("We couldn't start this payment. Check your connection and try again.");
     } finally {
@@ -198,7 +210,27 @@ export function ReadinessDashboard({ apiClient }: { apiClient: VoiceSecureApiCli
     }
   };
 
+  const submitVoiceRecording = async () => {
+    const session = voiceSession.current;
+    if (!session) return;
+    await session.submit();
+    if (session.state.status === "completed") {
+      setSubmissionMessage("Voice evidence submitted. Waiting for the server payment decision…");
+      await refreshPaymentStatus();
+    } else if (session.state.status === "retryable") {
+      setSubmissionMessage(`${session.state.message} The same idempotent upload can be retried.`);
+    } else if (session.state.status === "failed") {
+      setFlow((current) => current ? advanceVoiceSecureFlow(current, "miss") : current);
+      setSubmissionMessage(session.state.message);
+    }
+  };
+
   const retryVoice = () => {
+    if (voiceSession.current?.state.status === "retryable") {
+      void submitVoiceRecording();
+      return;
+    }
+    void voiceSession.current?.cancel();
     setFlow((current) => (current ? advanceVoiceSecureFlow(current, "miss") : current));
   };
 
@@ -266,7 +298,7 @@ export function ReadinessDashboard({ apiClient }: { apiClient: VoiceSecureApiCli
                 onReview={() => setReviewingPayment(true)}
                 onEdit={() => setReviewingPayment(false)}
                 onBeginVoiceSecure={beginVoiceSecure}
-                onConfirmVoice={() => { void refreshPaymentStatus(); }}
+                onConfirmVoice={() => { void submitVoiceRecording(); }}
                 onRetryVoice={retryVoice}
                 onFallback={useFallback}
                 onDone={() => resetPayment("home")}
@@ -705,7 +737,7 @@ function VoiceSecureCard({
         VoiceSecure
       </Text>
       <Text className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-slate-900">
-        Experimental voice demo
+        Experimental voice check
       </Text>
       <Text className="mt-2 text-sm leading-6 text-slate-600">{flow.prompt}</Text>
 
@@ -743,13 +775,13 @@ function VoiceSecureCard({
       </View>
 
       <Text className="mt-4 text-center text-sm font-medium text-slate-600">
-        Experimental interaction only - no microphone audio is captured
+        Audio is captured only for this challenge, uploaded over the authenticated API, then deleted from the device cache.
       </Text>
       <Text className="mt-1 text-center text-sm text-slate-500">{flow.message}</Text>
 
       <View className="mt-5 flex-row flex-wrap justify-center">
-        <VoicePill label="I said it" tone="emerald" onPress={onConfirmVoice} />
-        <VoicePill label="Try again" tone="slate" onPress={onRetryVoice} />
+        <VoicePill label="Submit recording" tone="emerald" onPress={onConfirmVoice} />
+        <VoicePill label="Cancel or retry" tone="slate" onPress={onRetryVoice} />
       </View>
 
       {flow.stage === "fallback" ? (

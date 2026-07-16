@@ -81,7 +81,6 @@ export interface CreateBeneficiaryCommand {
 
 export interface VoiceChallengeCommand {
   paymentReference: string;
-  transactionBindingHash: string;
 }
 
 export interface VoiceChallengeResult {
@@ -205,7 +204,7 @@ export class VoiceSecureApiClient {
       method: "POST",
       path: `/v1/payments/${encodeURIComponent(requireNonBlank(command.paymentReference, "paymentReference"))}/voice-challenge`,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transactionBindingHash: requireNonBlank(command.transactionBindingHash, "transactionBindingHash") }),
+      body: "{}",
     });
     return { ...challenge, paymentReference: command.paymentReference };
   }
@@ -221,9 +220,6 @@ export class VoiceSecureApiClient {
         headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
         body: JSON.stringify({
           paymentReference: command.challenge.paymentReference,
-          transactionBindingHash: command.challenge.transactionBindingHash,
-          authPolicy: command.challenge.authPolicy,
-          transactionAmountMinor: command.challenge.transactionAmountMinor,
           capturedAt: command.capturedAt,
           audio: command.audio,
         }),

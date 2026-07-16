@@ -6,14 +6,16 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ReadinessDashboard } from "./src/components/ReadinessDashboard";
 import { store } from "./src/state/store";
 import { createMobileApiClient } from "./src/api/mobileRuntime";
+import { useExpoVoiceRecorder } from "./src/voice/useExpoVoiceRecorder";
 
 const apiClient = createMobileApiClient();
 
 export default function App() {
+  const voiceRecorder = useExpoVoiceRecorder();
   return (
     <SafeAreaProvider>
       <Provider store={store}>
-        <ReadinessDashboard apiClient={apiClient} />
+        <ReadinessDashboard apiClient={apiClient} voiceRecorder={voiceRecorder} />
         <StatusBar style="dark" />
       </Provider>
     </SafeAreaProvider>
