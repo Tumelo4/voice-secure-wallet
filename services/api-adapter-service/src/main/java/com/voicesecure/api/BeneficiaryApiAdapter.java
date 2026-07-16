@@ -46,6 +46,8 @@ public final class BeneficiaryApiAdapter implements ApiEndpoint {
             return ApiResponse.error(400, "BENEFICIARY_INVALID", "Review the beneficiary details and try again.");
         } catch (SecurityException exception) {
             return ApiResponse.error(401, "AUTHENTICATION_REQUIRED", "Authentication is required.");
+        } catch (IllegalStateException exception) {
+            return ApiResponse.error(503, "BENEFICIARY_DIRECTORY_UNAVAILABLE", "Beneficiary verification is temporarily unavailable.");
         } catch (IllegalArgumentException exception) {
             return ApiResponse.error(400, "BENEFICIARY_INVALID", "Review the beneficiary details and try again.");
         }

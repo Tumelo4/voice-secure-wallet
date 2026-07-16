@@ -58,6 +58,18 @@ final class ApiJson {
         throw new IllegalArgumentException("invalid json object field: " + field);
     }
 
+    static String scalarField(String json, String field) {
+        String marker = "\"" + field + "\":";
+        int start = json.indexOf(marker);
+        if (start < 0) throw new IllegalArgumentException("missing json field: " + field);
+        start += marker.length();
+        while (start < json.length() && Character.isWhitespace(json.charAt(start))) start++;
+        int end = start;
+        while (end < json.length() && ",}".indexOf(json.charAt(end)) < 0) end++;
+        if (end == start) throw new IllegalArgumentException("invalid json scalar field: " + field);
+        return json.substring(start, end).trim();
+    }
+
     static String quote(String value) {
         String safe = value == null ? "" : value;
         return "\"" + safe

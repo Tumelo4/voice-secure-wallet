@@ -122,6 +122,8 @@ public final class PaymentApiAdapter implements ApiEndpoint {
             return ApiResponse.error(404, "PAYMENT_BENEFICIARY_UNAVAILABLE", "The selected beneficiary is unavailable.");
         } catch (SecurityException ex) {
             return ApiResponse.error(403, "PAYMENT_NOT_AUTHORIZED", "You are not authorized to use the selected account.");
+        } catch (IllegalStateException ex) {
+            return ApiResponse.error(503, "PAYMENT_DEPENDENCY_UNAVAILABLE", "Payment verification is temporarily unavailable.");
         } catch (IllegalArgumentException ex) {
             return ApiResponse.error(400, "PAYMENT_INVALID", "Review the payment details and try again.");
         }

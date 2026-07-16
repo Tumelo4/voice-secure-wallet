@@ -30,16 +30,24 @@ public final class ApiApplication {
 
     public static void main(String[] args) throws Exception {
         int port = Integer.parseInt(System.getenv().getOrDefault("PORT", "8080"));
-        ApiRuntime runtime = createRuntime();
+        ProductionApiRuntime production = null;
+        ApiRuntime runtime;
+        if ("production".equalsIgnoreCase(System.getenv("VSW_ENVIRONMENT"))) {
+            production = ProductionApiRuntime.create(System.getenv());
+            runtime = production.apiRuntime();
+        } else {
+            runtime = createRuntime();
+        }
         ApiHttpServer server = ApiHttpServer.start(new InetSocketAddress("0.0.0.0", port), runtime);
-        Runtime.getRuntime().addShutdownHook(new Thread(server::close, "api-shutdown"));
+        ProductionApiRuntime managed = production;
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            server.close();
+            if (managed != null) managed.close();
+        }, "api-shutdown"));
         new CountDownLatch(1).await();
     }
 
     static ApiRuntime createRuntime() throws Exception {
-        if ("production".equalsIgnoreCase(System.getenv("VSW_ENVIRONMENT"))) {
-            throw new IllegalStateException("production bootstrap requires managed persistence and signing-key adapters");
-        }
         KeyPairGenerator keys = KeyPairGenerator.getInstance("RSA");
         keys.initialize(2048);
         IdentityService identity = new IdentityService(new InMemoryIdentityRepository(), keys.generateKeyPair(), "local-key");

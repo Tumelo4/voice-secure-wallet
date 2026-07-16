@@ -54,9 +54,14 @@
     {
       "id": "production-composition-root",
       "name": "Production HTTP composition root",
-      "status": "not_started",
+      "status": "integration_tested",
       "implementation_evidence": [
         "services/api-adapter-service/src/main/java/com/voicesecure/api/ApiApplication.java",
+        "services/api-adapter-service/src/main/java/com/voicesecure/api/ProductionApiRuntime.java",
+        "services/api-adapter-service/src/main/java/com/voicesecure/api/HttpFraudDecisionProvider.java",
+        "services/api-adapter-service/src/main/java/com/voicesecure/api/HttpBeneficiaryAccountDirectory.java",
+        "services/api-adapter-service/src/main/java/com/voicesecure/api/StructuredApiRequestLogSink.java",
+        "services/api-adapter-service/src/main/java/com/voicesecure/api/StructuredRateLimitTelemetry.java",
         "services/payment-service/src/main/java/com/voicesecure/payments/PostgresPaymentRecoveryCoordinator.java",
         "services/payment-service/src/main/java/com/voicesecure/payments/PaymentRecoveryWorker.java",
         "services/payment-service/src/main/resources/db/migration/V007__payment_recovery_audit.sql",
@@ -75,11 +80,13 @@
         ,"services/api-adapter-service/src/test/java/com/voicesecure/api/OidcJwksBearerTokenVerifierTests.java"
         ,"services/support-service/src/test/java/com/voicesecure/support/SupportProductionSchemaTests.java"
         ,"services/api-adapter-service/src/test/java/com/voicesecure/api/VoiceGatewayApiAdapterTests.java"
+        ,"services/api-adapter-service/src/test/java/com/voicesecure/api/ProductionApiRuntimeTests.java"
+        ,"tests/integration-tests/src/test/java/com/voicesecure/integration/ProductionHttpRuntimeIntegrationTest.java"
       ],
       "external_evidence": [],
-      "remaining_gaps": "Recovery, wallet, beneficiary, support, fail-closed configuration, OIDC/JWKS verification, and a trusted remote voice boundary exist; the HTTP process still needs remote risk composition and final managed-persistence production bootstrap.",
+      "remaining_gaps": "The production HTTP process now composes PostgreSQL repositories and recovery workers, Redis limiting, Kafka outbox publication, OIDC/JWKS verification, remote risk/voice/account-directory boundaries, and structured telemetry. A disposable PostgreSQL/Redis/Redpanda test proves persistence, outbox delivery, and restart recovery. Consumer-driven payment completion, managed AWS deployment, and production telemetry history remain unproven.",
       "owner": "api-platform",
-      "last_verified_commit": "0084b25d"
+      "last_verified_commit": "worktree"
     },
     {
       "id": "voice-verification",

@@ -63,7 +63,7 @@ be wired to AWS MSK without changing domain event code.
 - Java 17 `wallet-service` CQRS balance projection.
 - Java 17 `payment-service` saga core with a Postgres-backed production repository.
 - Java 17 `identity-service`, `compliance-service`, and `fraud-service` cores.
-- Shared event backbone with in-memory outbox relay and Kafka publication boundary.
+- Shared event backbone with durable PostgreSQL outbox relays and a Kafka publication boundary.
 - Python `voice-service` biometrics core.
 - Java 17 `notification-service` event consumer for receipts and OTP fallback.
 - Java 17 `support-service` and `recovery-service` cores for support workflows.
@@ -80,6 +80,9 @@ be wired to AWS MSK without changing domain event code.
   route-scoped authorization, traceability, rate limiting, and request logging,
   plus a Javalin/Jetty HTTP runtime, public health routes, and production ingress
   readiness validator.
+- Production API composition for PostgreSQL persistence and recovery workers,
+  Redis rate limiting, Kafka outbox publication, OIDC/JWKS authentication,
+  bounded HTTPS service clients, and structured operational telemetry.
 - React Native TypeScript `apps/mobile` readiness dashboard using
   NativeWind/Tailwind CSS and Redux Toolkit, with typed API client and fetch
   transport boundaries, mobile token-session and native secure-store ports,

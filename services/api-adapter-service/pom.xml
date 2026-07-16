@@ -8,8 +8,12 @@
     <dependency><groupId>org.slf4j</groupId><artifactId>slf4j-simple</artifactId><version>2.0.17</version><scope>runtime</scope></dependency>
     <dependency><groupId>redis.clients</groupId><artifactId>jedis</artifactId><version>6.2.0</version></dependency>
     <dependency><groupId>com.nimbusds</groupId><artifactId>nimbus-jose-jwt</artifactId><version>10.9.1</version></dependency>
+    <dependency><groupId>com.zaxxer</groupId><artifactId>HikariCP</artifactId><version>7.0.2</version></dependency>
+    <dependency><groupId>org.postgresql</groupId><artifactId>postgresql</artifactId><version>42.7.11</version></dependency>
+    <dependency><groupId>software.amazon.msk</groupId><artifactId>aws-msk-iam-auth</artifactId><version>2.3.7</version></dependency>
     <dependency><groupId>com.voicesecure</groupId><artifactId>beneficiary-service</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.voicesecure</groupId><artifactId>identity-service</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>com.voicesecure</groupId><artifactId>event-core</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.voicesecure</groupId><artifactId>ledger-service</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.voicesecure</groupId><artifactId>payment-service</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.voicesecure</groupId><artifactId>support-service</artifactId><version>${project.version}</version></dependency>
