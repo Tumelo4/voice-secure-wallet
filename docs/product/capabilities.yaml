@@ -62,13 +62,15 @@
         "services/payment-service/src/main/resources/db/migration/V007__payment_recovery_audit.sql",
         "services/wallet-service/src/main/java/com/voicesecure/wallet/PostgresWalletRepository.java",
         "services/beneficiary-service/src/main/java/com/voicesecure/beneficiaries/PostgresBeneficiaryRepository.java"
+        ,"services/api-adapter-service/src/main/java/com/voicesecure/api/ProductionConfiguration.java"
       ],
       "test_evidence": [
         "services/payment-service/src/test/java/com/voicesecure/payments/PaymentProductionSchemaTests.java",
         "tests/integration-tests/src/test/java/com/voicesecure/integration/PostgresAccountAdaptersIntegrationTest.java"
+        ,"services/api-adapter-service/src/test/java/com/voicesecure/api/ProductionConfigurationTests.java"
       ],
       "external_evidence": [],
-      "remaining_gaps": "Recovery, wallet, and beneficiary PostgreSQL adapters exist; the HTTP process still needs durable identity/support, validated configuration, OIDC/JWKS verification, and remote risk/voice composition.",
+      "remaining_gaps": "Recovery, wallet, beneficiary, and fail-closed production configuration exist; the HTTP process still needs durable identity/support, OIDC/JWKS verification, and remote risk/voice composition.",
       "owner": "api-platform",
       "last_verified_commit": "0084b25d"
     },
