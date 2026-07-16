@@ -4,6 +4,8 @@ from datetime import timedelta
 from typing import Protocol
 from uuid import UUID
 from urllib.parse import urlparse
+import json, os
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 @dataclass(frozen=True)
 class EncryptedVoiceTemplate:
@@ -26,6 +28,21 @@ class EncryptedVoiceTemplate:
 class VoiceTemplateCipher(Protocol):
     def encrypt(self, user_id: UUID, embedding: tuple[float, ...], model_version: str) -> EncryptedVoiceTemplate: ...
     def decrypt(self, template: EncryptedVoiceTemplate) -> tuple[float, ...]: ...
+
+class DataKeyProvider(Protocol):
+    def generate_data_key(self, key_reference: str) -> tuple[bytes, bytes]: ...
+    def decrypt_data_key(self, key_reference: str, encrypted_data_key: bytes) -> bytes: ...
+
+class EnvelopeVoiceTemplateCipher:
+    def __init__(self, keys: DataKeyProvider, key_reference: str) -> None:
+        self._keys, self._key_reference = keys, key_reference
+    def encrypt(self, user_id: UUID, embedding: tuple[float, ...], model_version: str) -> EncryptedVoiceTemplate:
+        key, encrypted_key = self._keys.generate_data_key(self._key_reference); nonce = os.urandom(12)
+        ciphertext = AESGCM(key).encrypt(nonce, json.dumps(embedding).encode(), user_id.bytes)
+        return EncryptedVoiceTemplate(user_id,ciphertext,encrypted_key,nonce,self._key_reference,"AES-256-GCM",model_version)
+    def decrypt(self, template: EncryptedVoiceTemplate) -> tuple[float, ...]:
+        key = self._keys.decrypt_data_key(template.key_reference, template.encrypted_data_key)
+        return tuple(json.loads(AESGCM(key).decrypt(template.nonce,template.ciphertext,template.user_id.bytes)))
 
 @dataclass(frozen=True)
 class VoicePersistenceConfig:
