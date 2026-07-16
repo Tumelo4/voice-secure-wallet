@@ -43,10 +43,11 @@
       ],
       "test_evidence": [
         "services/api-adapter-service/src/test/java/com/voicesecure/api/InMemoryApiRateLimiterTests.java",
-        "services/api-adapter-service/src/test/java/com/voicesecure/api/RedisApiRateLimiterTests.java"
+        "services/api-adapter-service/src/test/java/com/voicesecure/api/RedisApiRateLimiterTests.java",
+        "tests/integration-tests/src/test/java/com/voicesecure/integration/RedisRateLimiterIntegrationTest.java"
       ],
       "external_evidence": [],
-      "remaining_gaps": "Atomic Redis enforcement, risk policies, failure policy, and telemetry ports are implemented; a two-instance disposable Redis integration test and managed ElastiCache evidence remain.",
+      "remaining_gaps": "Two API limiter instances share an atomic disposable Redis budget; managed ElastiCache TLS/auth, outage, and operational metrics evidence remain.",
       "owner": "api-platform",
       "last_verified_commit": "worktree"
     },
