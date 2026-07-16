@@ -63,14 +63,16 @@
         "services/wallet-service/src/main/java/com/voicesecure/wallet/PostgresWalletRepository.java",
         "services/beneficiary-service/src/main/java/com/voicesecure/beneficiaries/PostgresBeneficiaryRepository.java"
         ,"services/api-adapter-service/src/main/java/com/voicesecure/api/ProductionConfiguration.java"
+        ,"services/api-adapter-service/src/main/java/com/voicesecure/api/OidcJwksBearerTokenVerifier.java"
       ],
       "test_evidence": [
         "services/payment-service/src/test/java/com/voicesecure/payments/PaymentProductionSchemaTests.java",
         "tests/integration-tests/src/test/java/com/voicesecure/integration/PostgresAccountAdaptersIntegrationTest.java"
         ,"services/api-adapter-service/src/test/java/com/voicesecure/api/ProductionConfigurationTests.java"
+        ,"services/api-adapter-service/src/test/java/com/voicesecure/api/OidcJwksBearerTokenVerifierTests.java"
       ],
       "external_evidence": [],
-      "remaining_gaps": "Recovery, wallet, beneficiary, and fail-closed production configuration exist; the HTTP process still needs durable identity/support, OIDC/JWKS verification, and remote risk/voice composition.",
+      "remaining_gaps": "Recovery, wallet, beneficiary, fail-closed configuration, and OIDC/JWKS verification exist; the HTTP process still needs durable support, remote risk/voice composition, and final production bootstrap.",
       "owner": "api-platform",
       "last_verified_commit": "0084b25d"
     },
