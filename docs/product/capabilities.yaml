@@ -55,10 +55,15 @@
       "id": "production-composition-root",
       "name": "Production HTTP composition root",
       "status": "not_started",
-      "implementation_evidence": ["services/api-adapter-service/src/main/java/com/voicesecure/api/ApiApplication.java"],
-      "test_evidence": [],
+      "implementation_evidence": [
+        "services/api-adapter-service/src/main/java/com/voicesecure/api/ApiApplication.java",
+        "services/payment-service/src/main/java/com/voicesecure/payments/PostgresPaymentRecoveryCoordinator.java",
+        "services/payment-service/src/main/java/com/voicesecure/payments/PaymentRecoveryWorker.java",
+        "services/payment-service/src/main/resources/db/migration/V007__payment_recovery_audit.sql"
+      ],
+      "test_evidence": ["services/payment-service/src/test/java/com/voicesecure/payments/PaymentProductionSchemaTests.java"],
       "external_evidence": [],
-      "remaining_gaps": "The main HTTP process still uses in-memory financial repositories and refuses production startup.",
+      "remaining_gaps": "Recovery now has single-owner PostgreSQL advisory locking, scheduling, and durable decision audit; the HTTP process still needs durable identity, wallet, beneficiary, support, configuration, and remote risk/voice composition.",
       "owner": "api-platform",
       "last_verified_commit": "0084b25d"
     },

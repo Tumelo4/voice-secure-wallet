@@ -18,6 +18,7 @@ public final class PaymentProductionRuntime implements AutoCloseable {
     private final PaymentSagaService paymentService;
     private final PaymentRecoveryService recoveryService;
     private final OutboxRelayWorker relayWorker;
+    private final PaymentRecoveryWorker recoveryWorker;
     private final OutboxRelayTelemetry relayTelemetry;
 
     public PaymentProductionRuntime(DataSource dataSource, EventPublisher publisher, Clock clock,
@@ -27,6 +28,9 @@ public final class PaymentProductionRuntime implements AutoCloseable {
         PostgresPaymentSagaRepository repository = new PostgresPaymentSagaRepository(dataSource);
         paymentService = new PaymentSagaService(repository);
         recoveryService = new PaymentRecoveryService(repository, clock, Duration.ofMinutes(5));
+        recoveryWorker = new PaymentRecoveryWorker(
+                new PostgresPaymentRecoveryCoordinator(dataSource, recoveryService, clock),
+                Duration.ofSeconds(30), relayFailureHandler);
         relayTelemetry = new OutboxRelayTelemetry();
         TransactionalOutboxRelay relay = new TransactionalOutboxRelay(
                 new PostgresOutboxStore(dataSource, "payment_outbox_events", EventTopic.PAYMENTS), publisher,
@@ -39,5 +43,8 @@ public final class PaymentProductionRuntime implements AutoCloseable {
     public PaymentSagaService paymentService() { return paymentService; }
     public PaymentRecoveryService recoveryService() { return recoveryService; }
     public OutboxRelayTelemetry.Snapshot relayTelemetry() { return relayTelemetry.snapshot(); }
-    @Override public void close() { relayWorker.close(); }
+    @Override public void close() {
+        recoveryWorker.close();
+        relayWorker.close();
+    }
 }
