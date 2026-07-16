@@ -94,7 +94,7 @@ const phases: Phase[] = [
   { name: "Ledger Core", status: "complete", evidence: "Signed ledger, repair flow, wallet projection" },
   { name: "Payment Saga", status: "complete", evidence: "18-state saga, notification boundary, compensation branches" },
   { name: "Identity, Fraud & Compliance", status: "complete", evidence: "Device identity, fraud policy, compliance hit contracts" },
-  { name: "Voice & Fallback", status: "complete", evidence: "Voice challenge, replay checks, OTP fallback scenario" },
+  { name: "Voice & Fallback", status: "partial", evidence: "Experimental voice challenge and replay controls; fallback MFA remains mandatory" },
   { name: "Admin, Support & Recovery", status: "complete", evidence: "Repair escalation, recovery reenrollment, audit flow" },
   { name: "Observability & DR", status: "modeled", evidence: "Policy validators and CI gate, infra still pending" },
   { name: "Hardening & Launch", status: "modeled", evidence: "Launch evidence model, real staging evidence still pending" },

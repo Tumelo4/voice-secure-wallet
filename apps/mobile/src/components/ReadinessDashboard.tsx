@@ -299,7 +299,7 @@ function Header({ layoutMode }: { layoutMode: BankingLayoutMode }) {
           {bankingHero.greeting}
         </Text>
         <Text className="mt-2 text-sm leading-6 text-slate-600">
-          Consumer banking with a calm, native feel and VoiceSecure on every transaction.
+          Consumer banking with experimental voice checks and fallback MFA on every transaction.
         </Text>
       </View>
 
@@ -458,7 +458,7 @@ function PaymentsTab({
     <View>
       <SectionHeading
         title="Send money with VoiceSecure"
-        detail="Fill in the details, then verify with VoiceSecure before anything is sent."
+        detail="Fill in the details, then try the voice demo and complete fallback MFA before anything is sent."
       />
       {submissionMessage ? (
         <Text accessibilityLiveRegion="polite" className="mb-4 text-sm font-medium text-slate-700">{submissionMessage}</Text>
@@ -633,7 +633,7 @@ function PaymentReviewCard({ draft, submitting, onConfirm, onEdit }: { draft: Tr
     <View className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
       <Text className="text-[11px] font-medium tracking-[0.06em] text-blue-700">Review payment</Text>
       <Text className="mt-2 text-3xl font-semibold text-slate-900">Confirm the details</Text>
-      <Text className="mt-2 text-sm leading-6 text-slate-600">VoiceSecure will authorize this exact payment.</Text>
+        <Text className="mt-2 text-sm leading-6 text-slate-600">Experimental voice matching cannot authorize this payment; fallback MFA is required.</Text>
       <View className="mt-5 rounded-[24px] bg-slate-50 p-4">
         <ReviewRow label="From" value={draft.sourceAccount} />
         <ReviewRow label="To" value={draft.recipient} />
@@ -646,7 +646,7 @@ function PaymentReviewCard({ draft, submitting, onConfirm, onEdit }: { draft: Tr
         <ReviewRow label="Authorisation" value="VoiceSecure or fallback MFA" />
       </View>
       <Pressable accessibilityRole="button" accessibilityState={{ disabled: submitting }} disabled={submitting} className="mt-5 min-h-[52px] items-center justify-center rounded-full bg-[#0b57d0] px-5" onPress={onConfirm}>
-        <Text className="text-sm font-semibold text-white">{submitting ? "Starting payment…" : "Authorize with VoiceSecure"}</Text>
+        <Text className="text-sm font-semibold text-white">{submitting ? "Starting payment…" : "Try voice demo"}</Text>
       </Pressable>
       <Pressable accessibilityRole="button" className="mt-3 min-h-[48px] items-center justify-center rounded-full border border-slate-300 px-5" onPress={onEdit}>
         <Text className="text-sm font-semibold text-slate-800">Edit details</Text>
@@ -705,7 +705,7 @@ function VoiceSecureCard({
         VoiceSecure
       </Text>
       <Text className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-slate-900">
-        Voice demo
+        Experimental voice demo
       </Text>
       <Text className="mt-2 text-sm leading-6 text-slate-600">{flow.prompt}</Text>
 
@@ -916,7 +916,7 @@ function ProfileTab({ layoutMode }: { layoutMode: BankingLayoutMode }) {
     <View>
       <SectionHeading
         title="Security and profile"
-        detail="VoiceSecure stays active on every transaction, with friendly backup routes."
+        detail="Experimental voice matching never replaces the required fallback MFA route."
       />
 
       <View className="mt-4 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
