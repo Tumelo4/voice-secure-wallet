@@ -71,7 +71,13 @@ public final class ApiRuntime implements ApiEndpoint {
             );
         }
 
-        RateLimitDecision rateLimit = rateLimiter.evaluate(principalId);
+        RateLimitDecision rateLimit = rateLimiter.evaluate(new RateLimitContext(
+                System.getenv().getOrDefault("VSW_ENVIRONMENT", "local"),
+                principalId,
+                request.method(),
+                request.path(),
+                RateLimitRisk.forRequest(request.method(), request.path())
+        ));
         if (!rateLimit.allowed()) {
             ApiResponse response = ApiResponse.error(429, RATE_LIMITED, "rate limit exceeded")
                     .withHeader("Retry-After", Long.toString(rateLimit.retryAfterSeconds()))

@@ -37,11 +37,16 @@
       "status": "implemented_prototype",
       "implementation_evidence": [
         "services/api-adapter-service/src/main/java/com/voicesecure/api/RateLimitDecision.java",
-        "services/api-adapter-service/src/main/java/com/voicesecure/api/InMemoryApiRateLimiter.java"
+        "services/api-adapter-service/src/main/java/com/voicesecure/api/InMemoryApiRateLimiter.java",
+        "services/api-adapter-service/src/main/java/com/voicesecure/api/RedisApiRateLimiter.java",
+        "services/api-adapter-service/src/main/java/com/voicesecure/api/JedisRateLimitScriptExecutor.java"
       ],
-      "test_evidence": ["services/api-adapter-service/src/test/java/com/voicesecure/api/InMemoryApiRateLimiterTests.java"],
+      "test_evidence": [
+        "services/api-adapter-service/src/test/java/com/voicesecure/api/InMemoryApiRateLimiterTests.java",
+        "services/api-adapter-service/src/test/java/com/voicesecure/api/RedisApiRateLimiterTests.java"
+      ],
       "external_evidence": [],
-      "remaining_gaps": "Redis-backed shared enforcement, risk policies, failure policy, metrics, and multi-instance integration tests.",
+      "remaining_gaps": "Atomic Redis enforcement, risk policies, failure policy, and telemetry ports are implemented; a two-instance disposable Redis integration test and managed ElastiCache evidence remain.",
       "owner": "api-platform",
       "last_verified_commit": "worktree"
     },

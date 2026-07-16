@@ -16,6 +16,7 @@ import com.voicesecure.support.SupportService;
 import com.voicesecure.wallet.InMemoryWalletRepository;
 import com.voicesecure.wallet.WalletService;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.security.KeyPairGenerator;
 import java.time.Clock;
 import java.util.List;
@@ -58,7 +59,20 @@ public final class ApiApplication {
         ));
         return new ApiRuntime(
                 router, new IdentityBearerTokenVerifier(identity),
-                new InMemoryApiRateLimiter(Integer.parseInt(System.getenv().getOrDefault("RATE_LIMIT", "1000"))),
+                createRateLimiter(),
                 new InMemoryApiRequestLogSink());
+    }
+
+    private static ApiRateLimiter createRateLimiter() {
+        String redisUri = System.getenv("REDIS_URI");
+        if (redisUri == null || redisUri.isBlank()) {
+            return new InMemoryApiRateLimiter(Integer.parseInt(System.getenv().getOrDefault("RATE_LIMIT", "1000")));
+        }
+        URI uri = URI.create(redisUri);
+        if ("production".equalsIgnoreCase(System.getenv("VSW_ENVIRONMENT")) && !"rediss".equals(uri.getScheme())) {
+            throw new IllegalStateException("production Redis rate limiting requires a rediss:// URI");
+        }
+        return new RedisApiRateLimiter(
+                new JedisRateLimitScriptExecutor(uri), Clock.systemUTC(), RateLimitTelemetry.NOOP);
     }
 }

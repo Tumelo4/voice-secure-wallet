@@ -148,6 +148,13 @@ try (ApiHttpServer server = ApiHttpServer.start(runtime)) {
 }
 ```
 
+## Shared rate limiting
+
+Set `REDIS_URI` to make API instances share one atomic Redis window keyed by
+environment, principal, method, route, and risk class. High-risk mutations fail
+closed during Redis outages; low-risk reads degrade open. Production requires a
+TLS `rediss://` URI with credentials supplied through approved secret injection.
+
 ## Local Test Command
 
 ```powershell
