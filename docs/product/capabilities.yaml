@@ -65,6 +65,8 @@
         ,"services/api-adapter-service/src/main/java/com/voicesecure/api/ProductionConfiguration.java"
         ,"services/api-adapter-service/src/main/java/com/voicesecure/api/OidcJwksBearerTokenVerifier.java"
         ,"services/support-service/src/main/java/com/voicesecure/support/PostgresSupportRepository.java"
+        ,"services/api-adapter-service/src/main/java/com/voicesecure/api/VoiceGatewayApiAdapter.java"
+        ,"services/api-adapter-service/src/main/java/com/voicesecure/api/HttpVoiceGatewayClient.java"
       ],
       "test_evidence": [
         "services/payment-service/src/test/java/com/voicesecure/payments/PaymentProductionSchemaTests.java",
@@ -72,9 +74,10 @@
         ,"services/api-adapter-service/src/test/java/com/voicesecure/api/ProductionConfigurationTests.java"
         ,"services/api-adapter-service/src/test/java/com/voicesecure/api/OidcJwksBearerTokenVerifierTests.java"
         ,"services/support-service/src/test/java/com/voicesecure/support/SupportProductionSchemaTests.java"
+        ,"services/api-adapter-service/src/test/java/com/voicesecure/api/VoiceGatewayApiAdapterTests.java"
       ],
       "external_evidence": [],
-      "remaining_gaps": "Recovery, wallet, beneficiary, support, fail-closed configuration, and OIDC/JWKS verification exist; the HTTP process still needs remote risk/voice composition and final production bootstrap.",
+      "remaining_gaps": "Recovery, wallet, beneficiary, support, fail-closed configuration, OIDC/JWKS verification, and a trusted remote voice boundary exist; the HTTP process still needs remote risk composition and final managed-persistence production bootstrap.",
       "owner": "api-platform",
       "last_verified_commit": "0084b25d"
     },
@@ -95,14 +98,20 @@
       "status": "implemented_prototype",
       "implementation_evidence": [
         "apps/mobile/src/api/voiceSecureApiClient.ts",
+        "apps/mobile/src/components/ReadinessDashboard.tsx",
         "apps/mobile/src/voice/voiceCaptureSession.ts",
-        "apps/mobile/src/voice/useExpoVoiceRecorder.ts"
+        "apps/mobile/src/voice/useExpoVoiceRecorder.ts",
+        "services/api-adapter-service/src/main/java/com/voicesecure/api/VoiceGatewayApiAdapter.java"
       ],
-      "test_evidence": ["apps/mobile/test/voiceCaptureSession.test.ts"],
+      "test_evidence": [
+        "apps/mobile/test/voiceCaptureSession.test.ts",
+        "apps/mobile/test-screen/paymentJourney.test.tsx",
+        "services/api-adapter-service/src/test/java/com/voicesecure/api/VoiceGatewayApiAdapterTests.java"
+      ],
       "external_evidence": [],
-      "remaining_gaps": "Permission, cache-only recording/deletion, cancellation, challenge-bound upload, expiry, and idempotent transient retry are implemented and unit-tested. Payment-screen integration, customer-safe API gateway routes, and physical-device accessibility/audio validation remain.",
+      "remaining_gaps": "Payment-screen capture, permission, cache-only deletion, cancellation, server-bound upload, expiry, idempotent retry, and a customer-safe gateway are implemented and tested with fakes. Physical-device microphone, codec, accessibility, and network validation remain externally gated.",
       "owner": "mobile",
-      "last_verified_commit": "1ca7521e"
+      "last_verified_commit": "ab364c6b"
     },
     {
       "id": "voice-persistence",

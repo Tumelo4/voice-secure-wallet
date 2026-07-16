@@ -28,7 +28,7 @@ test("capture requests permission, records, and uploads challenge-bound audio", 
   assert.equal(request.path, "/v1/voice/challenges/challenge-42/verification");
   const body = JSON.parse(request.body ?? "{}");
   assert.equal(body.paymentReference, "VSW-42");
-  assert.equal(body.transactionBindingHash, "binding-42");
+  assert.equal(body.transactionBindingHash, undefined);
   assert.equal(body.audio.contentBase64, "YXVkaW8=");
 });
 
