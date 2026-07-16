@@ -43,8 +43,8 @@ describe("customer payment journey", () => {
     expect(await screen.findByText("Confirm the details")).toBeOnTheScreen();
     expect(screen.getAllByText("R 750.00")).toHaveLength(2);
 
-    await user.press(screen.getByRole("button", { name: "Authorize with VoiceSecure" }));
-    expect(await screen.findAllByText("Verifying your voice...")).toHaveLength(2);
+    await user.press(screen.getByRole("button", { name: "Try voice demo" }));
+    expect(await screen.findAllByText("Verifying your voice...")).toHaveLength(1);
     expect(apiClient.startPayment).toHaveBeenCalledWith({
       sourceAccountId: "acct-safe",
       beneficiaryId: "bene-safe",
@@ -80,7 +80,7 @@ describe("customer payment journey", () => {
     expect(await screen.findByText("Ready to pay securely.")).toBeOnTheScreen();
     await user.press(screen.getByRole("button", { name: "Review payment" }));
 
-    await user.press(screen.getByRole("button", { name: "Authorize with VoiceSecure" }));
+    await user.press(screen.getByRole("button", { name: "Try voice demo" }));
     expect(apiClient.startPayment).toHaveBeenCalledTimes(1);
 
     expect(await screen.findByRole("button", { name: "I said it" })).toBeOnTheScreen();
