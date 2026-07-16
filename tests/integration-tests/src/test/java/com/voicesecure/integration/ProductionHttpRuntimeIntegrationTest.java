@@ -9,6 +9,8 @@ import com.voicesecure.beneficiaries.BeneficiaryStatus;
 import com.voicesecure.beneficiaries.PostgresBeneficiaryRepository;
 import com.voicesecure.events.KafkaClientRecordPublisher;
 import com.voicesecure.events.KafkaEventPublisher;
+import com.voicesecure.ledger.application.LedgerService;
+import com.voicesecure.ledger.infrastructure.PostgresLedgerRepository;
 import com.voicesecure.payments.AuthPolicy;
 import com.voicesecure.payments.FraudDecision;
 import com.voicesecure.wallet.PostgresWalletRepository;
@@ -21,6 +23,7 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.Statement;
 import java.time.Clock;
 import java.time.Duration;
@@ -88,6 +91,9 @@ final class ProductionHttpRuntimeIntegrationTest {
         wallets.saveBalance(new WalletBalance(DESTINATION, "ZAR", 0, 1, now));
         new PostgresBeneficiaryRepository(dataSource).save(new Beneficiary(BENEFICIARY, CUSTOMER, DESTINATION,
                 "Recipient", "****1234", "ZAR", BeneficiaryStatus.ACTIVE, now, now));
+        LedgerService ledger = new LedgerService(new PostgresLedgerRepository(dataSource));
+        ledger.createAccount(SOURCE, "ZAR", 500_00);
+        ledger.createAccount(DESTINATION, "ZAR", 0);
     }
 
     @Test void realHttpRuntimePublishesOutboxAndRecoversPaymentAfterRestart() throws Exception {
@@ -112,12 +118,20 @@ final class ProductionHttpRuntimeIntegrationTest {
                 }
             }
             assertTrue(published, "payment outbox event must reach Redpanda");
+            HttpResponse<String> authorised = send(server.uri("/internal/payments/" + reference + "/voice-outcomes"),
+                    "POST", null, "{\"status\":\"APPROVED\",\"confidence\":\"0.99\",\"verificationId\":\"verify-1\"}");
+            assertEquals(202, authorised.statusCode(), authorised.body());
+            assertTrue(authorised.body().contains("COMPLETED"), authorised.body());
+            PostgresLedgerRepository ledger = new PostgresLedgerRepository(dataSource);
+            assertEquals(425_00L, ledger.balances().get(SOURCE).balance());
+            assertEquals(75_00L, ledger.balances().get(DESTINATION).balance());
+            assertEquals("CONSUMED", reservationStatus());
         }
 
         try (ProductionApiRuntime restarted = runtime(); ApiHttpServer server = ApiHttpServer.start(restarted.apiRuntime())) {
             HttpResponse<String> recovered = send(server.uri("/v1/payments/" + reference), "GET", null, "");
             assertEquals(200, recovered.statusCode(), recovered.body());
-            assertTrue(recovered.body().contains("AUTHORISATION_REQUIRED"));
+            assertTrue(recovered.body().contains("COMPLETED"));
         }
     }
 
@@ -127,7 +141,8 @@ final class ProductionHttpRuntimeIntegrationTest {
                 "security.protocol", "PLAINTEXT"), Duration.ofSeconds(5));
         JedisRateLimitScriptExecutor redis = new JedisRateLimitScriptExecutor(URI.create(
                 "redis://" + REDIS.getHost() + ":" + REDIS.getMappedPort(6379)));
-        ApiPrincipal principal = ApiPrincipal.of(CUSTOMER.toString(), "wallet:payment", "wallet:read", "wallet:beneficiary");
+        ApiPrincipal principal = ApiPrincipal.of(CUSTOMER.toString(), "wallet:payment", "wallet:read",
+                "wallet:beneficiary", "voice:result");
         VoiceGatewayClient voice = new VoiceGatewayClient() {
             public Challenge issueChallenge(UUID customer, String phrase, String binding) { throw new AssertionError("not used"); }
             public String verify(Verification request) { throw new AssertionError("not used"); }
@@ -161,5 +176,14 @@ final class ProductionHttpRuntimeIntegrationTest {
     private static String jsonString(String body, String field) {
         String marker = "\"" + field + "\":\""; int start = body.indexOf(marker) + marker.length();
         return body.substring(start, body.indexOf('"', start));
+    }
+    private static String reservationStatus() throws Exception {
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement();
+             ResultSet result = statement.executeQuery("SELECT status FROM fund_reservations")) {
+            if (!result.next()) throw new AssertionError("reservation missing");
+            String status = result.getString(1);
+            if (result.next()) throw new AssertionError("unexpected duplicate reservation");
+            return status;
+        }
     }
 }

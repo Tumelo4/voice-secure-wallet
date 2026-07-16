@@ -83,6 +83,8 @@ be wired to AWS MSK without changing domain event code.
 - Production API composition for PostgreSQL persistence and recovery workers,
   Redis rate limiting, Kafka outbox publication, OIDC/JWKS authentication,
   bounded HTTPS service clients, and structured operational telemetry.
+- Atomic reserved-funds settlement from the trusted voice-result boundary into
+  balanced ledger postings and durable payment completion.
 - React Native TypeScript `apps/mobile` readiness dashboard using
   NativeWind/Tailwind CSS and Redux Toolkit, with typed API client and fetch
   transport boundaries, mobile token-session and native secure-store ports,

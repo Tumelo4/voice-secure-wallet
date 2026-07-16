@@ -27,6 +27,7 @@ public final class PaymentApiAdapter implements ApiEndpoint {
     private final BeneficiaryService beneficiaryService;
     private final PaymentRolloutPolicy rolloutPolicy;
     private final PaymentReferenceRegistry paymentReferences;
+    private final PaymentSettlementHandler settlement;
 
     public PaymentApiAdapter(
             PaymentSagaService paymentSagaService,
@@ -35,7 +36,7 @@ public final class PaymentApiAdapter implements ApiEndpoint {
             BeneficiaryService beneficiaryService
     ) {
         this(paymentSagaService, fraudDecisionProvider, walletService, beneficiaryService,
-                PaymentRolloutPolicy.enabled(), new InMemoryPaymentReferenceRegistry());
+                PaymentRolloutPolicy.enabled(), new InMemoryPaymentReferenceRegistry(), PaymentSettlementHandler.NOOP);
     }
 
     public PaymentApiAdapter(
@@ -46,7 +47,7 @@ public final class PaymentApiAdapter implements ApiEndpoint {
             PaymentRolloutPolicy rolloutPolicy
     ) {
         this(paymentSagaService, fraudDecisionProvider, walletService, beneficiaryService,
-                rolloutPolicy, new InMemoryPaymentReferenceRegistry());
+                rolloutPolicy, new InMemoryPaymentReferenceRegistry(), PaymentSettlementHandler.NOOP);
     }
 
     public PaymentApiAdapter(
@@ -57,12 +58,26 @@ public final class PaymentApiAdapter implements ApiEndpoint {
             PaymentRolloutPolicy rolloutPolicy,
             PaymentReferenceRegistry paymentReferences
     ) {
+        this(paymentSagaService, fraudDecisionProvider, walletService, beneficiaryService,
+                rolloutPolicy, paymentReferences, PaymentSettlementHandler.NOOP);
+    }
+
+    public PaymentApiAdapter(
+            PaymentSagaService paymentSagaService,
+            FraudDecisionProvider fraudDecisionProvider,
+            WalletService walletService,
+            BeneficiaryService beneficiaryService,
+            PaymentRolloutPolicy rolloutPolicy,
+            PaymentReferenceRegistry paymentReferences,
+            PaymentSettlementHandler settlement
+    ) {
         this.paymentSagaService = Objects.requireNonNull(paymentSagaService, "paymentSagaService");
         this.fraudDecisionProvider = Objects.requireNonNull(fraudDecisionProvider, "fraudDecisionProvider");
         this.walletService = Objects.requireNonNull(walletService, "walletService");
         this.beneficiaryService = Objects.requireNonNull(beneficiaryService, "beneficiaryService");
         this.rolloutPolicy = Objects.requireNonNull(rolloutPolicy, "rolloutPolicy");
         this.paymentReferences = Objects.requireNonNull(paymentReferences, "paymentReferences");
+        this.settlement = Objects.requireNonNull(settlement, "settlement");
     }
 
     @Override
@@ -185,6 +200,9 @@ public final class PaymentApiAdapter implements ApiEndpoint {
         if (verificationId.isEmpty()) throw new IllegalArgumentException("verification id is required");
         PaymentSaga saga = paymentSagaService.recordVoiceOutcome(
                 payment.sagaId(), new VoiceOutcome(status, confidence, "verification:" + verificationId));
+        if (saga.state() == com.voicesecure.payments.PaymentSagaState.FUNDS_RESERVING) {
+            saga = settlement.settle(saga);
+        }
         return ApiResponse.json(202, paymentBody(saga, reference));
     }
 

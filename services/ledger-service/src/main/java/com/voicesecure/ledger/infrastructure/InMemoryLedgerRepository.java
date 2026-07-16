@@ -44,6 +44,31 @@ public final class InMemoryLedgerRepository implements LedgerRepository {
     }
 
     @Override
+    public synchronized LedgerBatch consumeReservation(UUID reservationId, LedgerTransaction transaction) {
+        LedgerCommand command = LedgerCommand.from(transaction);
+        IdempotencyRecord cached = idempotencyCache.get(transaction.idempotencyKey());
+        if (cached != null) {
+            cached.ensureMatches(command);
+            return cached.batch();
+        }
+        FundReservation reservation = requireMatchingActiveReservation(reservationId, transaction);
+        AccountState source = accounts.get(reservation.accountId());
+        FundReservation consumed = new FundReservation(
+                reservation.reservationId(), reservation.paymentId(), reservation.accountId(), reservation.amount(),
+                reservation.currency(), FundReservation.Status.CONSUMED, reservation.createdAt(), reservation.expiresAt());
+        reservations.put(reservationId, consumed);
+        accounts.put(reservation.accountId(), new AccountState(
+                source.balance, source.reserved - reservation.amount(), source.currency, source.version + 1, Instant.now()));
+        try {
+            return appendNew(transaction, command);
+        } catch (RuntimeException failure) {
+            reservations.put(reservationId, reservation);
+            accounts.put(reservation.accountId(), source);
+            throw failure;
+        }
+    }
+
+    @Override
     public synchronized LedgerBatch appendRepair(RepairRequest repairRequest) {
         LedgerCommand command = LedgerCommand.from(repairRequest);
         IdempotencyRecord cached = idempotencyCache.get(repairRequest.idempotencyKey());
@@ -134,6 +159,21 @@ public final class InMemoryLedgerRepository implements LedgerRepository {
     @Override
     public synchronized Optional<FundReservation> findReservation(UUID reservationId) {
         return Optional.ofNullable(reservations.get(reservationId));
+    }
+
+    private FundReservation requireMatchingActiveReservation(UUID reservationId, LedgerTransaction transaction) {
+        FundReservation reservation = reservations.get(reservationId);
+        if (reservation == null) throw new LedgerException("reservation not found");
+        if (reservation.status() != FundReservation.Status.ACTIVE) throw new LedgerException("reservation is not active");
+        Posting debit = transaction.postings().stream().filter(posting -> posting.signedAmount() < 0).findFirst()
+                .orElseThrow(() -> new LedgerException("reserved transfer requires a debit"));
+        if (!reservation.paymentId().equals(transaction.sagaId())
+                || !reservation.accountId().equals(debit.accountId())
+                || reservation.amount() != -debit.signedAmount()
+                || !reservation.currency().equals(transaction.currency())) {
+            throw new LedgerException("reservation does not match ledger transaction");
+        }
+        return reservation;
     }
 
     @Override

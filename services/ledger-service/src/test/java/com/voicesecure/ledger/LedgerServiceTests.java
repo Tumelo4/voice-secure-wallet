@@ -20,6 +20,7 @@ public final class LedgerServiceTests {
                 new TestCase("concurrent transfers cannot overdraft", LedgerServiceTests::concurrentTransfersCannotOverdraft),
                 new TestCase("repair requires justification and appends audit-backed entries", LedgerServiceTests::repairFlowIsBalancedAndAudited),
                 new TestCase("reservations separate available and reserved balances", LedgerServiceTests::reservationsSeparateBalances)
+                ,new TestCase("reserved transfer consumes funds atomically and idempotently", LedgerServiceTests::reservedTransferIsAtomic)
         };
 
         for (TestCase test : tests) {
@@ -64,6 +65,25 @@ public final class LedgerServiceTests {
                 "reserved funds cannot be overspent");
         fixture.service.releaseFunds(reservationId);
         assertEquals(1_000L, fixture.repository.balances().get(fixture.source).availableBalance(), "release restores available balance");
+    }
+
+    private static void reservedTransferIsAtomic() {
+        Fixture fixture = fixture(1_000, 0);
+        UUID sagaId = UUID.randomUUID();
+        UUID reservationId = UUID.randomUUID();
+        UUID idempotencyKey = UUID.randomUUID();
+        fixture.service.reserveFunds(reservationId, sagaId, fixture.source, 400, "ZAR", Duration.ofMinutes(15));
+        LedgerBatch first = fixture.service.commitReservedTransfer(reservationId, sagaId, idempotencyKey,
+                fixture.source, fixture.destination, 400, "ZAR");
+        LedgerBatch retry = fixture.service.commitReservedTransfer(reservationId, sagaId, idempotencyKey,
+                fixture.source, fixture.destination, 400, "ZAR");
+        assertEquals(first.entries(), retry.entries(), "retry returns original ledger batch");
+        assertEquals(FundReservation.Status.CONSUMED,
+                fixture.repository.findReservation(reservationId).orElseThrow().status(), "reservation consumed");
+        assertEquals(600L, fixture.repository.balances().get(fixture.source).balance(), "source debited");
+        assertEquals(0L, fixture.repository.balances().get(fixture.source).reservedBalance(), "reservation cleared");
+        assertEquals(400L, fixture.repository.balances().get(fixture.destination).balance(), "destination credited");
+        assertEquals(2, fixture.repository.entries().size(), "retry does not duplicate postings");
     }
 
     private static void rejectsInvalidPostings() {
