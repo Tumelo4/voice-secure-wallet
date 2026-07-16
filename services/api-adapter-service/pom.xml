@@ -7,6 +7,7 @@
     <dependency><groupId>io.javalin</groupId><artifactId>javalin</artifactId><version>7.2.2</version></dependency>
     <dependency><groupId>org.slf4j</groupId><artifactId>slf4j-simple</artifactId><version>2.0.17</version><scope>runtime</scope></dependency>
     <dependency><groupId>redis.clients</groupId><artifactId>jedis</artifactId><version>6.2.0</version></dependency>
+    <dependency><groupId>com.nimbusds</groupId><artifactId>nimbus-jose-jwt</artifactId><version>10.9.1</version></dependency>
     <dependency><groupId>com.voicesecure</groupId><artifactId>beneficiary-service</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.voicesecure</groupId><artifactId>identity-service</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.voicesecure</groupId><artifactId>ledger-service</artifactId><version>${project.version}</version></dependency>
