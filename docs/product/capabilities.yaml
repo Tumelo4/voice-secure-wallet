@@ -104,10 +104,13 @@
       "id": "voice-persistence",
       "name": "Durable voice persistence",
       "status": "not_started",
-      "implementation_evidence": ["services/voice-service/src/voice_service/__init__.py"],
-      "test_evidence": [],
+      "implementation_evidence": [
+        "services/voice-service/src/voice_service/persistence.py",
+        "services/voice-service/migrations/V001__voice_persistence.sql"
+      ],
+      "test_evidence": ["services/voice-service/tests/test_persistence_foundation.py"],
       "external_evidence": [],
-      "remaining_gaps": "PostgreSQL templates, challenges, replay fingerprints, consent, retention, revocation, and audit metadata.",
+      "remaining_gaps": "Privacy-aware schema, encrypted-template port, TLS configuration, retention, consent, revocation, deletion, and audit contracts exist; PostgreSQL repository and KMS cipher adapters remain.",
       "owner": "voice-security",
       "last_verified_commit": "0084b25d"
     },
