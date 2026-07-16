@@ -31,7 +31,9 @@ public final class InMemoryApiRateLimiter implements ApiRateLimiter {
     }
 
     @Override
-    public synchronized RateLimitDecision evaluate(String principalId) {
+    public synchronized RateLimitDecision evaluate(RateLimitContext context) {
+        Objects.requireNonNull(context, "context");
+        String principalId = context.key();
         if (principalId == null || principalId.isBlank()) {
             throw new IllegalArgumentException("principalId is required");
         }
