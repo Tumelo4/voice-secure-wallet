@@ -45,6 +45,14 @@ so the listener remains an adapter rather than a business-policy owner.
 external auth, distributed rate limits, WAF, HSTS, trace forwarding, body-size
 limits, and public health paths without provisioning any cloud resources.
 
+`ApiApplication` now has an explicit production composition root. It starts the
+HTTP runtime with PostgreSQL-backed payment, ledger, wallet, beneficiary, and
+support adapters; durable payment and ledger outbox workers; a Redis-backed
+rate limiter; Kafka publication; OIDC/JWKS bearer verification; bounded HTTPS
+fraud, voice, and beneficiary-directory clients; and structured request and
+rate-limit telemetry. Schema migrations remain a separate deployment job and
+must complete before the application starts.
+
 ## Current Guarantees
 
 - Payment POST requires `Idempotency-Key` and `X-Trace-Id` headers.
@@ -154,6 +162,25 @@ Set `REDIS_URI` to make API instances share one atomic Redis window keyed by
 environment, principal, method, route, and risk class. High-risk mutations fail
 closed during Redis outages; low-risk reads degrade open. Production requires a
 TLS `rediss://` URI with credentials supplied through approved secret injection.
+
+## Production configuration
+
+The production entry point fails closed unless these settings are present:
+
+- `DATABASE_URL`, `DATABASE_USER`, `DATABASE_PASSWORD`, and optional
+  `DATABASE_POOL_SIZE` (default `20`)
+- `REDIS_URI` using `rediss://`
+- `KAFKA_BOOTSTRAP_SERVERS`, `KAFKA_SECURITY_PROTOCOL`, and the applicable
+  `KAFKA_SASL_MECHANISM` plus JAAS or callback-handler setting
+- `OIDC_ISSUER`, `OIDC_JWKS_URI`, and `OIDC_AUDIENCE`
+- HTTPS `FRAUD_SERVICE_URI`, `VOICE_SERVICE_URI`, and
+  `BENEFICIARY_DIRECTORY_URI`, with their corresponding service tokens
+- optional `REMOTE_TIMEOUT_MS` between `1` and `30000` (default `2000`)
+
+Plaintext Kafka is accepted only when
+`ALLOW_INSECURE_LOCAL_DEPENDENCIES=true`, for disposable integration tests.
+Production migrations must be applied by a controlled migration job; the API
+process does not mutate schemas during startup.
 
 ## Local Test Command
 

@@ -14,6 +14,7 @@ public record ProductionConfiguration(
         URI oidcIssuer,
         URI oidcJwksUri,
         String oidcAudience,
+        URI beneficiaryDirectoryUri,
         URI fraudServiceUri,
         URI voiceServiceUri,
         Duration remoteTimeout
@@ -25,6 +26,7 @@ public record ProductionConfiguration(
         requireText(kafkaBootstrapServers, "KAFKA_BOOTSTRAP_SERVERS");
         requireScheme(oidcIssuer, "https", "OIDC_ISSUER"); requireScheme(oidcJwksUri, "https", "OIDC_JWKS_URI");
         requireText(oidcAudience, "OIDC_AUDIENCE");
+        requireScheme(beneficiaryDirectoryUri, "https", "BENEFICIARY_DIRECTORY_URI");
         requireScheme(fraudServiceUri, "https", "FRAUD_SERVICE_URI");
         requireScheme(voiceServiceUri, "https", "VOICE_SERVICE_URI");
         Objects.requireNonNull(remoteTimeout, "remoteTimeout");
@@ -38,7 +40,7 @@ public record ProductionConfiguration(
         return new ProductionConfiguration(required(environment, "DATABASE_URL"), required(environment, "DATABASE_USER"),
                 required(environment, "DATABASE_PASSWORD"), uri(environment, "REDIS_URI"),
                 required(environment, "KAFKA_BOOTSTRAP_SERVERS"), uri(environment, "OIDC_ISSUER"),
-                uri(environment, "OIDC_JWKS_URI"), required(environment, "OIDC_AUDIENCE"),
+                uri(environment, "OIDC_JWKS_URI"), required(environment, "OIDC_AUDIENCE"), uri(environment, "BENEFICIARY_DIRECTORY_URI"),
                 uri(environment, "FRAUD_SERVICE_URI"), uri(environment, "VOICE_SERVICE_URI"),
                 Duration.ofMillis(positiveLong(environment.getOrDefault("REMOTE_TIMEOUT_MS", "2000"), "REMOTE_TIMEOUT_MS")));
     }

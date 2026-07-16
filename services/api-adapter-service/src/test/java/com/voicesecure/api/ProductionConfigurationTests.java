@@ -5,12 +5,13 @@ import java.util.Map;
 
 public final class ProductionConfigurationTests {
     public static void main(String[] args) {
-        Map<String, String> valid = new HashMap<>(Map.of(
-                "DATABASE_URL", "jdbc:postgresql://db.internal/wallet", "DATABASE_USER", "wallet",
-                "DATABASE_PASSWORD", "secret", "REDIS_URI", "rediss://cache.internal:6379",
-                "KAFKA_BOOTSTRAP_SERVERS", "broker.internal:9098", "OIDC_ISSUER", "https://identity.example",
-                "OIDC_JWKS_URI", "https://identity.example/.well-known/jwks.json", "OIDC_AUDIENCE", "wallet-api",
-                "FRAUD_SERVICE_URI", "https://fraud.internal", "VOICE_SERVICE_URI", "https://voice.internal"));
+        Map<String, String> valid = new HashMap<>(Map.ofEntries(
+                Map.entry("DATABASE_URL", "jdbc:postgresql://db.internal/wallet"), Map.entry("DATABASE_USER", "wallet"),
+                Map.entry("DATABASE_PASSWORD", "secret"), Map.entry("REDIS_URI", "rediss://cache.internal:6379"),
+                Map.entry("KAFKA_BOOTSTRAP_SERVERS", "broker.internal:9098"), Map.entry("OIDC_ISSUER", "https://identity.example"),
+                Map.entry("OIDC_JWKS_URI", "https://identity.example/.well-known/jwks.json"), Map.entry("OIDC_AUDIENCE", "wallet-api"),
+                Map.entry("BENEFICIARY_DIRECTORY_URI", "https://accounts.internal"),
+                Map.entry("FRAUD_SERVICE_URI", "https://fraud.internal"), Map.entry("VOICE_SERVICE_URI", "https://voice.internal")));
         ProductionConfiguration configuration = ProductionConfiguration.fromEnvironment(valid);
         assertEquals(2000L, configuration.remoteTimeout().toMillis(), "default timeout");
 
