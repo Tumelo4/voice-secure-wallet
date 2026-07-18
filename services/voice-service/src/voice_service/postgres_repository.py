@@ -55,6 +55,25 @@ class PostgresVoiceRepository(VoiceRepository):
             bytes(row["nonce"]),row["key_reference"],row["algorithm"],row["model_version"])
         return VoiceProfile(user_id,self._cipher.decrypt(encrypted),row["enrolled_at"],3)
 
+    def revoke_profile(self, user_id: UUID) -> bool:
+        with self._connection() as connection:
+            updated = connection.execute(
+                "UPDATE voice_profiles SET revoked_at=now() "
+                "WHERE user_id=%s AND revoked_at IS NULL AND deleted_at IS NULL",
+                (user_id,),
+            ).rowcount
+            if updated:
+                self._audit(connection, user_id, "VOICE_ENROLLMENT_REVOKED")
+        return updated == 1
+
+    def delete_profile(self, user_id: UUID) -> bool:
+        with self._connection() as connection:
+            connection.execute("DELETE FROM voice_replay_fingerprints WHERE user_id=%s", (user_id,))
+            deleted = connection.execute("DELETE FROM voice_profiles WHERE user_id=%s", (user_id,)).rowcount
+            if deleted:
+                self._audit(connection, user_id, "VOICE_ENROLLMENT_DELETED")
+        return deleted == 1
+
     def save_challenge(self, value: VoiceChallenge) -> None:
         with self._connection() as c: c.execute("INSERT INTO voice_challenges VALUES (%s,%s,%s,%s,%s,%s,NULL)",
             (value.challenge_id,value.user_id,value.phrase,value.transaction_binding_hash,value.issued_at,value.expires_at))

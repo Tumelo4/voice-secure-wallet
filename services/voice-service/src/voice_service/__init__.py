@@ -147,6 +147,12 @@ class VoiceRepository(Protocol):
     def get_profile(self, user_id: UUID) -> Optional[VoiceProfile]:
         ...
 
+    def revoke_profile(self, user_id: UUID) -> bool:
+        ...
+
+    def delete_profile(self, user_id: UUID) -> bool:
+        ...
+
     def save_challenge(self, challenge: VoiceChallenge) -> None:
         ...
 
@@ -179,12 +185,28 @@ class InMemoryVoiceRepository:
         self._attempted_challenges: set[UUID] = set()
         self._audio_fingerprints: dict[UUID, set[str]] = {}
         self._verification_sessions: list[VoiceVerificationResult] = []
+        self._revoked_profiles: set[UUID] = set()
 
     def save_profile(self, profile: VoiceProfile) -> None:
         self._profiles[profile.user_id] = profile
+        self._revoked_profiles.discard(profile.user_id)
 
     def get_profile(self, user_id: UUID) -> Optional[VoiceProfile]:
+        if user_id in self._revoked_profiles:
+            return None
         return self._profiles.get(user_id)
+
+    def revoke_profile(self, user_id: UUID) -> bool:
+        if user_id not in self._profiles or user_id in self._revoked_profiles:
+            return False
+        self._revoked_profiles.add(user_id)
+        return True
+
+    def delete_profile(self, user_id: UUID) -> bool:
+        removed = self._profiles.pop(user_id, None) is not None
+        self._revoked_profiles.discard(user_id)
+        self._audio_fingerprints.pop(user_id, None)
+        return removed
 
     def save_challenge(self, challenge: VoiceChallenge) -> None:
         self._challenges[challenge.challenge_id] = challenge
@@ -244,6 +266,12 @@ class VoiceService:
         )
         self._repository.save_profile(profile)
         return profile
+
+    def revoke_enrollment(self, user_id: UUID) -> bool:
+        return self._repository.revoke_profile(user_id)
+
+    def delete_enrollment(self, user_id: UUID) -> bool:
+        return self._repository.delete_profile(user_id)
 
     def issue_challenge(
         self,

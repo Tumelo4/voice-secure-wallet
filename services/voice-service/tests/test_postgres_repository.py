@@ -38,4 +38,17 @@ def test_postgres_repository_survives_new_instance_and_enforces_single_attempt()
         assert second.challenge_attempted(challenge.challenge_id)
         assert second.fingerprint_seen(user,"fingerprint")
         with pytest.raises(ValueError,match="already attempted"): second.mark_challenge_attempted(challenge.challenge_id)
+        assert second.revoke_profile(user)
+        assert second.get_profile(user) is None
+        assert not second.revoke_profile(user)
+        assert second.delete_profile(user)
+        assert second.get_profile(user) is None
+        assert not second.fingerprint_seen(user,"fingerprint")
+        assert not second.delete_profile(user)
+        with psycopg2.connect(dsn) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT action FROM voice_audit_events WHERE user_id=%s ORDER BY occurred_at", (user,))
+                actions = [row[0] for row in cursor.fetchall()]
+        assert "VOICE_ENROLLMENT_REVOKED" in actions
+        assert "VOICE_ENROLLMENT_DELETED" in actions
         second.close()

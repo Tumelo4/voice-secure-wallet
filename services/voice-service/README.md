@@ -64,6 +64,8 @@ and conservative interim implementations without changing verification policy.
 The HTTP process fails closed unless its durable production adapters can be
 composed. It requires `VOICE_DATABASE_URL` with PostgreSQL TLS, a
 `VOICE_KMS_KEY_ARN`, `VOICE_MODEL_VERSION`, and `VOICE_SERVICE_TOKEN`.
+`VOICE_OPERATOR_TOKEN` is a separate credential for enrollment lifecycle
+operations and must not equal or replace the service-to-service token.
 `VOICE_RETENTION_DAYS` defaults to 365 and may be reduced by policy. AWS KMS
 generates AES-256 data keys with a voice-template encryption context; only the
 encrypted key and AES-GCM ciphertext are persisted. Set `PAYMENT_API_URL` and
@@ -73,6 +75,14 @@ The process uses the ambient AWS credential provider chain. Grant only
 `kms:GenerateDataKey` and `kms:Decrypt` on the configured key and database
 access to the voice schema. Managed RDS/KMS deployment evidence and independent
 biometric validation remain release gates.
+
+Operators can immediately revoke an enrollment with
+`POST /internal/voice/profiles/{userId}/revoke` or permanently remove its
+encrypted template and replay fingerprints with
+`DELETE /internal/voice/profiles/{userId}`. Both require
+`X-Operator-Token`; successful changes append durable audit events. Repeated
+operations return `404`, making lifecycle commands idempotent from an operator
+workflow perspective without claiming that a second state change occurred.
 
 ## Local Test Command
 
