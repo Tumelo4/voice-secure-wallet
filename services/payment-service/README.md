@@ -44,6 +44,9 @@ external throughput:
 - A conflicting idempotent retry should fail before any transition occurs.
 - Failure paths for funds reservation, ledger commit, and compensation should
   reach terminal states in one service call each.
+- The executable load probe records p95 and throughput for 10,000 starts while
+  verifying persistence and idempotent replay; see
+  [`performance-strategy.md`](../../docs/testing/performance-strategy.md).
 
 ## How To Use It
 
