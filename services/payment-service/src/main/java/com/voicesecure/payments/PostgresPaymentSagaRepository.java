@@ -144,6 +144,24 @@ public final class PostgresPaymentSagaRepository implements PaymentSagaRepositor
     }
 
     @Override
+    public PaymentSaga createIfAbsent(PaymentSaga saga) {
+        Objects.requireNonNull(saga, "saga");
+        PaymentSaga winner = inTransaction(connection -> {
+            try (PreparedStatement lock = connection.prepareStatement("SELECT pg_advisory_xact_lock(?)")) {
+                lock.setLong(1, saga.idempotencyKey().getMostSignificantBits()
+                        ^ saga.idempotencyKey().getLeastSignificantBits());
+                lock.execute();
+            }
+            Optional<PaymentSaga> existing = load(connection, SELECT_SAGA_BY_IDEMPOTENCY, saga.idempotencyKey());
+            if (existing.isPresent()) return existing.get();
+            insert(connection, saga);
+            return saga;
+        });
+        if (winner == saga) saga.markPersisted();
+        return winner;
+    }
+
+    @Override
     public void save(PaymentSaga saga) {
         Objects.requireNonNull(saga, "saga");
         inTransaction(connection -> {
@@ -158,7 +176,10 @@ public final class PostgresPaymentSagaRepository implements PaymentSagaRepositor
     }
 
     private Optional<PaymentSaga> load(String sql, UUID key) {
-        return inTransaction(connection -> {
+        return inTransaction(connection -> load(connection, sql, key));
+    }
+
+    private Optional<PaymentSaga> load(Connection connection, String sql, UUID key) throws SQLException {
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setObject(1, key);
                 try (ResultSet resultSet = statement.executeQuery()) {
@@ -189,7 +210,6 @@ public final class PostgresPaymentSagaRepository implements PaymentSagaRepositor
                     )));
                 }
             }
-        });
     }
 
     private void insert(Connection connection, PaymentSaga saga) throws SQLException {

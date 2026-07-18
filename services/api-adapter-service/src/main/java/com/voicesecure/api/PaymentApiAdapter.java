@@ -16,6 +16,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.Set;
+import java.nio.charset.StandardCharsets;
 
 public final class PaymentApiAdapter implements ApiEndpoint {
     private static final Set<String> REQUIRED_SCOPES = Set.of("wallet:payment");
@@ -109,13 +110,14 @@ public final class PaymentApiAdapter implements ApiEndpoint {
             Beneficiary beneficiary = beneficiaryService.requireAvailable(userId, beneficiaryId);
             UUID beneficiaryAccountId = beneficiary.destinationAccountId();
             walletService.account(beneficiaryAccountId);
-            String currency = normalizedCurrency(request.body());
-            Money money = Money.parse(ApiJson.stringField(request.body(), "value"), currency);
+            String amountJson = ApiJson.objectField(request.body(), "amount");
+            String currency = normalizedCurrency(amountJson);
+            Money money = Money.parse(ApiJson.stringField(amountJson, "value"), currency);
             long amountMinor = money.minorUnits();
             paymentReference(request.body());
             UUID idempotencyKey = requiredUuidHeader(request, "Idempotency-Key");
             PaymentRequest paymentRequest = new PaymentRequest(
-                    UUID.randomUUID(),
+                    stableSagaId(idempotencyKey),
                     idempotencyKey,
                     userId,
                     sourceAccountId,
@@ -180,6 +182,11 @@ public final class PaymentApiAdapter implements ApiEndpoint {
 
     private static UUID requiredUuidHeader(ApiRequest request, String name) {
         return UUID.fromString(requiredHeader(request, name));
+    }
+
+    private static UUID stableSagaId(UUID idempotencyKey) {
+        return UUID.nameUUIDFromBytes(("voicesecure:payment:" + idempotencyKey)
+                .getBytes(StandardCharsets.UTF_8));
     }
 
     private static String requiredHeader(ApiRequest request, String name) {

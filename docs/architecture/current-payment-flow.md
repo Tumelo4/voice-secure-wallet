@@ -7,6 +7,7 @@ sequenceDiagram
     participant API as Java API runtime
     participant Wallet
     participant Payment as Payment saga module
+    participant Ledger
     participant Fraud
 
     Customer->>Mobile: Select account and recipient, enter decimal amount/reference
@@ -15,16 +16,22 @@ sequenceDiagram
     API->>Wallet: Verify source-account ownership
     API->>Wallet: Check destination account exists
     API->>Fraud: Assess payment request
-    API->>Payment: Start server-identified saga
+    API->>Payment: Atomically create/load saga by idempotency key
     Payment-->>API: Voice verification pending
     API-->>Mobile: Customer-safe reference and status
     Mobile-->>Customer: Show verification state
+    API->>Ledger: Reserve funds, then commit balanced transfer
+    Ledger-->>Payment: Durable idempotent outcome
+    Payment-->>API: Complete or compensate
 ```
 
 ## Known gaps
 
-- Accounts and recipients are currently seeded UI choices rather than loaded through `/v1/me` resources.
-- A beneficiary aggregate and access policy are not yet implemented.
-- The public request is not yet the target nested `Money` contract.
-- Review, explicit authorisation, durable recovery and receipt screens are incomplete.
-- Saga persistence, outbox and provider reconciliation exist only in partial/prototype form.
+- Mobile still needs physical-device validation for microphone, codecs,
+  accessibility, secure storage and unreliable networks.
+- Provider-specific reconciliation adapters and real settlement-file ingestion
+  remain deployment integrations.
+- The production recovery worker now resumes deterministic internal settlement
+  states and routes unknown external outcomes to reconciliation; deployed
+  multi-instance soak evidence is still required.
+- Customer review, authorisation and receipt journeys need final device-level QA.

@@ -182,8 +182,10 @@ npm ci
 npm run validate
 ```
 
-The CI workflow runs the Maven reactor, mobile type checks and tests, and a
-whitespace check on pull requests and pushes to `main`.
+The quality, security, and container workflows contain the Maven, Python,
+mobile, static-analysis, and supply-chain gates. Some workflows are temporarily
+manual-only during infrastructure work; restore their pull-request and push
+triggers before production release gating resumes.
 
 Use each service README for the smallest code example for that service. The
 remaining production plan still requires applying Terraform in a real AWS

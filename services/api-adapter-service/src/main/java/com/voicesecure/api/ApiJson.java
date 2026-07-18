@@ -1,82 +1,59 @@
 package com.voicesecure.api;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 final class ApiJson {
+    private static final ObjectMapper JSON = new ObjectMapper();
+
     private ApiJson() {
     }
 
     static String stringField(String json, String field) {
-        String marker = "\"" + field + "\":\"";
-        int start = json.indexOf(marker);
-        if (start < 0) {
-            throw new IllegalArgumentException("missing json field: " + field);
-        }
-        int valueStart = start + marker.length();
-        int end = json.indexOf('"', valueStart);
-        if (end < 0) {
-            throw new IllegalArgumentException("invalid json string field: " + field);
-        }
-        return json.substring(valueStart, end);
+        JsonNode value = requiredField(json, field);
+        if (!value.isTextual()) throw new IllegalArgumentException("invalid json string field: " + field);
+        return value.textValue();
     }
 
     static long longField(String json, String field) {
-        String marker = "\"" + field + "\":";
-        int start = json.indexOf(marker);
-        if (start < 0) {
-            throw new IllegalArgumentException("missing json field: " + field);
-        }
-        int valueStart = start + marker.length();
-        int end = valueStart;
-        while (end < json.length() && "-0123456789".indexOf(json.charAt(end)) >= 0) {
-            end++;
-        }
-        if (end == valueStart) {
+        JsonNode value = requiredField(json, field);
+        if (!value.isIntegralNumber() || !value.canConvertToLong())
             throw new IllegalArgumentException("invalid json numeric field: " + field);
-        }
-        return Long.parseLong(json.substring(valueStart, end));
+        return value.longValue();
     }
 
     static String objectField(String json, String field) {
-        String marker = "\"" + field + "\":";
-        int markerIndex = json.indexOf(marker);
-        if (markerIndex < 0) throw new IllegalArgumentException("missing json field: " + field);
-        int start = markerIndex + marker.length();
-        while (start < json.length() && Character.isWhitespace(json.charAt(start))) start++;
-        if (start >= json.length() || json.charAt(start) != '{') throw new IllegalArgumentException("invalid json object field: " + field);
-        int depth = 0;
-        boolean quoted = false;
-        boolean escaped = false;
-        for (int index = start; index < json.length(); index++) {
-            char value = json.charAt(index);
-            if (quoted) {
-                if (escaped) escaped = false;
-                else if (value == '\\') escaped = true;
-                else if (value == '"') quoted = false;
-            } else if (value == '"') quoted = true;
-            else if (value == '{') depth++;
-            else if (value == '}' && --depth == 0) return json.substring(start, index + 1);
-        }
-        throw new IllegalArgumentException("invalid json object field: " + field);
+        JsonNode value = requiredField(json, field);
+        if (!value.isObject()) throw new IllegalArgumentException("invalid json object field: " + field);
+        return value.toString();
     }
 
     static String scalarField(String json, String field) {
-        String marker = "\"" + field + "\":";
-        int start = json.indexOf(marker);
-        if (start < 0) throw new IllegalArgumentException("missing json field: " + field);
-        start += marker.length();
-        while (start < json.length() && Character.isWhitespace(json.charAt(start))) start++;
-        int end = start;
-        while (end < json.length() && ",}".indexOf(json.charAt(end)) < 0) end++;
-        if (end == start) throw new IllegalArgumentException("invalid json scalar field: " + field);
-        return json.substring(start, end).trim();
+        JsonNode value = requiredField(json, field);
+        if (!value.isValueNode() || value.isNull())
+            throw new IllegalArgumentException("invalid json scalar field: " + field);
+        return value.asText();
     }
 
     static String quote(String value) {
-        String safe = value == null ? "" : value;
-        return "\"" + safe
-                .replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                + "\"";
+        try {
+            return JSON.writeValueAsString(value == null ? "" : value);
+        } catch (JsonProcessingException impossible) {
+            throw new IllegalStateException("unable to encode JSON string", impossible);
+        }
+    }
+
+    private static JsonNode requiredField(String json, String field) {
+        if (json == null) throw new IllegalArgumentException("invalid json document");
+        try {
+            JsonNode document = JSON.readTree(json);
+            if (document == null || !document.isObject()) throw new IllegalArgumentException("invalid json document");
+            JsonNode value = document.get(field);
+            if (value == null || value.isNull()) throw new IllegalArgumentException("missing json field: " + field);
+            return value;
+        } catch (JsonProcessingException invalid) {
+            throw new IllegalArgumentException("invalid json document", invalid);
+        }
     }
 }

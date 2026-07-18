@@ -12,5 +12,7 @@ public interface PaymentSagaRepository {
 
     List<PaymentSaga> findNonTerminalUpdatedBefore(Instant cutoff);
 
+    PaymentSaga createIfAbsent(PaymentSaga saga);
+
     void save(PaymentSaga saga);
 }

@@ -67,19 +67,16 @@
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
-      <version>42.7.10</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.flywaydb</groupId>
       <artifactId>flyway-database-postgresql</artifactId>
-      <version>11.20.3</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka-clients</artifactId>
-      <version>4.2.0</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

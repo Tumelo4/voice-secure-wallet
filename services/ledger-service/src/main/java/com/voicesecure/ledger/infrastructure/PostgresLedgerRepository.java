@@ -182,6 +182,9 @@ public final class PostgresLedgerRepository implements LedgerRepository {
     public LedgerBatch consumeReservation(UUID reservationId, LedgerTransaction transaction) {
         Objects.requireNonNull(reservationId, "reservationId");
         Objects.requireNonNull(transaction, "transaction");
+        if (expireReservationIfNecessary(reservationId, Instant.now())) {
+            throw new LedgerException("reservation expired");
+        }
         LedgerCommand command = LedgerCommand.from(transaction, null);
         String commandHash = hash(command);
         try {
@@ -296,6 +299,25 @@ public final class PostgresLedgerRepository implements LedgerRepository {
     @Override
     public Optional<FundReservation> findReservation(UUID reservationId) {
         return inTransaction(connection -> loadReservation(connection, reservationId, false));
+    }
+
+    private boolean expireReservationIfNecessary(UUID reservationId, Instant now) {
+        return inTransaction(connection -> {
+            FundReservation current = loadReservation(connection, reservationId, true)
+                    .orElseThrow(() -> new LedgerException("reservation not found"));
+            if (current.status() != FundReservation.Status.ACTIVE || current.expiresAt().isAfter(now)) {
+                return false;
+            }
+            AccountState account = lockAccount(connection, current.accountId());
+            try (PreparedStatement update = connection.prepareStatement(UPDATE_RESERVATION_STATUS)) {
+                update.setString(1, FundReservation.Status.EXPIRED.name());
+                update.setObject(2, reservationId);
+                update.executeUpdate();
+            }
+            updateReservedBalance(connection, current.accountId(),
+                    account.reserved() - current.amount(), account.version() + 1, now);
+            return true;
+        });
     }
 
     private static void requireMatchingReservation(FundReservation reservation, LedgerTransaction transaction) {
@@ -499,7 +521,7 @@ public final class PostgresLedgerRepository implements LedgerRepository {
                             resultSet.getObject("id", UUID.class),
                             resultSet.getString("event_type"),
                             resultSet.getObject("aggregate_id", UUID.class),
-                            resultSet.getTimestamp("occurred_at").toInstant(),
+                            resultSet.getTimestamp("created_at").toInstant(),
                             resultSet.getString("payload")
                     ));
                 }

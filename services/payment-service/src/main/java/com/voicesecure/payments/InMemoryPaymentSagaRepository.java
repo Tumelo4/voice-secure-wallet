@@ -29,6 +29,14 @@ public final class InMemoryPaymentSagaRepository implements PaymentSagaRepositor
     }
 
     @Override
+    public synchronized PaymentSaga createIfAbsent(PaymentSaga saga) {
+        PaymentSaga existing = byIdempotencyKey.get(saga.idempotencyKey());
+        if (existing != null) return existing;
+        save(saga);
+        return saga;
+    }
+
+    @Override
     public synchronized void save(PaymentSaga saga) {
         bySagaId.put(saga.sagaId(), saga);
         byIdempotencyKey.put(saga.idempotencyKey(), saga);

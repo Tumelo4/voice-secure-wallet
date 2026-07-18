@@ -45,6 +45,17 @@ public final class InMemoryLedgerRepository implements LedgerRepository {
 
     @Override
     public synchronized LedgerBatch consumeReservation(UUID reservationId, LedgerTransaction transaction) {
+        FundReservation current = reservations.get(reservationId);
+        if (current != null && current.status() == FundReservation.Status.ACTIVE
+                && !current.expiresAt().isAfter(Instant.now())) {
+            AccountState source = accounts.get(current.accountId());
+            reservations.put(reservationId, new FundReservation(
+                    current.reservationId(), current.paymentId(), current.accountId(), current.amount(),
+                    current.currency(), FundReservation.Status.EXPIRED, current.createdAt(), current.expiresAt()));
+            accounts.put(current.accountId(), new AccountState(
+                    source.balance, source.reserved - current.amount(), source.currency, source.version + 1, Instant.now()));
+            throw new LedgerException("reservation expired");
+        }
         LedgerCommand command = LedgerCommand.from(transaction);
         IdempotencyRecord cached = idempotencyCache.get(transaction.idempotencyKey());
         if (cached != null) {

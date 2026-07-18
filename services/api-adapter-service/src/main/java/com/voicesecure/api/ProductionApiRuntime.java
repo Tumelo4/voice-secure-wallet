@@ -8,6 +8,8 @@ import com.voicesecure.events.KafkaEventPublisher;
 import com.voicesecure.events.EventPublisher;
 import com.voicesecure.ledger.LedgerProductionRuntime;
 import com.voicesecure.payments.PaymentProductionRuntime;
+import com.voicesecure.payments.PaymentSagaService;
+import com.voicesecure.payments.PostgresPaymentSagaRepository;
 import com.voicesecure.support.PostgresSupportRepository;
 import com.voicesecure.support.SupportService;
 import com.voicesecure.wallet.PostgresWalletRepository;
@@ -64,11 +66,15 @@ public final class ProductionApiRuntime implements AutoCloseable {
         Objects.requireNonNull(dependencies);
         Consumer<RuntimeException> workerFailure = failure -> System.err.println(
                 "{\"type\":\"background_worker_failure\",\"error\":" + ApiJson.quote(failure.getClass().getSimpleName()) + "}");
-        PaymentProductionRuntime payments = new PaymentProductionRuntime(
-                dependencies.dataSource(), dependencies.publisher(), dependencies.clock(), workerFailure);
+        PostgresPaymentSagaRepository paymentRepository = new PostgresPaymentSagaRepository(dependencies.dataSource());
+        PaymentSagaService paymentService = new PaymentSagaService(paymentRepository);
+        PaymentProductionRuntime payments = null;
         LedgerProductionRuntime ledger = null;
         try {
             ledger = new LedgerProductionRuntime(dependencies.dataSource(), dependencies.publisher(), dependencies.clock(), workerFailure);
+            PaymentSettlementCoordinator settlement = new PaymentSettlementCoordinator(paymentService, ledger.ledgerService());
+            payments = new PaymentProductionRuntime(dependencies.dataSource(), dependencies.publisher(), dependencies.clock(),
+                    workerFailure, paymentRepository, paymentService, settlement);
             WalletService wallets = new WalletService(new PostgresWalletRepository(dependencies.dataSource()));
             BeneficiaryService beneficiaries = new BeneficiaryService(new PostgresBeneficiaryRepository(dependencies.dataSource()),
                     BeneficiaryRiskPolicy.standard(), dependencies.clock());
@@ -79,7 +85,7 @@ public final class ProductionApiRuntime implements AutoCloseable {
                     new BeneficiaryApiAdapter(beneficiaries, dependencies.beneficiaryDirectory()),
                     new PaymentApiAdapter(payments.paymentService(), dependencies.fraud(), wallets, beneficiaries,
                             PaymentRolloutPolicy.enabled(), references,
-                            new PaymentSettlementCoordinator(payments.paymentService(), ledger.ledgerService())),
+                            settlement),
                     new SupportRepairApiAdapter(support),
                     new VoiceGatewayApiAdapter(payments.paymentService(), references, dependencies.voice()))),
                     dependencies.tokenVerifier(), dependencies.rateLimiter(), dependencies.logSink());
