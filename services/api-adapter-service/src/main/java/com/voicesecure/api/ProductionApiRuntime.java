@@ -80,8 +80,13 @@ public final class ProductionApiRuntime implements AutoCloseable {
                     BeneficiaryRiskPolicy.standard(), dependencies.clock());
             PostgresPaymentReferenceRegistry references = new PostgresPaymentReferenceRegistry(dependencies.dataSource());
             SupportService support = new SupportService(new PostgresSupportRepository(dependencies.dataSource()), ledger.ledgerService());
+            PaymentProductionRuntime paymentRuntime = payments;
+            LedgerProductionRuntime ledgerRuntime = ledger;
             ApiRuntime api = new ApiRuntime(new ApiRouter(List.of(
                     new HealthApiAdapter(), new WalletApiAdapter(wallets),
+                    new RelayMetricsApiAdapter(Map.of(
+                            "payments", paymentRuntime::relayTelemetry,
+                            "ledger", ledgerRuntime::relayTelemetry)),
                     new BeneficiaryApiAdapter(beneficiaries, dependencies.beneficiaryDirectory()),
                     new PaymentApiAdapter(payments.paymentService(), dependencies.fraud(), wallets, beneficiaries,
                             PaymentRolloutPolicy.enabled(), references,
