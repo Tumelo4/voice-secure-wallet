@@ -5,7 +5,12 @@ from datetime import datetime, timezone
 import pytest
 
 from voice_service import InMemoryVoiceRepository, VoiceAuthMode, VoiceService, VoiceServiceError
-from voice_service.http_runtime import HttpPaymentOutcomePublisher, PaymentOutcomePublisher, VoiceHttpApplication
+from voice_service.http_runtime import (
+    HttpPaymentOutcomePublisher,
+    PaymentOutcomePublisher,
+    VoiceHttpApplication,
+    build_production_application,
+)
 
 
 def encoded_audio(phrase: str) -> dict:
@@ -150,3 +155,63 @@ def test_http_outcome_publisher_uses_service_bearer_token(monkeypatch) -> None:
     assert request.headers["Authorization"] == "Bearer service-token"
     assert json.loads(request.data)["status"] == "APPROVED"
     assert captured["timeout"] == 5
+
+
+def test_production_application_composes_postgres_and_kms() -> None:
+    captured = {}
+
+    class Repository(InMemoryVoiceRepository):
+        def __init__(self, dsn, cipher, model_version, retention):
+            super().__init__()
+            captured.update(dsn=dsn, cipher=cipher, model_version=model_version, retention=retention)
+            self.closed = False
+        def close(self):
+            self.closed = True
+
+    environment = {
+        "VOICE_DATABASE_URL": "postgresql://voice@db/voice?sslmode=verify-full",
+        "VOICE_KMS_KEY_ARN": "arn:aws:kms:af-south-1:123456789012:key/voice",
+        "VOICE_MODEL_VERSION": "speaker-v1",
+        "VOICE_RETENTION_DAYS": "30",
+        "VOICE_SERVICE_TOKEN": "service-token",
+        "VOICE_AUTH_MODE": "shadow",
+    }
+    kms_client = object()
+    app, repository = build_production_application(
+        environment, lambda: kms_client, Repository)
+
+    assert app.handle("GET", "/health/live", {}, b"")[0] == 200
+    assert captured["dsn"].endswith("sslmode=verify-full")
+    assert captured["cipher"]._keys._client is kms_client
+    assert captured["model_version"] == "speaker-v1"
+    assert captured["retention"].days == 30
+    assert repository.closed is False
+
+
+@pytest.mark.parametrize("missing", [
+    "VOICE_DATABASE_URL", "VOICE_KMS_KEY_ARN", "VOICE_MODEL_VERSION", "VOICE_SERVICE_TOKEN"
+])
+def test_production_application_fails_closed_when_required_config_is_missing(missing) -> None:
+    environment = {
+        "VOICE_DATABASE_URL": "postgresql://voice@db/voice?sslmode=require",
+        "VOICE_KMS_KEY_ARN": "kms-key",
+        "VOICE_MODEL_VERSION": "speaker-v1",
+        "VOICE_SERVICE_TOKEN": "service-token",
+    }
+    environment.pop(missing)
+    with pytest.raises(VoiceServiceError, match=f"{missing} is required"):
+        build_production_application(environment, lambda: object(), lambda *_: None)
+
+
+def test_production_application_closes_repository_when_callback_config_is_incomplete() -> None:
+    repository = type("Repository", (), {"close": lambda self: setattr(self, "closed", True)})()
+    environment = {
+        "VOICE_DATABASE_URL": "postgresql://voice@db/voice?sslmode=require",
+        "VOICE_KMS_KEY_ARN": "kms-key",
+        "VOICE_MODEL_VERSION": "speaker-v1",
+        "VOICE_SERVICE_TOKEN": "service-token",
+        "PAYMENT_API_URL": "https://payments.internal",
+    }
+    with pytest.raises(VoiceServiceError, match="PAYMENT_API_SERVICE_TOKEN"):
+        build_production_application(environment, lambda: object(), lambda *_: repository)
+    assert repository.closed is True

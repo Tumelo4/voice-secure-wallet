@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import UUID
 from urllib.parse import urlparse
 import json, os
@@ -32,6 +32,44 @@ class VoiceTemplateCipher(Protocol):
 class DataKeyProvider(Protocol):
     def generate_data_key(self, key_reference: str) -> tuple[bytes, bytes]: ...
     def decrypt_data_key(self, key_reference: str, encrypted_data_key: bytes) -> bytes: ...
+
+class AwsKmsDataKeyProvider:
+    """AWS KMS envelope-key adapter; plaintext data keys never leave this process."""
+
+    _CONTEXT = {"service": "voice-service", "purpose": "voice-template"}
+
+    def __init__(self, client: Any) -> None:
+        self._client = client
+
+    def generate_data_key(self, key_reference: str) -> tuple[bytes, bytes]:
+        response = self._client.generate_data_key(
+            KeyId=key_reference,
+            KeySpec="AES_256",
+            EncryptionContext=self._CONTEXT,
+        )
+        plaintext = bytes(response["Plaintext"])
+        encrypted = bytes(response["CiphertextBlob"])
+        self._validate_key(plaintext)
+        if not encrypted:
+            raise ValueError("AWS KMS returned an empty encrypted data key")
+        return plaintext, encrypted
+
+    def decrypt_data_key(self, key_reference: str, encrypted_data_key: bytes) -> bytes:
+        if not encrypted_data_key:
+            raise ValueError("encrypted data key is required")
+        response = self._client.decrypt(
+            KeyId=key_reference,
+            CiphertextBlob=encrypted_data_key,
+            EncryptionContext=self._CONTEXT,
+        )
+        plaintext = bytes(response["Plaintext"])
+        self._validate_key(plaintext)
+        return plaintext
+
+    @staticmethod
+    def _validate_key(key: bytes) -> None:
+        if len(key) != 32:
+            raise ValueError("AWS KMS must return a 256-bit data key")
 
 class EnvelopeVoiceTemplateCipher:
     def __init__(self, keys: DataKeyProvider, key_reference: str) -> None:

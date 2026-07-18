@@ -10,11 +10,13 @@ from . import (FallbackMethod, VoiceChallenge, VoiceProfile, VoiceRepository,
 from .persistence import VoiceTemplateCipher
 
 class PostgresVoiceRepository(VoiceRepository):
-    def __init__(self, dsn: str, cipher: VoiceTemplateCipher, model_version: str) -> None:
+    def __init__(self, dsn: str, cipher: VoiceTemplateCipher, model_version: str,
+                 retention: timedelta = timedelta(days=365)) -> None:
         register_uuid()
         self._pool = ThreadedConnectionPool(1, 10, dsn)
         self._cipher = cipher
         self._model_version = model_version
+        self._retention = retention
 
     def close(self) -> None: self._pool.closeall()
 
@@ -41,7 +43,7 @@ class PostgresVoiceRepository(VoiceRepository):
                algorithm=EXCLUDED.algorithm,model_version=EXCLUDED.model_version,enrolled_at=EXCLUDED.enrolled_at,
                revoked_at=NULL,deleted_at=NULL""", (profile.user_id, encrypted.ciphertext, encrypted.encrypted_data_key,
                encrypted.nonce, encrypted.key_reference, encrypted.algorithm, encrypted.model_version,
-               profile.enrolled_at, profile.enrolled_at, profile.enrolled_at + timedelta(days=365)))
+               profile.enrolled_at, profile.enrolled_at, profile.enrolled_at + self._retention))
             self._audit(connection, profile.user_id, "VOICE_ENROLLED")
 
     def get_profile(self, user_id: UUID) -> VoiceProfile | None:

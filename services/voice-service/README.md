@@ -61,6 +61,19 @@ result = service.verify(request)
 so durable storage and a validated model/vendor adapter can replace the in-memory
 and conservative interim implementations without changing verification policy.
 
+The HTTP process fails closed unless its durable production adapters can be
+composed. It requires `VOICE_DATABASE_URL` with PostgreSQL TLS, a
+`VOICE_KMS_KEY_ARN`, `VOICE_MODEL_VERSION`, and `VOICE_SERVICE_TOKEN`.
+`VOICE_RETENTION_DAYS` defaults to 365 and may be reduced by policy. AWS KMS
+generates AES-256 data keys with a voice-template encryption context; only the
+encrypted key and AES-GCM ciphertext are persisted. Set `PAYMENT_API_URL` and
+`PAYMENT_API_SERVICE_TOKEN` together to enable settlement callbacks.
+
+The process uses the ambient AWS credential provider chain. Grant only
+`kms:GenerateDataKey` and `kms:Decrypt` on the configured key and database
+access to the voice schema. Managed RDS/KMS deployment evidence and independent
+biometric validation remain release gates.
+
 ## Local Test Command
 
 ```bash
