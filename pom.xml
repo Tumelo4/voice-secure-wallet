@@ -35,6 +35,11 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <junit.version>5.11.4</junit.version>
     <testcontainers.version>2.0.5</testcontainers.version>
+    <jackson.version>2.21.5</jackson.version>
+    <kafka.version>4.1.1</kafka.version>
+    <nimbus.version>10.9.1</nimbus.version>
+    <postgresql.version>42.7.11</postgresql.version>
+    <flyway.version>11.20.3</flyway.version>
   </properties>
 
   <dependencyManagement>
@@ -46,6 +51,11 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+      <dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId><version>${jackson.version}</version></dependency>
+      <dependency><groupId>com.nimbusds</groupId><artifactId>nimbus-jose-jwt</artifactId><version>${nimbus.version}</version></dependency>
+      <dependency><groupId>org.apache.kafka</groupId><artifactId>kafka-clients</artifactId><version>${kafka.version}</version></dependency>
+      <dependency><groupId>org.postgresql</groupId><artifactId>postgresql</artifactId><version>${postgresql.version}</version></dependency>
+      <dependency><groupId>org.flywaydb</groupId><artifactId>flyway-database-postgresql</artifactId><version>${flyway.version}</version></dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -114,6 +124,24 @@
             <voicesecure.testClassesDirectory>${project.build.testOutputDirectory}</voicesecure.testClassesDirectory>
           </systemPropertyVariables>
         </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>3.6.2</version>
+        <executions>
+          <execution>
+            <id>enforce-build-contract</id>
+            <goals><goal>enforce</goal></goals>
+            <configuration>
+              <rules>
+                <requireJavaVersion><version>[17,27)</version></requireJavaVersion>
+                <requireMavenVersion><version>[3.9.0,4)</version></requireMavenVersion>
+                <requireUpperBoundDeps/>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

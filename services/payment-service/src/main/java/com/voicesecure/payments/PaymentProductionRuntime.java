@@ -23,11 +23,20 @@ public final class PaymentProductionRuntime implements AutoCloseable {
 
     public PaymentProductionRuntime(DataSource dataSource, EventPublisher publisher, Clock clock,
                                     Consumer<RuntimeException> relayFailureHandler) {
+        this(dataSource, publisher, clock, relayFailureHandler,
+                new PostgresPaymentSagaRepository(dataSource), null, PaymentRecoveryAction.NOOP);
+    }
+
+    public PaymentProductionRuntime(DataSource dataSource, EventPublisher publisher, Clock clock,
+                                    Consumer<RuntimeException> relayFailureHandler,
+                                    PostgresPaymentSagaRepository repository,
+                                    PaymentSagaService suppliedPaymentService,
+                                    PaymentRecoveryAction recoveryAction) {
         Objects.requireNonNull(dataSource, "dataSource");
         Objects.requireNonNull(clock, "clock");
-        PostgresPaymentSagaRepository repository = new PostgresPaymentSagaRepository(dataSource);
-        paymentService = new PaymentSagaService(repository);
-        recoveryService = new PaymentRecoveryService(repository, clock, Duration.ofMinutes(5));
+        Objects.requireNonNull(repository, "repository");
+        paymentService = suppliedPaymentService == null ? new PaymentSagaService(repository) : suppliedPaymentService;
+        recoveryService = new PaymentRecoveryService(repository, clock, Duration.ofMinutes(5), recoveryAction);
         recoveryWorker = new PaymentRecoveryWorker(
                 new PostgresPaymentRecoveryCoordinator(dataSource, recoveryService, clock),
                 Duration.ofSeconds(30), relayFailureHandler);

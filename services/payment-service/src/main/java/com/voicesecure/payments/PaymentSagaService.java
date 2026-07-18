@@ -10,7 +10,7 @@ public final class PaymentSagaService {
         this.repository = Objects.requireNonNull(repository, "repository");
     }
 
-    public synchronized PaymentSaga start(PaymentRequest request, FraudDecision decision) {
+    public PaymentSaga start(PaymentRequest request, FraudDecision decision) {
         PaymentSaga existing = repository.findByIdempotencyKey(request.idempotencyKey()).orElse(null);
         if (existing != null) {
             if (!existing.matchesRequest(request)) {
@@ -20,7 +20,12 @@ public final class PaymentSagaService {
         }
 
         PaymentSaga saga = PaymentSaga.initiate(request);
-        repository.save(saga);
+        PaymentSaga winner = repository.createIfAbsent(saga);
+        if (winner != saga) {
+            if (!winner.matchesRequest(request))
+                throw new PaymentException("idempotency key reused with different payment request");
+            return winner;
+        }
         if (decision.approved()) {
             saga.approveFraud(decision);
         } else {

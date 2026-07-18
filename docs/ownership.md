@@ -1,0 +1,17 @@
+# Repository ownership
+
+`CODEOWNERS` identifies the current accountable maintainer, but it does not yet
+provide independent review. Before branch protection is made mandatory, assign
+and add a second GitHub maintainer for every high-risk area below.
+
+| Area | Accountable owner | Required secondary | Operational responsibility |
+|---|---|---|---|
+| Payment, ledger and reconciliation | `@Tumelo4` | Unassigned | Money invariants, recovery, settlement and repair controls |
+| API and identity boundary | `@Tumelo4` | Unassigned | Authentication, authorization, request contracts and ingress |
+| Mobile and voice | `@Tumelo4` | Unassigned | Device security, biometric boundary and customer journeys |
+| Infrastructure and delivery | `@Tumelo4` | Unassigned | Terraform, CI, artifacts, deployment and rollback |
+
+Changes to money movement, authentication, migrations, CI permissions or
+infrastructure require a domain-owner review plus the secondary reviewer once
+assigned. Production incidents use the service runbooks and must name an
+incident commander independently of the change author.

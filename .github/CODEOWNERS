@@ -1,0 +1,9 @@
+# Repository-wide fallback. Add a second maintainer before enforcing two-person review.
+* @Tumelo4
+
+# High-risk payment and ledger paths.
+/services/payment-service/ @Tumelo4
+/services/ledger-service/ @Tumelo4
+/services/api-adapter-service/ @Tumelo4
+/infra/ @Tumelo4
+/.github/workflows/ @Tumelo4

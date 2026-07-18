@@ -5,10 +5,11 @@ import com.voicesecure.ledger.application.LedgerService;
 import com.voicesecure.payments.PaymentSaga;
 import com.voicesecure.payments.PaymentSagaService;
 import com.voicesecure.payments.PaymentSagaState;
+import com.voicesecure.payments.PaymentRecoveryAction;
 import java.time.Duration;
 import java.util.Objects;
 
-public final class PaymentSettlementCoordinator implements PaymentSettlementHandler {
+public final class PaymentSettlementCoordinator implements PaymentSettlementHandler, PaymentRecoveryAction {
     private static final Duration RESERVATION_TTL = Duration.ofMinutes(15);
     private final PaymentSagaService payments;
     private final LedgerService ledger;
@@ -52,7 +53,20 @@ public final class PaymentSettlementCoordinator implements PaymentSettlementHand
         if (saga.state() == PaymentSagaState.COMPLETING) {
             saga = payments.complete(saga.sagaId());
         }
+        if (saga.state() == PaymentSagaState.COMPENSATION_IN_PROGRESS) {
+            try {
+                ledger.releaseFunds(saga.sagaId());
+                saga = payments.compensate(saga.sagaId());
+            } catch (LedgerException failure) {
+                saga = payments.failCompensation(saga.sagaId(), safeReason(failure));
+            }
+        }
         return saga;
+    }
+
+    @Override
+    public PaymentSaga recover(PaymentSaga saga) {
+        return settle(saga);
     }
 
     private static String safeReason(RuntimeException failure) {
