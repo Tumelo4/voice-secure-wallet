@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from secrets import compare_digest
 import urllib.request
 from base64 import b64decode
 from dataclasses import asdict
@@ -51,19 +52,31 @@ class HttpPaymentOutcomePublisher(PaymentOutcomePublisher):
 
 class VoiceHttpApplication:
     def __init__(self, service: VoiceService, service_token: str,
-                 outcome_publisher: Optional[PaymentOutcomePublisher] = None) -> None:
+                 outcome_publisher: Optional[PaymentOutcomePublisher] = None,
+                 operator_token: Optional[str] = None) -> None:
         if not service_token.strip():
             raise VoiceServiceError("VOICE_SERVICE_TOKEN is required")
         self._service = service
         self._service_token = service_token
         self._outcome_publisher = outcome_publisher
+        self._operator_token = operator_token
+        if operator_token is not None and not operator_token.strip():
+            raise VoiceServiceError("VOICE_OPERATOR_TOKEN cannot be blank")
+        if operator_token is not None and compare_digest(operator_token, service_token):
+            raise VoiceServiceError("VOICE_OPERATOR_TOKEN must differ from VOICE_SERVICE_TOKEN")
 
     def handle(
         self, method: str, path: str, headers: Mapping[str, str], body: bytes
     ) -> tuple[int, dict[str, Any]]:
         if method == "GET" and path in {"/health/live", "/health/ready"}:
             return 200, {"status": "LIVE" if path.endswith("live") else "READY"}
-        if headers.get("x-service-token", "") != self._service_token:
+        if path.startswith("/internal/voice/profiles/"):
+            if self._operator_token is None or not compare_digest(
+                headers.get("x-operator-token", ""), self._operator_token
+            ):
+                return 401, {"code": "OPERATOR_AUTHENTICATION_REQUIRED", "message": "Operator authentication is required."}
+            return self._handle_operator_request(method, path)
+        if not compare_digest(headers.get("x-service-token", ""), self._service_token):
             return 401, {"code": "SERVICE_AUTHENTICATION_REQUIRED", "message": "Service authentication is required."}
         try:
             payload = json.loads(body.decode("utf-8"))
@@ -109,6 +122,19 @@ class VoiceHttpApplication:
         except (KeyError, TypeError, ValueError, VoiceServiceError, json.JSONDecodeError):
             return 400, {"code": "VOICE_REQUEST_INVALID", "message": "Review the voice request and try again."}
 
+    def _handle_operator_request(self, method: str, path: str) -> tuple[int, dict[str, Any]]:
+        parts = path.strip("/").split("/")
+        try:
+            if len(parts) == 5 and parts[:3] == ["internal", "voice", "profiles"] and parts[4] == "revoke" and method == "POST":
+                changed = self._service.revoke_enrollment(UUID(parts[3]))
+                return (200, {"status": "REVOKED"}) if changed else (404, {"code": "VOICE_PROFILE_NOT_FOUND"})
+            if len(parts) == 4 and parts[:3] == ["internal", "voice", "profiles"] and method == "DELETE":
+                changed = self._service.delete_enrollment(UUID(parts[3]))
+                return (200, {"status": "DELETED"}) if changed else (404, {"code": "VOICE_PROFILE_NOT_FOUND"})
+        except ValueError:
+            return 400, {"code": "VOICE_REQUEST_INVALID", "message": "Review the voice request and try again."}
+        return 404, {"code": "ROUTE_NOT_FOUND", "message": "Route not found."}
+
 
 def _raw_audio(payload: Mapping[str, Any]) -> RawAudioSample:
     return RawAudioSample(
@@ -134,6 +160,7 @@ def build_production_application(
         )
         auth_mode = VoiceAuthMode(environment.get("VOICE_AUTH_MODE", VoiceAuthMode.DEMO.value).lower())
         service_token = environment["VOICE_SERVICE_TOKEN"]
+        operator_token = environment["VOICE_OPERATOR_TOKEN"]
     except KeyError as error:
         raise VoiceServiceError(f"{error.args[0]} is required") from error
     except ValueError as error:
@@ -160,6 +187,7 @@ def build_production_application(
             VoiceService(repository, auth_mode=auth_mode, enforced_mode_approved=independently_approved),
             service_token,
             publisher,
+            operator_token,
         )
     except Exception:
         repository.close()
@@ -179,6 +207,9 @@ def run() -> None:  # pragma: no cover - exercised by the container health smoke
             self._dispatch()
 
         def do_POST(self) -> None:  # noqa: N802
+            self._dispatch()
+
+        def do_DELETE(self) -> None:  # noqa: N802
             self._dispatch()
 
         def _dispatch(self) -> None:

@@ -1,6 +1,7 @@
 import json
 from base64 import b64encode
 from datetime import datetime, timezone
+from uuid import UUID
 
 import pytest
 
@@ -174,6 +175,7 @@ def test_production_application_composes_postgres_and_kms() -> None:
         "VOICE_MODEL_VERSION": "speaker-v1",
         "VOICE_RETENTION_DAYS": "30",
         "VOICE_SERVICE_TOKEN": "service-token",
+        "VOICE_OPERATOR_TOKEN": "operator-token",
         "VOICE_AUTH_MODE": "shadow",
     }
     kms_client = object()
@@ -189,7 +191,8 @@ def test_production_application_composes_postgres_and_kms() -> None:
 
 
 @pytest.mark.parametrize("missing", [
-    "VOICE_DATABASE_URL", "VOICE_KMS_KEY_ARN", "VOICE_MODEL_VERSION", "VOICE_SERVICE_TOKEN"
+    "VOICE_DATABASE_URL", "VOICE_KMS_KEY_ARN", "VOICE_MODEL_VERSION", "VOICE_SERVICE_TOKEN",
+    "VOICE_OPERATOR_TOKEN",
 ])
 def test_production_application_fails_closed_when_required_config_is_missing(missing) -> None:
     environment = {
@@ -197,6 +200,7 @@ def test_production_application_fails_closed_when_required_config_is_missing(mis
         "VOICE_KMS_KEY_ARN": "kms-key",
         "VOICE_MODEL_VERSION": "speaker-v1",
         "VOICE_SERVICE_TOKEN": "service-token",
+        "VOICE_OPERATOR_TOKEN": "operator-token",
     }
     environment.pop(missing)
     with pytest.raises(VoiceServiceError, match=f"{missing} is required"):
@@ -210,8 +214,44 @@ def test_production_application_closes_repository_when_callback_config_is_incomp
         "VOICE_KMS_KEY_ARN": "kms-key",
         "VOICE_MODEL_VERSION": "speaker-v1",
         "VOICE_SERVICE_TOKEN": "service-token",
+        "VOICE_OPERATOR_TOKEN": "operator-token",
         "PAYMENT_API_URL": "https://payments.internal",
     }
     with pytest.raises(VoiceServiceError, match="PAYMENT_API_SERVICE_TOKEN"):
         build_production_application(environment, lambda: object(), lambda *_: repository)
     assert repository.closed is True
+
+
+def test_operator_can_revoke_and_delete_enrollment_without_exposing_template() -> None:
+    repository = InMemoryVoiceRepository()
+    app = VoiceHttpApplication(VoiceService(repository), "service-token", operator_token="operator-token")
+    user_id = "11111111-1111-4111-8111-111111111111"
+    enrollment = {"userId": user_id, "audioSamples": [encoded_audio("enrollment")] * 3}
+    assert app.handle(
+        "POST", "/v1/voice/enrollments", {"x-service-token": "service-token"},
+        json.dumps(enrollment).encode(),
+    )[0] == 201
+
+    revoke_path = f"/internal/voice/profiles/{user_id}/revoke"
+    status, body = app.handle("POST", revoke_path, {"x-operator-token": "operator-token"}, b"")
+    assert (status, body) == (200, {"status": "REVOKED"})
+    assert repository.get_profile(UUID(user_id)) is None
+    assert app.handle("POST", revoke_path, {"x-operator-token": "operator-token"}, b"")[0] == 404
+
+    delete_path = f"/internal/voice/profiles/{user_id}"
+    status, body = app.handle("DELETE", delete_path, {"x-operator-token": "operator-token"}, b"")
+    assert (status, body) == (200, {"status": "DELETED"})
+    assert app.handle("DELETE", delete_path, {"x-operator-token": "operator-token"}, b"")[0] == 404
+
+
+def test_operator_routes_require_separate_credential_and_valid_identifier() -> None:
+    app = VoiceHttpApplication(
+        VoiceService(InMemoryVoiceRepository()), "service-token", operator_token="operator-token")
+    path = "/internal/voice/profiles/11111111-1111-4111-8111-111111111111/revoke"
+    status, body = app.handle("POST", path, {"x-service-token": "service-token"}, b"")
+    assert status == 401
+    assert body["code"] == "OPERATOR_AUTHENTICATION_REQUIRED"
+    assert app.handle(
+        "DELETE", "/internal/voice/profiles/not-a-uuid", {"x-operator-token": "operator-token"}, b"")[0] == 400
+    with pytest.raises(VoiceServiceError, match="must differ"):
+        VoiceHttpApplication(VoiceService(InMemoryVoiceRepository()), "same-token", operator_token="same-token")

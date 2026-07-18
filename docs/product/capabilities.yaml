@@ -141,7 +141,7 @@
         "services/voice-service/tests/test_http_runtime.py"
       ],
       "external_evidence": [],
-      "remaining_gaps": "The HTTP process now fails closed into PostgreSQL persistence and AWS KMS envelope encryption; disposable PostgreSQL proves durable encrypted templates, challenges, replay fingerprints, decisions, and audit writes. Managed RDS/KMS validation, lifecycle/operator APIs, and independent biometric validation remain externally gated.",
+      "remaining_gaps": "The HTTP process now fails closed into PostgreSQL persistence and AWS KMS envelope encryption; disposable PostgreSQL proves durable encrypted templates, challenges, replay fingerprints, decisions, audit writes, and separately authenticated revoke/delete lifecycle controls. Managed RDS/KMS validation and independent biometric validation remain externally gated.",
       "owner": "voice-security",
       "last_verified_commit": "dc131036"
     },

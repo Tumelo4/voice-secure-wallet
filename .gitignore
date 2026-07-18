@@ -13,6 +13,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .coverage
+.coverage\ [0-9]*
 htmlcov/
 *.egg-info/
 dist/
