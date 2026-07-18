@@ -5,20 +5,21 @@ import os
 import urllib.request
 from base64 import b64decode
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Mapping, Optional
+from typing import Any, Callable, Mapping, Optional
 from uuid import UUID
 
 from . import (
     AuthPolicy,
-    InMemoryVoiceRepository,
     RawAudioSample,
     VoiceService,
     VoiceServiceError,
     VoiceAuthMode,
     VoiceVerificationRequest,
 )
+from .persistence import AwsKmsDataKeyProvider, EnvelopeVoiceTemplateCipher, VoicePersistenceConfig
+from .postgres_repository import PostgresVoiceRepository
 
 
 class PaymentOutcomePublisher:
@@ -117,29 +118,61 @@ def _raw_audio(payload: Mapping[str, Any]) -> RawAudioSample:
     )
 
 
+def build_production_application(
+    environment: Mapping[str, str],
+    kms_client_factory: Optional[Callable[[], Any]] = None,
+    repository_factory: Callable[..., Any] = PostgresVoiceRepository,
+) -> tuple[VoiceHttpApplication, Any]:
+    """Compose production adapters from validated deployment configuration."""
+    try:
+        retention_days = int(environment.get("VOICE_RETENTION_DAYS", "365"))
+        config = VoicePersistenceConfig(
+            environment["VOICE_DATABASE_URL"],
+            environment["VOICE_KMS_KEY_ARN"],
+            timedelta(days=retention_days),
+            environment["VOICE_MODEL_VERSION"],
+        )
+        auth_mode = VoiceAuthMode(environment.get("VOICE_AUTH_MODE", VoiceAuthMode.DEMO.value).lower())
+        service_token = environment["VOICE_SERVICE_TOKEN"]
+    except KeyError as error:
+        raise VoiceServiceError(f"{error.args[0]} is required") from error
+    except ValueError as error:
+        raise VoiceServiceError(f"invalid voice production configuration: {error}") from error
+
+    if kms_client_factory is None:
+        import boto3
+        kms_client = boto3.client("kms")
+    else:
+        kms_client = kms_client_factory()
+    cipher = EnvelopeVoiceTemplateCipher(AwsKmsDataKeyProvider(kms_client), config.kms_key_reference)
+    repository = repository_factory(config.postgres_dsn, cipher, config.model_version, config.retention)
+    publisher = None
+    if environment.get("PAYMENT_API_URL"):
+        try:
+            publisher = HttpPaymentOutcomePublisher(
+                environment["PAYMENT_API_URL"], environment["PAYMENT_API_SERVICE_TOKEN"])
+        except KeyError as error:
+            repository.close()
+            raise VoiceServiceError(f"{error.args[0]} is required when PAYMENT_API_URL is set") from error
+    independently_approved = environment.get("VOICE_AUTH_INDEPENDENTLY_APPROVED", "false").lower() == "true"
+    try:
+        app = VoiceHttpApplication(
+            VoiceService(repository, auth_mode=auth_mode, enforced_mode_approved=independently_approved),
+            service_token,
+            publisher,
+        )
+    except Exception:
+        repository.close()
+        raise
+    return app, repository
+
+
 def run() -> None:  # pragma: no cover - exercised by the container health smoke test
     # Container ingress requires binding all interfaces; network exposure is
     # restricted by the platform security group and service authentication.
     host = os.getenv("VOICE_HOST", "0.0.0.0")  # nosec B104
     port = int(os.getenv("VOICE_PORT", "8090"))
-    publisher = None
-    if os.getenv("PAYMENT_API_URL"):
-        publisher = HttpPaymentOutcomePublisher(
-            os.environ["PAYMENT_API_URL"], os.environ["PAYMENT_API_SERVICE_TOKEN"])
-    try:
-        auth_mode = VoiceAuthMode(os.getenv("VOICE_AUTH_MODE", VoiceAuthMode.DEMO.value).lower())
-    except ValueError as error:
-        raise VoiceServiceError("VOICE_AUTH_MODE must be disabled, demo, shadow, or enforced") from error
-    independently_approved = os.getenv("VOICE_AUTH_INDEPENDENTLY_APPROVED", "false").lower() == "true"
-    app = VoiceHttpApplication(
-        VoiceService(
-            InMemoryVoiceRepository(),
-            auth_mode=auth_mode,
-            enforced_mode_approved=independently_approved,
-        ),
-        os.environ["VOICE_SERVICE_TOKEN"],
-        publisher,
-    )
+    app, repository = build_production_application(os.environ)
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:  # noqa: N802
@@ -164,4 +197,7 @@ def run() -> None:  # pragma: no cover - exercised by the container health smoke
         def log_message(self, format: str, *args: object) -> None:
             return
 
-    ThreadingHTTPServer((host, port), Handler).serve_forever()
+    try:
+        ThreadingHTTPServer((host, port), Handler).serve_forever()
+    finally:
+        repository.close()
