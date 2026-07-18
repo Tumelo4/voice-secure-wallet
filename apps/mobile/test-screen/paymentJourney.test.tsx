@@ -99,6 +99,36 @@ describe("customer payment journey", () => {
     expect(screen.getByRole("button", { name: "Face ID" })).toBeOnTheScreen();
     expect(screen.getByRole("button", { name: "Fingerprint" })).toBeOnTheScreen();
   });
+
+  it("keeps a failed offline submission editable and safely retryable", async () => {
+    const apiClient = {
+      getCustomerAccounts: jest.fn().mockResolvedValue({
+        accounts: [{ accountId: "acct-safe", displayName: "Everyday account", maskedAccountNumber: "•••• 4321", currency: "ZAR" }],
+      }),
+      getCustomerBeneficiaries: jest.fn().mockResolvedValue({
+        beneficiaries: [{ beneficiaryId: "bene-safe", displayName: "Amina Dlamini", maskedAccountNumber: "•••• 7788", currency: "ZAR", status: "ACTIVE", availableAt: "2026-07-13T00:00:00Z" }],
+      }),
+      startPayment: jest.fn()
+        .mockRejectedValueOnce(new Error("offline"))
+        .mockResolvedValueOnce({ paymentReference: "pay_retry_123", state: "AUTHORISATION_REQUIRED", authPolicy: "VOICE_OR_MFA", message: "Payment created" }),
+      issueVoiceChallenge: jest.fn().mockResolvedValue({ paymentReference: "pay_retry_123", challengeId: "challenge-retry", phrase: "Confirm payment", expiresAt: "2099-01-01T00:00:00Z", authPolicy: "VOICE_OTP", transactionAmountMinor: 75000, transactionBindingHash: "binding" }),
+    } as unknown as VoiceSecureApiClient;
+    const user = userEvent.setup();
+
+    await render(<ReadinessDashboard apiClient={apiClient} voiceRecorder={recorder()} />);
+    await user.press(screen.getByRole("tab", { name: "Payments" }));
+    expect(await screen.findByText("Ready to pay securely.")).toBeOnTheScreen();
+    await user.press(screen.getByRole("button", { name: "Review payment" }));
+    const submit = screen.getByRole("button", { name: "Try voice demo" });
+    await user.press(submit);
+
+    expect(await screen.findByText(/Check your connection and try again/)).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Try voice demo" })).toBeEnabled();
+
+    await user.press(screen.getByRole("button", { name: "Try voice demo" }));
+    expect(await screen.findByText(/Listening securely/)).toBeOnTheScreen();
+    expect(apiClient.startPayment).toHaveBeenCalledTimes(2);
+  });
 });
 
 function recorder(): VoiceRecorder {

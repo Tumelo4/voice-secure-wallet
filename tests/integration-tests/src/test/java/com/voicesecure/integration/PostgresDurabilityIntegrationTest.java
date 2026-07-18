@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.voicesecure.ledger.application.LedgerService;
 import com.voicesecure.ledger.infrastructure.PostgresLedgerRepository;
+import com.voicesecure.ledger.FundReservation;
+import com.voicesecure.ledger.LedgerException;
 import com.voicesecure.api.PaymentSettlementCoordinator;
 import com.voicesecure.payments.AuthPolicy;
 import com.voicesecure.payments.FraudDecision;
@@ -24,6 +26,7 @@ import java.sql.Statement;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -120,6 +123,72 @@ final class PostgresDurabilityIntegrationTest {
                 afterLedgerCommit.amount(), afterLedgerCommit.currency());
         PaymentSaga recovered = coordinator.recover(afterLedgerCommit);
         assertEquals(PaymentSagaState.COMPLETED, recovered.state(), recovered.events().toString());
+    }
+
+    @Test
+    void recoveryCompletesCompensationAfterWorkerRestart() {
+        PostgresPaymentSagaRepository paymentRepository = new PostgresPaymentSagaRepository(paymentDataSource);
+        PaymentSagaService payments = new PaymentSagaService(paymentRepository);
+        PostgresLedgerRepository ledgerRepository = new PostgresLedgerRepository(ledgerDataSource);
+        LedgerService ledger = new LedgerService(ledgerRepository);
+        PaymentSaga saga = authorisedPayment(payments, ledger, 15_000L, "trace-compensation-restart");
+        ledger.reserveFunds(saga.sagaId(), saga.sagaId(), saga.fromAccountId(), saga.amount(), saga.currency(), Duration.ofMinutes(15));
+        payments.markFundsReserved(saga.sagaId());
+        payments.startLedgerCommit(saga.sagaId());
+        payments.failLedgerCommit(saga.sagaId(), "simulated database interruption");
+
+        PaymentSettlementCoordinator restarted = new PaymentSettlementCoordinator(
+                new PaymentSagaService(new PostgresPaymentSagaRepository(paymentDataSource)),
+                new LedgerService(new PostgresLedgerRepository(ledgerDataSource)));
+        PaymentSaga recovered = restarted.recover(saga);
+
+        assertEquals(PaymentSagaState.COMPENSATED, recovered.state());
+        assertEquals(FundReservation.Status.RELEASED,
+                ledgerRepository.findReservation(saga.sagaId()).orElseThrow().status());
+        assertEquals(0L, ledgerRepository.balances().get(saga.fromAccountId()).reservedBalance());
+    }
+
+    @Test
+    void expiredReservationIsReleasedExactlyOnceUnderConcurrentConsumption() throws Exception {
+        PostgresLedgerRepository repository = new PostgresLedgerRepository(ledgerDataSource);
+        LedgerService ledger = new LedgerService(repository);
+        UUID source = UUID.randomUUID();
+        UUID destination = UUID.randomUUID();
+        UUID sagaId = UUID.randomUUID();
+        UUID reservationId = UUID.randomUUID();
+        ledger.createAccount(source, "ZAR", 50_000L);
+        ledger.createAccount(destination, "ZAR", 0L);
+        ledger.reserveFunds(reservationId, sagaId, source, 10_000L, "ZAR", Duration.ofMinutes(15));
+        try (Connection connection = ledgerDataSource.getConnection();
+             var statement = connection.prepareStatement("UPDATE fund_reservations SET created_at = now() - interval '2 seconds', expires_at = now() - interval '1 second' WHERE reservation_id = ?")) {
+            statement.setObject(1, reservationId);
+            statement.executeUpdate();
+        }
+        int entriesBeforeConsumption = repository.entries().size();
+
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        AtomicInteger expiredFailures = new AtomicInteger();
+        Runnable consume = () -> {
+            ready.countDown();
+            try {
+                start.await();
+                ledger.commitReservedTransfer(reservationId, sagaId, UUID.randomUUID(), source, destination, 10_000L, "ZAR");
+            } catch (LedgerException expected) {
+                expiredFailures.incrementAndGet();
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        };
+        Thread first = new Thread(consume);
+        Thread second = new Thread(consume);
+        first.start(); second.start(); ready.await(); start.countDown(); first.join(); second.join();
+
+        assertEquals(2, expiredFailures.get());
+        assertEquals(FundReservation.Status.EXPIRED, repository.findReservation(reservationId).orElseThrow().status());
+        assertEquals(0L, repository.balances().get(source).reservedBalance());
+        assertEquals(50_000L, repository.balances().get(source).availableBalance());
+        assertEquals(entriesBeforeConsumption, repository.entries().size());
     }
 
     @Test
