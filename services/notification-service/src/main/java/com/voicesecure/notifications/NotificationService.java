@@ -16,17 +16,8 @@ public final class NotificationService {
 
     public NotificationDelivery consume(EventEnvelope envelope) {
         Objects.requireNonNull(envelope, "envelope");
-        if (repository.hasProcessedEvent(envelope.eventId())) {
-            return repository.deliveries().stream()
-                    .filter(delivery -> delivery.sourceEventId().equals(envelope.eventId()))
-                    .findFirst()
-                    .orElseThrow(() -> new NotificationException("processed event has no delivery record"));
-        }
-
         NotificationDelivery delivery = toDelivery(envelope);
-        repository.save(delivery);
-        repository.markProcessedEvent(envelope.eventId());
-        return delivery;
+        return repository.saveIfUnprocessed(delivery);
     }
 
     private NotificationDelivery toDelivery(EventEnvelope envelope) {
