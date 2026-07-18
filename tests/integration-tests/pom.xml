@@ -30,6 +30,11 @@
     </dependency>
     <dependency>
       <groupId>com.voicesecure</groupId>
+      <artifactId>notification-service</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.voicesecure</groupId>
       <artifactId>wallet-service</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
