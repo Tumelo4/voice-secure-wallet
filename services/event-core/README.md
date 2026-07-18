@@ -78,5 +78,7 @@ powershell -ExecutionPolicy Bypass -File ..\..\scripts\test-services.ps1
 counts for relay runs, run failures, claimed, published, retried, and dead-lettered
 messages together with duration and last success/failure timestamps. Payment and
 ledger production runtimes expose the same snapshot. A deployment must connect
-these values to its metrics exporter and alerts; the snapshot alone is not claimed
-as production monitoring.
+these values to its metrics backend and alerts. The production API composes both
+snapshots into Prometheus text at `GET /internal/metrics`; the route requires an
+authenticated principal with `ops:read`. Managed scraping and alert history are
+still deployment evidence, not repository evidence.
