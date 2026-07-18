@@ -15,3 +15,14 @@ Changes to money movement, authentication, migrations, CI permissions or
 infrastructure require a domain-owner review plus the secondary reviewer once
 assigned. Production incidents use the service runbooks and must name an
 incident commander independently of the change author.
+
+## Enforcement status
+
+- Maven now rejects dependency convergence conflicts across the complete Java
+  reactor; direct constraints align SLF4J, Apache HttpCore, Commons Codec and
+  Jakarta Annotations across the AWS, Redis and HTTP runtime graphs.
+- Payment recovery has native JUnit coverage and PostgreSQL fault tests for
+  multi-instance creation, reservation/commit crash windows, compensation
+  restart and concurrent expired-reservation consumption.
+- `@Tumelo4` remains the only configured owner. Independent approval cannot be
+  claimed until a real second maintainer is selected and added to CODEOWNERS.
