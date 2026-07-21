@@ -8,7 +8,8 @@ public enum EventTopic {
     COMPLIANCE("compliance", "user_id"),
     IDENTITY("identity", "user_id"),
     SUPPORT("support", "case_id"),
-    RECOVERY("recovery", "recovery_id");
+    RECOVERY("recovery", "recovery_id"),
+    NOTIFICATION_DLQ("notifications.dlq", "source_event_id");
 
     private final String topicName;
     private final String partitionKeyField;

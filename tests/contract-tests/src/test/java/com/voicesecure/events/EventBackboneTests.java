@@ -152,6 +152,7 @@ public final class EventBackboneTests {
         assertEquals("identity", EventTopic.IDENTITY.topicName(), "identity topic");
         assertEquals("support", EventTopic.SUPPORT.topicName(), "support topic");
         assertEquals("recovery", EventTopic.RECOVERY.topicName(), "recovery topic");
+        assertEquals("notifications.dlq", EventTopic.NOTIFICATION_DLQ.topicName(), "notification DLQ topic");
     }
 
     private static void assertEquals(Object expected, Object actual, String message) {

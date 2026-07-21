@@ -28,6 +28,10 @@ and `voice` topics with automatic commits disabled and `read_committed`
 isolation. `KafkaNotificationConsumer` commits each record only after the
 PostgreSQL inbox transaction succeeds; a failed record is sought back to its
 original offset for redelivery.
+Malformed and unsupported records are synchronously published to the
+`notifications.dlq` topic with source coordinates and failure type. Their
+source offsets advance only after the broker acknowledges the DLQ write; a DLQ
+outage rewinds the whole unprocessed poll tail.
 
 ## Benchmark
 
@@ -50,7 +54,7 @@ notifications.consume(voiceFallbackRequestedEnvelope);
 ```
 
 The production adapter still needs provider integrations, template storage,
-bounded poison-event retry/DLQ handling, and delivery status callbacks.
+delivery status callbacks, and managed-cluster operational validation.
 
 Apply `V001__notification_inbox.sql` before constructing the PostgreSQL
 repository. The `(consumer_name,event_id)` primary key serializes concurrent
