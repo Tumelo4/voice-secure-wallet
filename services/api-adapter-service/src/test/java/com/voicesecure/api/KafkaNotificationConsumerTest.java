@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -52,6 +53,37 @@ final class KafkaNotificationConsumerTest {
 
         assertEquals(0, kafka.position(partition));
         assertEquals(0, kafka.position(laterPartition));
+        assertNull(kafka.committed(Set.of(partition)).get(partition));
+    }
+
+    @Test
+    void commitsPoisonRecordOnlyAfterDeadLetterAcknowledgement() {
+        TopicPartition partition = new TopicPartition("payments", 0);
+        MockConsumer<String, String> kafka = consumerAtStart(partition);
+        AtomicInteger deadLetters = new AtomicInteger();
+        KafkaNotificationConsumer worker = new KafkaNotificationConsumer(kafka,
+                new NotificationService(new InMemoryNotificationRepository(), new DeterministicOtpGenerator("123456")),
+                failure -> true, (record, failure) -> deadLetters.incrementAndGet());
+        kafka.addRecord(new ConsumerRecord<>("payments", 0, 0, "broken", "not-json"));
+
+        assertEquals(1, worker.pollOnce(Duration.ZERO));
+
+        assertEquals(1, deadLetters.get());
+        assertEquals(1, kafka.committed(Set.of(partition)).get(partition).offset());
+    }
+
+    @Test
+    void rewindsPoisonRecordWhenDeadLetterPublicationFails() {
+        TopicPartition partition = new TopicPartition("payments", 0);
+        MockConsumer<String, String> kafka = consumerAtStart(partition);
+        KafkaNotificationConsumer worker = new KafkaNotificationConsumer(kafka,
+                new NotificationService(new InMemoryNotificationRepository(), new DeterministicOtpGenerator("123456")),
+                failure -> true, (record, failure) -> { throw new IllegalStateException("DLQ unavailable"); });
+        kafka.addRecord(new ConsumerRecord<>("payments", 0, 0, "broken", "not-json"));
+
+        assertThrows(IllegalStateException.class, () -> worker.pollOnce(Duration.ZERO));
+
+        assertEquals(0, kafka.position(partition));
         assertNull(kafka.committed(Set.of(partition)).get(partition));
     }
 

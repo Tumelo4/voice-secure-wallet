@@ -124,7 +124,8 @@ public final class DurableInfrastructureValidatorTests {
                 topic(EventTopic.COMPLIANCE),
                 topic(EventTopic.IDENTITY),
                 topic(EventTopic.SUPPORT),
-                topic(EventTopic.RECOVERY)
+                topic(EventTopic.RECOVERY),
+                topic(EventTopic.NOTIFICATION_DLQ)
         );
     }
 

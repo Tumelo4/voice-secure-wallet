@@ -22,6 +22,7 @@
         "services/event-core/src/main/java/com/voicesecure/events/OutboxRetryPolicy.java",
         "services/api-adapter-service/src/main/java/com/voicesecure/api/RelayMetricsApiAdapter.java",
         "services/api-adapter-service/src/main/java/com/voicesecure/api/KafkaNotificationConsumer.java",
+        "services/api-adapter-service/src/main/java/com/voicesecure/api/NotificationDeadLetterPublisher.java",
         "services/api-adapter-service/src/main/java/com/voicesecure/api/ProductionNotificationRuntime.java",
         "services/notification-service/src/main/java/com/voicesecure/notifications/PostgresNotificationRepository.java",
         "services/notification-service/src/main/resources/db/migration/V001__notification_inbox.sql",
@@ -36,7 +37,7 @@
         "services/payment-service/src/test/java/com/voicesecure/payments/PaymentProductionSchemaTests.java"
       ],
       "external_evidence": [],
-      "remaining_gaps": "Disposable PostgreSQL/Redpanda tests prove crash-window redelivery, atomic notification inbox/delivery persistence, and concurrent event-id deduplication across consumer instances. Production Kafka notification composition commits offsets only after inbox persistence, and payment/ledger relay counters are exported through the authenticated operations endpoint. Poison-event DLQ policy and managed Kafka operational evidence remain.",
+      "remaining_gaps": "Disposable PostgreSQL/Redpanda tests prove crash-window redelivery, atomic notification inbox/delivery persistence, and concurrent event-id deduplication across consumer instances. Production Kafka notification composition commits offsets only after inbox or acknowledged DLQ persistence, rewinds unprocessed records on failure, and exports payment/ledger relay counters through the authenticated operations endpoint. Managed Kafka operational evidence remains.",
       "owner": "payments-platform",
       "last_verified_commit": "worktree"
     },

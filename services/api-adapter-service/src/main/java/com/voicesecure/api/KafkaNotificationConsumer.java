@@ -13,15 +13,26 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Predicate;
 
 /** Polls notification events and commits each offset only after durable inbox persistence. */
 public final class KafkaNotificationConsumer implements AutoCloseable {
     private final Consumer<String, String> consumer;
     private final NotificationService notifications;
+    private final Predicate<RuntimeException> poisonPolicy;
+    private final NotificationDeadLetterPublisher deadLetters;
 
     public KafkaNotificationConsumer(Consumer<String, String> consumer, NotificationService notifications) {
+        this(consumer, notifications, failure -> false, (record, failure) -> { });
+    }
+
+    public KafkaNotificationConsumer(Consumer<String, String> consumer, NotificationService notifications,
+                                     Predicate<RuntimeException> poisonPolicy,
+                                     NotificationDeadLetterPublisher deadLetters) {
         this.consumer = Objects.requireNonNull(consumer, "consumer");
         this.notifications = Objects.requireNonNull(notifications, "notifications");
+        this.poisonPolicy = Objects.requireNonNull(poisonPolicy, "poisonPolicy");
+        this.deadLetters = Objects.requireNonNull(deadLetters, "deadLetters");
     }
 
     public int pollOnce(Duration timeout) {
@@ -36,6 +47,18 @@ public final class KafkaNotificationConsumer implements AutoCloseable {
                 consumer.commitSync(Map.of(partition, new OffsetAndMetadata(record.offset() + 1)));
                 processed++;
             } catch (RuntimeException exception) {
+                if (poisonPolicy.test(exception)) {
+                    try {
+                        deadLetters.publish(record, exception);
+                    } catch (RuntimeException publicationFailure) {
+                        rewindUnprocessed(batch, index);
+                        publicationFailure.addSuppressed(exception);
+                        throw publicationFailure;
+                    }
+                    consumer.commitSync(Map.of(partition, new OffsetAndMetadata(record.offset() + 1)));
+                    processed++;
+                    continue;
+                }
                 rewindUnprocessed(batch, index);
                 throw exception;
             }
