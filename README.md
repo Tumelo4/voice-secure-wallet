@@ -188,13 +188,8 @@ manual-only during infrastructure work; restore their pull-request and push
 triggers before production release gating resumes.
 
 Use each service README for the smallest code example for that service. The
-remaining production plan still requires applying Terraform in a real AWS
-account, live Kafka/AWS integration tests, deployed ingress certificates and
-DNS, real iOS Keychain/Android Keystore package QA, screen-level mobile command
-dependency injection and device QA, live Pact broker and Schema Registry
-credentials with provider-state verification, chaos tests, 48-hour staging
-evidence, and real production cutover sign-offs before the PDF launch criteria
-can be marked complete.
+remaining managed-environment, device, independent-assessment, and release
+work is owned in the remaining-work handoff below.
 
 ## Delivery Docs
 
@@ -202,6 +197,8 @@ can be marked complete.
   domain terms, and TDD/BDD/DDD testing language.
 - [Release runbook](docs/release-runbook.md): launch checklist, rollout flow,
   validation gates, and rollback steps.
+- [Remaining work](docs/product/remaining-work.md): accountable now/next/later
+  external gates, required evidence, and explicitly deferred CI restoration.
 
 ## Quick Test Command
 
