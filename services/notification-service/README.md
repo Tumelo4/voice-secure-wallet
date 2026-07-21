@@ -23,6 +23,12 @@ provider replacement. `PostgresNotificationRepository` atomically claims each
 event in a durable consumer inbox and writes its delivery in the same database
 transaction.
 
+`ProductionNotificationRuntime` subscribes a Kafka consumer to the `payments`
+and `voice` topics with automatic commits disabled and `read_committed`
+isolation. `KafkaNotificationConsumer` commits each record only after the
+PostgreSQL inbox transaction succeeds; a failed record is sought back to its
+original offset for redelivery.
+
 ## Benchmark
 
 - Payment completion should produce a receipt notification.
@@ -43,8 +49,8 @@ notifications.consume(paymentCompletedEnvelope);
 notifications.consume(voiceFallbackRequestedEnvelope);
 ```
 
-The production adapter still needs Kafka consumption, provider integrations,
-template storage, retry/DLQ handling, and delivery status callbacks.
+The production adapter still needs provider integrations, template storage,
+bounded poison-event retry/DLQ handling, and delivery status callbacks.
 
 Apply `V001__notification_inbox.sql` before constructing the PostgreSQL
 repository. The `(consumer_name,event_id)` primary key serializes concurrent
