@@ -1,5 +1,6 @@
 package com.voicesecure.support;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import com.voicesecure.ledger.EntryType;
 import com.voicesecure.ledger.LedgerBatch;
 import com.voicesecure.ledger.Posting;
@@ -9,6 +10,7 @@ import javax.sql.DataSource;
 
 public final class PostgresSupportRepository implements SupportRepository {
     private final DataSource source;
+    @SuppressFBWarnings(value = "EI_EXPOSE_REP2", justification = "DataSource is an injected connection factory, not repository-owned state")
     public PostgresSupportRepository(DataSource source) { this.source = Objects.requireNonNull(source); }
     @Override public void ingestLedgerBatch(LedgerBatch batch) {
         try (Connection c=source.getConnection(); PreparedStatement s=c.prepareStatement("INSERT INTO support_transactions VALUES (?,?,?,?,?,?,?) ON CONFLICT DO NOTHING")) {
