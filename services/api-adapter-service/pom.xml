@@ -16,6 +16,7 @@
     <dependency><groupId>com.voicesecure</groupId><artifactId>identity-service</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.voicesecure</groupId><artifactId>event-core</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.voicesecure</groupId><artifactId>ledger-service</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>com.voicesecure</groupId><artifactId>notification-service</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.voicesecure</groupId><artifactId>payment-service</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.voicesecure</groupId><artifactId>support-service</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.voicesecure</groupId><artifactId>wallet-service</artifactId><version>${project.version}</version></dependency>

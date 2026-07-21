@@ -15,7 +15,7 @@ public final class KafkaEventPublisher implements EventPublisher {
         publisher.publish(new KafkaRecord(
                 envelope.topic(),
                 envelope.partitionKeyValue(),
-                EventEnvelopeJson.toJson(envelope),
+                EventEnvelopeCodec.encode(envelope),
                 EventEnvelopeJson.headers(envelope)
         ));
     }
