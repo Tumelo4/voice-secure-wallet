@@ -54,7 +54,7 @@ public final class PostgresOutboxStore implements DurableOutboxStore {
                 RETURNING event.id, event.aggregate_id, event.aggregate_type, event.event_type,
                           event.event_version, event.payload, event.trace_id, event.created_at,
                           event.published_at, event.publish_attempts, event.last_error
-                """.formatted(table, table);
+                """.replace("%s", table);
         return inTransaction(connection -> {
             List<OutboxMessage> messages = new ArrayList<>();
             try (PreparedStatement statement = connection.prepareStatement(sql)) {

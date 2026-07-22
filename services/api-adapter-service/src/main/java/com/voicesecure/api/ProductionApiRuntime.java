@@ -1,5 +1,6 @@
 package com.voicesecure.api;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import com.voicesecure.beneficiaries.BeneficiaryRiskPolicy;
 import com.voicesecure.beneficiaries.BeneficiaryService;
 import com.voicesecure.beneficiaries.PostgresBeneficiaryRepository;
@@ -57,7 +58,7 @@ public final class ProductionApiRuntime implements AutoCloseable {
                     new StructuredApiRequestLogSink(System.out), clock,
                     List.of(dataSource, kafkaClient, redis)));
         } catch (RuntimeException failure) {
-            closeQuietly(redis); closeQuietly(kafkaClient); closeQuietly(dataSource);
+            closeAfterFailure(redis, failure); closeAfterFailure(kafkaClient, failure); closeAfterFailure(dataSource, failure);
             throw failure;
         }
     }
@@ -98,7 +99,7 @@ public final class ProductionApiRuntime implements AutoCloseable {
             resources.addAll(dependencies.infrastructureResources()); resources.add(payments); resources.add(ledger);
             return new ProductionApiRuntime(api, resources);
         } catch (RuntimeException failure) {
-            closeQuietly(ledger); closeQuietly(payments); throw failure;
+            closeAfterFailure(ledger, failure); closeAfterFailure(payments, failure); throw failure;
         }
     }
 
@@ -106,12 +107,17 @@ public final class ProductionApiRuntime implements AutoCloseable {
                                ApiRateLimiter rateLimiter, FraudDecisionProvider fraud, VoiceGatewayClient voice,
                                BeneficiaryAccountDirectory beneficiaryDirectory, ApiRequestLogSink logSink,
                                Clock clock, List<AutoCloseable> infrastructureResources) {
+        @SuppressFBWarnings(value = "EI_EXPOSE_REP2", justification = "DataSource is an injected connection factory shared by infrastructure adapters")
         public Dependencies {
             Objects.requireNonNull(dataSource); Objects.requireNonNull(publisher); Objects.requireNonNull(tokenVerifier);
             Objects.requireNonNull(rateLimiter); Objects.requireNonNull(fraud); Objects.requireNonNull(voice);
             Objects.requireNonNull(beneficiaryDirectory); Objects.requireNonNull(logSink); Objects.requireNonNull(clock);
             infrastructureResources = List.copyOf(Objects.requireNonNull(infrastructureResources));
         }
+
+        @Override
+        @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "DataSource is an injected connection factory shared by infrastructure adapters")
+        public DataSource dataSource() { return dataSource; }
     }
 
     public ApiRuntime apiRuntime() { return apiRuntime; }
@@ -140,7 +146,16 @@ public final class ProductionApiRuntime implements AutoCloseable {
 
     @Override
     public void close() {
-        for (int index = resources.size() - 1; index >= 0; index--) closeQuietly(resources.get(index));
+        RuntimeException failure = null;
+        for (int index = resources.size() - 1; index >= 0; index--) {
+            try {
+                resources.get(index).close();
+            } catch (Exception closeFailure) {
+                if (failure == null) failure = new IllegalStateException("production resource shutdown failed", closeFailure);
+                else failure.addSuppressed(closeFailure);
+            }
+        }
+        if (failure != null) throw failure;
     }
 
     private static HikariDataSource dataSource(ProductionConfiguration config, Map<String, String> environment) {
@@ -171,7 +186,12 @@ public final class ProductionApiRuntime implements AutoCloseable {
     private static String required(Map<String, String> environment, String name) {
         String value = environment.get(name); if (value == null || value.isBlank()) throw new IllegalArgumentException(name + " is required"); return value.trim();
     }
-    private static void closeQuietly(AutoCloseable closeable) {
-        if (closeable != null) try { closeable.close(); } catch (Exception ignored) { }
+    private static void closeAfterFailure(AutoCloseable closeable, RuntimeException primaryFailure) {
+        if (closeable == null) return;
+        try {
+            closeable.close();
+        } catch (Exception closeFailure) {
+            primaryFailure.addSuppressed(closeFailure);
+        }
     }
 }
