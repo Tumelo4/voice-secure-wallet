@@ -1,9 +1,16 @@
-# Repository-wide fallback. Add a second maintainer before enforcing two-person review.
+# Repository-wide accountable owner. This does not constitute independent review.
 * @Tumelo4
 
-# High-risk payment and ledger paths.
+# High-risk paths are listed explicitly so GitHub requests the accountable owner.
 /services/payment-service/ @Tumelo4
 /services/ledger-service/ @Tumelo4
+/services/identity-service/ @Tumelo4
+/services/voice-service/ @Tumelo4
 /services/api-adapter-service/ @Tumelo4
+/services/*/src/main/resources/db/migration/ @Tumelo4
+/tests/integration-tests/ @Tumelo4
+/tests/contract-tests/ @Tumelo4
 /infra/ @Tumelo4
+/.github/CODEOWNERS @Tumelo4
+/.github/merge-policy.yml @Tumelo4
 /.github/workflows/ @Tumelo4

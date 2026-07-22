@@ -13,6 +13,73 @@ env:
   NODE_VERSION: "24"
 
 jobs:
+  changed-paths:
+    name: Critical path classification
+    runs-on: ubuntu-latest
+    outputs:
+      financial_integration: ${{ steps.classify.outputs.financial_integration }}
+      security_boundary: ${{ steps.classify.outputs.security_boundary }}
+      terraform_validation: ${{ steps.classify.outputs.terraform_validation }}
+      contract_compatibility: ${{ steps.classify.outputs.contract_compatibility }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with: { python-version: "3.11" }
+      - id: classify
+        run: >-
+          python scripts/classify-critical-paths.py
+          --base "${{ github.event.pull_request.base.sha || github.sha }}"
+          --head "${{ github.event.pull_request.head.sha || github.sha }}"
+          --github-output "$GITHUB_OUTPUT"
+
+  financial-integration:
+    name: Financial PostgreSQL integration
+    needs: changed-paths
+    if: needs.changed-paths.outputs.financial_integration == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with: { distribution: temurin, java-version: "17", cache: maven }
+      - run: ./mvnw --batch-mode --no-transfer-progress -Pintegration -pl tests/integration-tests -am verify
+
+  security-boundary:
+    name: Authentication and voice boundary
+    needs: changed-paths
+    if: needs.changed-paths.outputs.security_boundary == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with: { distribution: temurin, java-version: "17", cache: maven }
+      - run: ./mvnw --batch-mode --no-transfer-progress -pl services/identity-service,services/api-adapter-service -am test -Djacoco.skip=true
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with: { python-version: "3.11", cache: pip }
+      - working-directory: services/voice-service
+        run: python -m pip install -e ".[test]" && python -m pytest
+
+  terraform-validation:
+    name: Terraform format and validation
+    needs: changed-paths
+    if: needs.changed-paths.outputs.terraform_validation == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+      - run: bash scripts/test-terraform-aws-baseline.sh
+
+  contract-compatibility:
+    name: Contract compatibility
+    needs: changed-paths
+    if: needs.changed-paths.outputs.contract_compatibility == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with: { distribution: temurin, java-version: "17", cache: maven }
+      - run: ./mvnw --batch-mode --no-transfer-progress -pl tests/contract-tests -am verify -Djacoco.skip=true
+
   repository-hygiene:
     name: Repository hygiene
     runs-on: ubuntu-latest

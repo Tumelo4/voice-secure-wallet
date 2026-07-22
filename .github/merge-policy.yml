@@ -1,0 +1,44 @@
+version: 1
+default:
+  approvals: 1
+  author_approval_counts: false
+  dismiss_stale_approvals: true
+  require_conversation_resolution: true
+critical_paths:
+  - name: financial-core
+    paths:
+      - services/ledger-service/**
+      - services/payment-service/**
+      - tests/integration-tests/**
+    approvals: 2
+    evidence: financial-integration
+  - name: authentication-and-voice
+    paths:
+      - services/identity-service/**
+      - services/voice-service/**
+      - services/api-adapter-service/**
+    approvals: 2
+    evidence: security-boundary
+  - name: database-migrations
+    paths:
+      - services/*/src/main/resources/db/migration/**
+    approvals: 2
+    evidence: migration-validation
+  - name: infrastructure
+    paths:
+      - infra/**
+    approvals: 2
+    evidence: terraform-validation
+  - name: delivery-governance
+    paths:
+      - .github/workflows/**
+      - .github/CODEOWNERS
+      - .github/merge-policy.yml
+    approvals: 2
+    evidence: workflow-review
+  - name: api-contracts
+    paths:
+      - contracts/**
+      - tests/contract-tests/**
+    approvals: 2
+    evidence: contract-compatibility

@@ -18,6 +18,11 @@ incident commander independently of the change author.
 
 ## Enforcement status
 
+- [The merge policy](engineering/merge-policy.md) defines high-risk path
+  evidence and the exact hosted ruleset that must enforce independent review.
+- Pull-request CI classifies high-risk changes and runs their repository-side
+  evidence gates. Approval counts and author independence remain GitHub
+  ruleset responsibilities.
 - Maven now rejects dependency convergence conflicts across the complete Java
   reactor; direct constraints align SLF4J, Apache HttpCore, Commons Codec and
   Jakarta Annotations across the AWS, Redis and HTTP runtime graphs.
