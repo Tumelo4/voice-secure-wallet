@@ -193,6 +193,9 @@ work is owned in the remaining-work handoff below.
 
 ## Delivery Docs
 
+- [Architecture and UML diagrams](docs/architecture/architecture-and-uml-diagrams.md):
+  implementation-grounded deployment, module dependency, payment class, state,
+  and sequence views.
 - [Ubiquitous language](docs/ubiquitous-language.md): DDD bounded contexts,
   domain terms, and TDD/BDD/DDD testing language.
 - [Release runbook](docs/release-runbook.md): launch checklist, rollout flow,
