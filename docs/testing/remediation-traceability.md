@@ -1,6 +1,6 @@
 # Remediation plan traceability
 
-This matrix is the completion audit for the Senior Engineering Remediation Plan. A row is `Proven` only when a repository artifact and an executable check directly cover the acceptance criteria. Operational claims remain explicitly separate from repository implementation.
+This matrix is the completion audit for the engineering remediation plan. A row is `Proven` only when a repository artifact and an executable check directly cover the acceptance criteria. Operational claims remain explicitly separate from repository implementation.
 
 | Phase | Status | Direct evidence | Remaining operational qualification |
 |---|---|---|---|
