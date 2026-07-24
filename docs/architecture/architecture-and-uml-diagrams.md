@@ -291,7 +291,8 @@ sequenceDiagram
     API->>Ledger: commitReservedTransfer()
     Ledger->>DB: Atomic balanced entries + outbox event
     DB-->>Ledger: Commit
-    API->>Saga: completeLedgerCommit(); complete()
+    API->>Saga: completeLedgerCommit()
+    API->>Saga: complete()
     Saga->>DB: Persist COMPLETED + payment outbox event
     API-->>Mobile: Completed receipt
 
