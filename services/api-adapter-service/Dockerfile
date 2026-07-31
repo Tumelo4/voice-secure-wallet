@@ -1,4 +1,4 @@
-FROM maven:3.9.11-eclipse-temurin-17 AS build
+FROM maven:3.9.15-eclipse-temurin-26 AS build
 WORKDIR /src
 COPY . .
 RUN mvn --batch-mode --no-transfer-progress -pl services/api-adapter-service -am package -DskipTests \
