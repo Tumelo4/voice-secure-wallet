@@ -36,7 +36,7 @@
     <junit.version>5.11.4</junit.version>
     <testcontainers.version>2.0.5</testcontainers.version>
     <jackson.version>2.21.5</jackson.version>
-    <kafka.version>4.1.1</kafka.version>
+    <kafka.version>4.1.2</kafka.version>
     <nimbus.version>10.9.1</nimbus.version>
     <postgresql.version>42.7.11</postgresql.version>
     <flyway.version>11.20.3</flyway.version>
