@@ -12,7 +12,7 @@ license = "LicenseRef-Proprietary"
 authors = [{ name = "VoiceSecure Wallet" }]
 dependencies = [
   "boto3>=1.40,<2",
-  "cryptography>=45,<47",
+  "cryptography>=48.0.1,<49",
   "psycopg2-binary==2.9.12",
 ]
 
@@ -24,6 +24,8 @@ test = [
   "pytest-cov>=6,<7",
   "testcontainers[postgres]>=4.10,<5",
   "mutmut>=3.4,<4; python_version >= '3.10'",
+  "boto3-stubs>=1.40,<2",
+  "types-psycopg2>=2.9.21,<3",
 ]
 
 [project.scripts]
@@ -39,6 +41,12 @@ where = ["src"]
 addopts = "--strict-config --strict-markers --cov=voice_service --cov-report=term-missing --cov-fail-under=90"
 testpaths = ["tests"]
 
+[tool.ruff]
+target-version = "py39"
+
+[tool.ruff.lint]
+ignore = ["UP037", "UP045"]
+
 [tool.coverage.run]
 branch = true
 source = ["voice_service"]
@@ -50,6 +58,7 @@ skip_covered = true
 
 [tool.mutmut]
 source_paths = ["src/voice_service/"]
+also_copy = ["migrations/"]
 pytest_add_cli_args = ["--no-cov"]
 pytest_add_cli_args_test_selection = ["tests/"]
 mutate_only_covered_lines = true

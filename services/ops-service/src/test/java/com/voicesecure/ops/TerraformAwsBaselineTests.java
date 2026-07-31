@@ -12,6 +12,7 @@ public final class TerraformAwsBaselineTests {
         TestCase[] tests = {
                 new TestCase("Terraform exposes reusable capability modules", TerraformAwsBaselineTests::modulesExist),
                 new TestCase("state bootstrap is independent from workloads", TerraformAwsBaselineTests::bootstrapIsIndependent),
+                new TestCase("GitHub OIDC is scoped to the main branch", TerraformAwsBaselineTests::githubOidcIsScoped),
                 new TestCase("demo is explicitly cheap and disposable", TerraformAwsBaselineTests::demoIsDisposable),
                 new TestCase("production reference preserves hardened controls", TerraformAwsBaselineTests::productionIsHardened),
                 new TestCase("production controls are configurable", TerraformAwsBaselineTests::productionControlsAreConfigurable),
@@ -55,6 +56,23 @@ public final class TerraformAwsBaselineTests {
         assertContains(demo, "count = var.enable_msk ? 1 : 0", "optional MSK");
         assertContains(demo, "retention_days = var.log_retention_days", "configurable log retention");
         assertContains(demo, "object_lock_enabled = var.audit_object_lock_enabled", "configurable evidence lock");
+    }
+
+    private static void githubOidcIsScoped() throws IOException {
+        String oidc = read("bootstrap/github-oidc.tf");
+        assertContains(oidc, "https://token.actions.githubusercontent.com", "GitHub OIDC issuer");
+        assertContains(oidc, "values = [\"sts.amazonaws.com\"]", "AWS STS audience");
+        assertContains(oidc,
+                "repo:${var.github_repository_owner}/${var.github_repository_name}:ref:refs/heads/${var.github_branch_name}",
+                "main branch subject");
+        assertContains(oidc, "sts:AssumeRoleWithWebIdentity", "web identity trust action");
+        assertContains(oidc, "aws:policy/ReadOnlyAccess", "plan role read-only policy");
+        assertContains(oidc,
+                "repo:${var.github_repository_owner}/${var.github_repository_name}:environment:${var.github_deployment_environment_name}",
+                "protected deployment environment subject");
+        assertContains(oidc, "aws:policy/PowerUserAccess", "separate deployment role policy");
+        assertContains(oidc, "role/voicesecure-*", "deployment IAM resource scope");
+        assertTrue(!oidc.contains("AdministratorAccess"), "OIDC plan role must not have administrator access");
     }
 
     private static void productionIsHardened() throws IOException {

@@ -33,6 +33,7 @@ data "aws_availability_zones" "available" {
 data "aws_region" "current" {}
 
 resource "aws_vpc" "this" {
+  # checkov:skip=CKV2_AWS_11:Flow logging is attached by the observability module using this module's vpc_id output.
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true
@@ -77,6 +78,7 @@ resource "aws_vpc_endpoint" "s3" {
 }
 
 resource "aws_security_group" "interface_endpoints" {
+  # checkov:skip=CKV2_AWS_5:This security group is attached to interface VPC endpoints below.
   count                  = length(var.interface_endpoint_services) > 0 ? 1 : 0
   name                   = "${var.name}-interface-endpoints"
   description            = "HTTPS from private application workloads to AWS interface endpoints"
@@ -87,6 +89,7 @@ resource "aws_security_group" "interface_endpoints" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "interface_endpoints_from_app" {
+  description                  = "Allow application workloads to call private AWS service endpoints"
   count                        = length(var.interface_endpoint_services) > 0 ? 1 : 0
   security_group_id            = aws_security_group.interface_endpoints[0].id
   referenced_security_group_id = aws_security_group.app.id
@@ -96,6 +99,7 @@ resource "aws_vpc_security_group_ingress_rule" "interface_endpoints_from_app" {
 }
 
 resource "aws_vpc_security_group_egress_rule" "app_to_interface_endpoints" {
+  description                  = "Allow application workloads to call private AWS service endpoints"
   count                        = length(var.interface_endpoint_services) > 0 ? 1 : 0
   security_group_id            = aws_security_group.app.id
   referenced_security_group_id = aws_security_group.interface_endpoints[0].id
@@ -118,6 +122,7 @@ resource "aws_vpc_endpoint" "interface" {
 }
 
 resource "aws_security_group" "alb" {
+  # checkov:skip=CKV2_AWS_5:This security group is attached to the ALB in the compute module.
   name                   = "${var.name}-alb"
   description            = "HTTPS edge"
   vpc_id                 = aws_vpc.this.id
@@ -126,6 +131,7 @@ resource "aws_security_group" "alb" {
   egress                 = []
 }
 resource "aws_security_group" "app" {
+  # checkov:skip=CKV2_AWS_5:This security group is attached to ECS services in the compute module.
   name                   = "${var.name}-app"
   description            = "Private application tier"
   vpc_id                 = aws_vpc.this.id
@@ -134,6 +140,7 @@ resource "aws_security_group" "app" {
   egress                 = []
 }
 resource "aws_security_group" "database" {
+  # checkov:skip=CKV2_AWS_5:This security group is attached to the RDS instance in the database module.
   name                   = "${var.name}-database"
   description            = "PostgreSQL"
   vpc_id                 = aws_vpc.this.id
@@ -142,6 +149,7 @@ resource "aws_security_group" "database" {
   egress                 = []
 }
 resource "aws_security_group" "redis" {
+  # checkov:skip=CKV2_AWS_5:This security group is attached to the replication group in the cache module.
   name                   = "${var.name}-redis"
   description            = "Redis TLS"
   vpc_id                 = aws_vpc.this.id
@@ -150,6 +158,7 @@ resource "aws_security_group" "redis" {
   egress                 = []
 }
 resource "aws_security_group" "msk" {
+  # checkov:skip=CKV2_AWS_5:This security group is attached to the cluster in the messaging module.
   name                   = "${var.name}-msk"
   description            = "MSK IAM TLS"
   vpc_id                 = aws_vpc.this.id
@@ -159,6 +168,7 @@ resource "aws_security_group" "msk" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "alb_https" {
+  description       = "Allow public HTTPS traffic to the application load balancer"
   count             = var.allow_public_ingress ? 1 : 0
   security_group_id = aws_security_group.alb.id
   cidr_ipv4         = "0.0.0.0/0"
@@ -167,6 +177,7 @@ resource "aws_vpc_security_group_ingress_rule" "alb_https" {
   ip_protocol       = "tcp"
 }
 resource "aws_vpc_security_group_ingress_rule" "app_from_alb" {
+  description                  = "Allow load balancer traffic to the application tier"
   security_group_id            = aws_security_group.app.id
   referenced_security_group_id = aws_security_group.alb.id
   from_port                    = var.app_port
@@ -174,6 +185,7 @@ resource "aws_vpc_security_group_ingress_rule" "app_from_alb" {
   ip_protocol                  = "tcp"
 }
 resource "aws_vpc_security_group_egress_rule" "alb_to_app" {
+  description                  = "Allow load balancer traffic to the application tier"
   security_group_id            = aws_security_group.alb.id
   referenced_security_group_id = aws_security_group.app.id
   from_port                    = var.app_port
@@ -182,6 +194,7 @@ resource "aws_vpc_security_group_egress_rule" "alb_to_app" {
 }
 
 resource "aws_vpc_security_group_egress_rule" "app_to_database" {
+  description                  = "Allow application traffic to PostgreSQL"
   security_group_id            = aws_security_group.app.id
   referenced_security_group_id = aws_security_group.database.id
   from_port                    = 5432
@@ -189,6 +202,7 @@ resource "aws_vpc_security_group_egress_rule" "app_to_database" {
   ip_protocol                  = "tcp"
 }
 resource "aws_vpc_security_group_ingress_rule" "database_from_app" {
+  description                  = "Allow application traffic to PostgreSQL"
   security_group_id            = aws_security_group.database.id
   referenced_security_group_id = aws_security_group.app.id
   from_port                    = 5432
@@ -196,6 +210,7 @@ resource "aws_vpc_security_group_ingress_rule" "database_from_app" {
   ip_protocol                  = "tcp"
 }
 resource "aws_vpc_security_group_egress_rule" "app_to_redis" {
+  description                  = "Allow application traffic to Redis"
   security_group_id            = aws_security_group.app.id
   referenced_security_group_id = aws_security_group.redis.id
   from_port                    = 6379
@@ -203,6 +218,7 @@ resource "aws_vpc_security_group_egress_rule" "app_to_redis" {
   ip_protocol                  = "tcp"
 }
 resource "aws_vpc_security_group_ingress_rule" "redis_from_app" {
+  description                  = "Allow application traffic to Redis"
   security_group_id            = aws_security_group.redis.id
   referenced_security_group_id = aws_security_group.app.id
   from_port                    = 6379
@@ -210,6 +226,7 @@ resource "aws_vpc_security_group_ingress_rule" "redis_from_app" {
   ip_protocol                  = "tcp"
 }
 resource "aws_vpc_security_group_egress_rule" "app_to_msk" {
+  description                  = "Allow application traffic to MSK over IAM TLS"
   security_group_id            = aws_security_group.app.id
   referenced_security_group_id = aws_security_group.msk.id
   from_port                    = 9098
@@ -217,6 +234,7 @@ resource "aws_vpc_security_group_egress_rule" "app_to_msk" {
   ip_protocol                  = "tcp"
 }
 resource "aws_vpc_security_group_ingress_rule" "msk_from_app" {
+  description                  = "Allow application traffic to MSK over IAM TLS"
   security_group_id            = aws_security_group.msk.id
   referenced_security_group_id = aws_security_group.app.id
   from_port                    = 9098

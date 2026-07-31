@@ -2,24 +2,29 @@ from __future__ import annotations
 
 import json
 import os
-from secrets import compare_digest
 import urllib.request
 from base64 import b64decode
+from collections.abc import Callable, Mapping
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Callable, Mapping, Optional
+from secrets import compare_digest
+from typing import Any, Optional
 from uuid import UUID
 
 from . import (
     AuthPolicy,
     RawAudioSample,
+    VoiceAuthMode,
     VoiceService,
     VoiceServiceError,
-    VoiceAuthMode,
     VoiceVerificationRequest,
 )
-from .persistence import AwsKmsDataKeyProvider, EnvelopeVoiceTemplateCipher, VoicePersistenceConfig
+from .persistence import (
+    AwsKmsDataKeyProvider,
+    EnvelopeVoiceTemplateCipher,
+    VoicePersistenceConfig,
+)
 from .postgres_repository import PostgresVoiceRepository
 
 
@@ -203,13 +208,13 @@ def run() -> None:  # pragma: no cover - exercised by the container health smoke
     app, repository = build_production_application(os.environ)
 
     class Handler(BaseHTTPRequestHandler):
-        def do_GET(self) -> None:  # noqa: N802
+        def do_GET(self) -> None:
             self._dispatch()
 
-        def do_POST(self) -> None:  # noqa: N802
+        def do_POST(self) -> None:
             self._dispatch()
 
-        def do_DELETE(self) -> None:  # noqa: N802
+        def do_DELETE(self) -> None:
             self._dispatch()
 
         def _dispatch(self) -> None:

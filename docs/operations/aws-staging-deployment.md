@@ -1,19 +1,55 @@
 # AWS staging deployment
 
-Automatic GitHub workflows are temporarily manual-only while Phase 2 is being
-completed. This does not weaken the staging apply guard below.
+The staging plan can run through GitHub Actions OIDC with short-lived AWS
+credentials. Applying remains a deliberate operator action protected by the
+account and confirmation guards below.
 
 ## Preconditions
 
-- Use a dedicated staging AWS account and a named AWS CLI profile.
+- Use a dedicated staging AWS account.
 - Apply `infra/aws/bootstrap` first to create the remote-state S3 bucket and
-  DynamoDB lock table; they cannot be created by the same operation that
-  consumes them as a Terraform backend.
+  DynamoDB lock table. The bootstrap also creates the GitHub OIDC provider and
+  a plan-only role. These resources cannot be created by the same operation
+  that consumes the remote backend.
 - Supply the Redis token through an environment variable or approved secret
   broker. Never store the real value in a tfvars file.
 - Record the change ticket and approved operator before apply.
 
 ## Plan
+
+### GitHub Actions OIDC
+
+Apply the bootstrap once using an approved administrative identity:
+
+```bash
+terraform -chdir=infra/aws/bootstrap init
+terraform -chdir=infra/aws/bootstrap apply
+```
+
+Configure the repository secret `TF_VAR_REDIS_AUTH_TOKEN`. Both AWS workflows
+assume the existing
+`arn:aws:iam::296032707614:role/voice-secure-wallet-github-deploy` role.
+
+Run the `AWS staging plan` workflow manually from `main`. Its trust policy
+accepts only the
+`repo:Tumelo4/voice-secure-wallet:ref:refs/heads/main` subject and the
+`sts.amazonaws.com` audience in AWS account `296032707614`. The workflow
+receives temporary credentials and cannot apply infrastructure.
+
+The `AWS staging apply` workflow runs only from `main`, assumes the existing
+branch-scoped deployment role, verifies account `296032707614`, generates a
+fresh saved plan, and applies that exact plan.
+
+The deployment role is intentionally separate from the plan role. It has
+`PowerUserAccess` for staging resource lifecycle operations plus IAM access
+restricted to `voicesecure-*` and `voice-secure-wallet-*` service roles. Protect
+the `staging` environment with required reviewers because this role can create
+chargeable resources.
+
+### Local AWS SSO/profile
+
+For an operator plan, authenticate a named AWS CLI profile through IAM Identity
+Center or another approved short-lived credential source:
 
 ```bash
 export AWS_PROFILE=voicesecure-staging
@@ -21,6 +57,9 @@ export EXPECTED_AWS_ACCOUNT_ID=123456789012
 export TF_VAR_redis_auth_token='value-from-approved-secret-broker'
 scripts/aws-staging-deployment.sh plan
 ```
+
+The script also accepts ambient OIDC/web-identity credentials when
+`AWS_PROFILE` is unset.
 
 Review `terraform show infra/aws/environments/production-reference/staging.tfplan`
 and obtain approval. To apply,

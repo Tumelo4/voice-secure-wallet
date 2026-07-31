@@ -11,6 +11,9 @@ variable "enable_rotation" {
 data "aws_caller_identity" "current" {}
 
 data "aws_iam_policy_document" "key" {
+  # checkov:skip=CKV_AWS_109:KMS key policies require Resource "*" because the key ARN does not exist until creation.
+  # checkov:skip=CKV_AWS_111:Only the account root principal can administer this newly created KMS key.
+  # checkov:skip=CKV_AWS_356:KMS key policies require Resource "*" because the key ARN does not exist until creation.
   statement {
     sid       = "AccountAdministration"
     actions   = ["kms:*"]

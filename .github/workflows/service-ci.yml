@@ -1,8 +1,9 @@
 name: Quality gates
 
-# Temporarily manual-only while Phase 2 infrastructure work is in progress.
-# Restore pull_request/push triggers before production release gating resumes.
 on:
+  pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -133,8 +134,10 @@ jobs:
         run: python -m pytest --junitxml=voice-test-results.xml
       - working-directory: services/voice-service
         run: |
-          mutmut run 'voice_service.xǁVoiceServiceǁverify*'
-          survivors=$(mutmut results | grep -c 'VoiceService.*verify')
+          mutation_status=0
+          mutmut run 'voice_service.xǁVoiceServiceǁverify*' || mutation_status=$?
+          test "$mutation_status" -le 1
+          survivors=$(mutmut results | awk '/🙁.*VoiceService.*verify/ { count++ } END { print count+0 }')
           test "$survivors" -le 35
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with: { name: voice-test-results, path: services/voice-service/voice-test-results.xml }

@@ -67,6 +67,9 @@ resource "aws_iam_role_policy_attachment" "monitoring" {
 }
 
 resource "aws_db_instance" "this" {
+  # checkov:skip=CKV_AWS_157:Multi-AZ is controlled by a validated environment input and enabled in staging and production.
+  # checkov:skip=CKV_AWS_293:Deletion protection is controlled by a validated environment input and enabled in staging and production.
+  # checkov:skip=CKV_AWS_353:Performance Insights is controlled by a validated environment input and enabled in staging and production.
   identifier                          = "${var.name}-ledger"
   engine                              = "postgres"
   engine_version                      = "16"

@@ -8,6 +8,8 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
 RUN python -m pip install --no-cache-dir .
+RUN python -m pip uninstall --yes pip setuptools wheel \
+    && rm -rf /usr/local/lib/python3.11/ensurepip
 USER voicesecure
 ENV VOICE_HOST=0.0.0.0 VOICE_PORT=8090
 EXPOSE 8090

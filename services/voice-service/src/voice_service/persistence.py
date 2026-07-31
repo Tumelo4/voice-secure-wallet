@@ -1,11 +1,15 @@
 from __future__ import annotations
+
+import json
+import os
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any, Protocol
-from uuid import UUID
+from typing import Any, ClassVar, Protocol
 from urllib.parse import urlparse
-import json, os
+from uuid import UUID
+
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
 
 @dataclass(frozen=True)
 class EncryptedVoiceTemplate:
@@ -36,7 +40,10 @@ class DataKeyProvider(Protocol):
 class AwsKmsDataKeyProvider:
     """AWS KMS envelope-key adapter; plaintext data keys never leave this process."""
 
-    _CONTEXT = {"service": "voice-service", "purpose": "voice-template"}
+    _CONTEXT: ClassVar[dict[str, str]] = {
+        "service": "voice-service",
+        "purpose": "voice-template",
+    }
 
     def __init__(self, client: Any) -> None:
         self._client = client

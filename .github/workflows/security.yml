@@ -1,8 +1,11 @@
 name: Security gates
 
-# Temporarily manual-only while Phase 2 infrastructure work is in progress.
-# Restore pull_request/push triggers before production release gating resumes.
 on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 3 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -53,7 +56,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with: { python-version: "3.11", cache: pip }
-      - run: python -m pip install bandit pip-audit ruff mypy -e "services/voice-service[test]"
+      - run: python -m pip install "setuptools>=83" bandit pip-audit ruff mypy -e "services/voice-service[test]"
       - run: ruff check services/voice-service
       - run: mypy services/voice-service/src
       - run: bandit -q -r services/voice-service/src
