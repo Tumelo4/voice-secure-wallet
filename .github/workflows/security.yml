@@ -1,8 +1,11 @@
 name: Security gates
 
-# Temporarily manual-only while Phase 2 infrastructure work is in progress.
-# Restore pull_request/push triggers before production release gating resumes.
 on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 3 * * 1"
   workflow_dispatch:
 
 permissions:

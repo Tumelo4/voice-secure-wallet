@@ -1,0 +1,67 @@
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      java-production:
+        dependency-type: production
+      java-development:
+        dependency-type: development
+    labels: [dependencies, java]
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: pip
+    directory: /services/voice-service
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      python-production:
+        dependency-type: production
+      python-development:
+        dependency-type: development
+    labels: [dependencies, python]
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: npm
+    directory: /apps/mobile
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      mobile-production:
+        dependency-type: production
+      mobile-development:
+        dependency-type: development
+    labels: [dependencies, mobile]
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      github-actions:
+        patterns: ["*"]
+    labels: [dependencies, github-actions]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: /services/api-adapter-service
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, containers]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: /services/voice-service
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, containers]
+    open-pull-requests-limit: 5

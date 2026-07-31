@@ -1,0 +1,47 @@
+name: AWS staging apply
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aws-staging-apply
+  cancel-in-progress: false
+
+jobs:
+  terraform-apply:
+    name: Terraform staging apply
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: af-south-1
+      AWS_DEFAULT_REGION: af-south-1
+      EXPECTED_AWS_ACCOUNT_ID: "296032707614"
+      TF_VAR_redis_auth_token: "${{ secrets.TF_VAR_REDIS_AUTH_TOKEN }}"
+      CONFIRM_STAGING_APPLY: "staging:296032707614"
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "~1.13.0"
+      - uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885 # v6.1.1
+        with:
+          role-to-assume: "arn:aws:iam::296032707614:role/voice-secure-wallet-github-deploy"
+          aws-region: "${{ env.AWS_REGION }}"
+          role-session-name: "voicesecure-staging-apply-${{ github.run_id }}"
+          allowed-account-ids: "${{ env.EXPECTED_AWS_ACCOUNT_ID }}"
+      - name: Verify deployment inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$TF_VAR_redis_auth_token"
+          test "$CONFIRM_STAGING_APPLY" = "staging:$EXPECTED_AWS_ACCOUNT_ID"
+          actual_account="$(aws sts get-caller-identity --query Account --output text)"
+          test "$actual_account" = "$EXPECTED_AWS_ACCOUNT_ID"
+      - name: Plan and apply staging infrastructure
+        run: scripts/aws-staging-deployment.sh apply
