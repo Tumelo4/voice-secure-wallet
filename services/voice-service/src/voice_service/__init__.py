@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation
 from enum import Enum
 from hashlib import sha256
 from math import sqrt
-from decimal import Decimal, InvalidOperation
-from typing import Iterable, Optional, Protocol, Sequence
+from typing import Optional, Protocol
 from uuid import UUID, uuid4
 
 
@@ -104,7 +105,9 @@ class ServerSideVoiceInferenceAdapter:
             chunk = acoustic[offset:offset + chunk_size]
             features.append(sum(chunk) / (len(chunk) * 255.0))
         embedding = tuple((features + [0.0] * 8)[:8])
-        transitions = sum(1 for left, right in zip(acoustic, acoustic[1:]) if left != right)
+        transitions = sum(
+            1 for left, right in zip(acoustic, acoustic[1:]) if left != right
+        )
         dynamic_ratio = transitions / max(1, len(acoustic) - 1)
         unique_ratio = len(set(acoustic)) / min(256, len(acoustic))
         liveness = min(1.0, (dynamic_ratio * 0.7) + (unique_ratio * 0.3))

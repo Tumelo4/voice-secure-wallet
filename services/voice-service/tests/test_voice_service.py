@@ -11,15 +11,16 @@ from voice_service import (
     InMemoryVoiceRepository,
     RawAudioSample,
     ServerSideVoiceInferenceAdapter,
+    VoiceAuthMode,
     VoiceInference,
     VoiceService,
     VoiceServiceError,
-    VoiceAuthMode,
     VoiceStatus,
     VoiceVerificationRequest,
+    _average_vectors,
+    _cosine_similarity,
     transaction_binding,
 )
-from voice_service import _average_vectors, _cosine_similarity
 
 
 class FakeInference:

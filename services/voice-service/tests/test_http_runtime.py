@@ -5,7 +5,12 @@ from uuid import UUID
 
 import pytest
 
-from voice_service import InMemoryVoiceRepository, VoiceAuthMode, VoiceService, VoiceServiceError
+from voice_service import (
+    InMemoryVoiceRepository,
+    VoiceAuthMode,
+    VoiceService,
+    VoiceServiceError,
+)
 from voice_service.http_runtime import (
     HttpPaymentOutcomePublisher,
     PaymentOutcomePublisher,

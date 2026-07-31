@@ -45,6 +45,29 @@ final class LedgerMutationTest {
     }
 
     @Test
+    void reservedTransferReturnsCommittedBalancedBatch() {
+        Fixture fixture = fixture();
+        UUID reservationId = UUID.randomUUID();
+        UUID paymentId = UUID.randomUUID();
+        fixture.service.reserveFunds(
+                reservationId, paymentId, fixture.source, 400, "ZAR", Duration.ofMinutes(15));
+
+        LedgerBatch batch = fixture.service.commitReservedTransfer(
+                reservationId,
+                paymentId,
+                UUID.randomUUID(),
+                fixture.source,
+                fixture.destination,
+                400,
+                "ZAR");
+
+        assertNotNull(batch);
+        assertEquals(2, batch.entries().size());
+        assertEquals(600, fixture.repository.balances().get(fixture.source).balance());
+        assertEquals(400, fixture.repository.balances().get(fixture.destination).balance());
+    }
+
+    @Test
     void dualControlledRepairReturnsTheAppendedBatch() {
         Fixture fixture = fixture();
         RepairRequest request = new RepairRequest(

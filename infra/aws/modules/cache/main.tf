@@ -29,6 +29,7 @@ resource "aws_elasticache_subnet_group" "this" {
   subnet_ids = var.subnet_ids
 }
 resource "aws_elasticache_replication_group" "this" {
+  # checkov:skip=CKV2_AWS_50:Multi-AZ failover is controlled by a validated input and requires more than one cache node.
   replication_group_id       = "${var.name}-rate-limits"
   description                = "Distributed API rate limits"
   engine                     = "redis"

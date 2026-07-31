@@ -1,10 +1,13 @@
 from datetime import timedelta
 from pathlib import Path
+
 import pytest
+
 from voice_service.persistence import AwsKmsDataKeyProvider, VoicePersistenceConfig
 
+
 def test_schema_never_declares_plain_embedding_or_raw_audio() -> None:
-    sql = Path("migrations/V001__voice_persistence.sql").read_text()
+    sql = (Path(__file__).parents[1] / "migrations/V001__voice_persistence.sql").read_text()
     for table in ("voice_profiles", "voice_challenges", "voice_replay_fingerprints",
                   "voice_verification_decisions", "voice_audit_events"):
         assert f"CREATE TABLE {table}" in sql

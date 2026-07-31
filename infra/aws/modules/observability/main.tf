@@ -12,11 +12,13 @@ variable "retention_days" {
 }
 
 resource "aws_cloudwatch_log_group" "vpc_flow" {
+  # checkov:skip=CKV_AWS_338:Retention is environment-controlled and validated to at least 365 days for production.
   name              = "/${var.name}/vpc-flow"
   retention_in_days = var.retention_days
   kms_key_id        = var.kms_key_arn
 }
 resource "aws_cloudwatch_log_group" "msk" {
+  # checkov:skip=CKV_AWS_338:Retention is environment-controlled and validated to at least 365 days for production.
   name              = "/${var.name}/msk"
   retention_in_days = var.retention_days
   kms_key_id        = var.kms_key_arn

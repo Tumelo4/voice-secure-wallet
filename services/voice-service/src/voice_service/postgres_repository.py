@@ -1,13 +1,24 @@
 from __future__ import annotations
+
+from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import timedelta
-from typing import Any, Iterator
+from typing import Any
 from uuid import UUID
+
 from psycopg2.extras import RealDictCursor, register_uuid
 from psycopg2.pool import ThreadedConnectionPool
-from . import (FallbackMethod, VoiceChallenge, VoiceProfile, VoiceRepository,
-               VoiceStatus, VoiceVerificationResult)
+
+from . import (
+    FallbackMethod,
+    VoiceChallenge,
+    VoiceProfile,
+    VoiceRepository,
+    VoiceStatus,
+    VoiceVerificationResult,
+)
 from .persistence import VoiceTemplateCipher
+
 
 class PostgresVoiceRepository(VoiceRepository):
     def __init__(self, dsn: str, cipher: VoiceTemplateCipher, model_version: str,

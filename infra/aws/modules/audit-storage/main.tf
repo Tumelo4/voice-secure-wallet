@@ -12,7 +12,27 @@ variable "retention_days" {
 }
 
 resource "aws_s3_bucket" "access_logs" {
+  # checkov:skip=CKV_AWS_18:This is the terminal access-log sink and cannot recursively log to itself.
+  # checkov:skip=CKV_AWS_144:Regulated audit data must remain in the configured data-residency region.
   bucket = "${var.name}-access-logs"
+}
+resource "aws_s3_bucket_notification" "access_logs" {
+  bucket      = aws_s3_bucket.access_logs.id
+  eventbridge = true
+}
+resource "aws_s3_bucket_lifecycle_configuration" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+  rule {
+    id     = "expire-access-logs"
+    status = "Enabled"
+    filter {}
+    expiration {
+      days = var.retention_days
+    }
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
 }
 resource "aws_s3_bucket_public_access_block" "access_logs" {
   bucket                  = aws_s3_bucket.access_logs.id
@@ -38,6 +58,7 @@ resource "aws_s3_bucket_versioning" "access_logs" {
 }
 
 resource "aws_s3_bucket" "audit" {
+  # checkov:skip=CKV_AWS_144:Regulated audit evidence must remain in the configured data-residency region.
   bucket              = "${var.name}-audit-evidence"
   object_lock_enabled = var.object_lock_enabled
 }
