@@ -33,17 +33,17 @@
   <properties>
     <maven.compiler.release>17</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <junit.version>5.11.4</junit.version>
+    <junit.version>6.1.2</junit.version>
     <testcontainers.version>2.0.5</testcontainers.version>
-    <jackson.version>2.21.5</jackson.version>
+    <jackson.version>2.22.1</jackson.version>
     <kafka.version>4.1.2</kafka.version>
     <nimbus.version>10.9.1</nimbus.version>
     <postgresql.version>42.7.11</postgresql.version>
     <flyway.version>11.20.3</flyway.version>
-    <slf4j.version>2.0.17</slf4j.version>
+    <slf4j.version>2.0.18</slf4j.version>
     <httpcore.version>4.4.16</httpcore.version>
-    <commons-codec.version>1.17.1</commons-codec.version>
-    <jakarta-annotation.version>2.1.1</jakarta-annotation.version>
+    <commons-codec.version>1.22.1</commons-codec.version>
+    <jakarta-annotation.version>3.0.0</jakarta-annotation.version>
   </properties>
 
   <dependencyManagement>
@@ -87,7 +87,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.13.0</version>
+          <version>3.15.0</version>
           <configuration>
             <excludes><exclude>**/* 2.java</exclude></excludes>
             <testExcludes><testExclude>**/* 2.java</testExclude></testExcludes>
@@ -115,7 +115,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>3.5.2</version>
+          <version>3.5.6</version>
         </plugin>
       </plugins>
     </pluginManagement>
