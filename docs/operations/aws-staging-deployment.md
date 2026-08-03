@@ -38,12 +38,15 @@ receives temporary credentials and cannot apply infrastructure.
 
 The `AWS staging apply` workflow runs only from `main`, assumes the existing
 branch-scoped deployment role, verifies account `296032707614`, generates a
-fresh saved plan, and applies that exact plan.
+fresh saved plan from `infra/aws/environments/staging`, and applies that exact
+plan. Staging uses the `environments/staging.tfstate` state key and the
+`voicesecure-staging` resource prefix; it never targets the production-reference
+state or resource names.
 
 The shared role has `ReadOnlyAccess`, encrypted Terraform-state access, ECR
 push permissions for `voice-secure-wallet-*`, ECS deployment permissions for
 project services, and `iam:PassRole` restricted to project ECS task roles. It
-does not have `PowerUserAccess` or permission to create the production-reference
+does not have `PowerUserAccess` or permission to create the staging
 infrastructure. Expanding infrastructure-apply permissions requires a separate,
 reviewed least-privilege policy change.
 
@@ -62,7 +65,7 @@ scripts/aws-staging-deployment.sh plan
 The script also accepts ambient OIDC/web-identity credentials when
 `AWS_PROFILE` is unset.
 
-Review `terraform show infra/aws/environments/production-reference/staging.tfplan`
+Review `terraform show infra/aws/environments/staging/staging.tfplan`
 and obtain approval. To apply,
 set `CONFIRM_STAGING_APPLY=staging:$EXPECTED_AWS_ACCOUNT_ID` and rerun the script
 with `apply`. The account comparison prevents an authenticated production or

@@ -1,0 +1,16 @@
+aws_region       = "af-south-1"
+name             = "voicesecure-staging"
+redis_auth_token = "supply-through-TF_VAR-not-source-control"
+
+# Cost-bearing managed data services are opt-in for staging.
+enable_msk                       = false
+enable_rds                       = false
+enable_redis                     = false
+rds_multi_az                     = false
+rds_deletion_protection          = false
+rds_performance_insights_enabled = false
+redis_node_count                 = 1
+redis_multi_az                   = false
+audit_object_lock_enabled        = false
+log_retention_days               = 30
+interface_endpoint_services      = []

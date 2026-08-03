@@ -30,7 +30,7 @@ if [[ "$actual_account" != "$EXPECTED_AWS_ACCOUNT_ID" ]]; then
   exit 77
 fi
 
-environment_dir="infra/aws/environments/production-reference"
+environment_dir="infra/aws/environments/staging"
 terraform -chdir="$environment_dir" init -input=false
 terraform -chdir="$environment_dir" validate
 terraform -chdir="$environment_dir" plan -input=false -out=staging.tfplan

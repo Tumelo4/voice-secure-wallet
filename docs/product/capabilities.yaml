@@ -159,7 +159,7 @@
       "id": "aws-infrastructure",
       "name": "AWS infrastructure",
       "status": "implemented_prototype",
-      "implementation_evidence": ["infra/aws/environments/demo/main.tf", "infra/aws/environments/production-reference/main.tf"],
+      "implementation_evidence": ["infra/aws/environments/demo/main.tf", "infra/aws/environments/staging/main.tf", "infra/aws/environments/production-reference/main.tf"],
       "test_evidence": ["services/ops-service/src/test/java/com/voicesecure/ops/TerraformAwsBaselineTests.java"],
       "external_evidence": [],
       "remaining_gaps": "No live apply, managed-service integration evidence, soak history, teardown report, or DR drill.",

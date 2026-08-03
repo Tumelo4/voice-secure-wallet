@@ -14,6 +14,8 @@ public final class TerraformAwsBaselineTests {
                 new TestCase("state bootstrap is independent from workloads", TerraformAwsBaselineTests::bootstrapIsIndependent),
                 new TestCase("GitHub OIDC is scoped to the main branch", TerraformAwsBaselineTests::githubOidcIsScoped),
                 new TestCase("demo is explicitly cheap and disposable", TerraformAwsBaselineTests::demoIsDisposable),
+                new TestCase("staging is isolated from production", TerraformAwsBaselineTests::stagingIsIsolated),
+                new TestCase("staging workflows deploy only staging", TerraformAwsBaselineTests::stagingWorkflowsAreScoped),
                 new TestCase("production reference preserves hardened controls", TerraformAwsBaselineTests::productionIsHardened),
                 new TestCase("production controls are configurable", TerraformAwsBaselineTests::productionControlsAreConfigurable),
                 new TestCase("private workloads use selected AWS endpoints", TerraformAwsBaselineTests::privateEndpointsAreSelectable),
@@ -58,6 +60,29 @@ public final class TerraformAwsBaselineTests {
         assertContains(demo, "object_lock_enabled = var.audit_object_lock_enabled", "configurable evidence lock");
     }
 
+    private static void stagingIsIsolated() throws IOException {
+        String staging = read("environments/staging/main.tf");
+        String variables = read("environments/staging/variables.tf");
+        String values = read("environments/staging/terraform.tfvars.example");
+        assertContains(staging, "key = \"environments/staging.tfstate\"", "staging remote state key");
+        assertContains(staging, "use_lockfile = true", "staging native state locking");
+        assertContains(staging, "Environment = \"staging\"", "staging resource tag");
+        assertContains(variables, "default = \"voicesecure-staging\"", "staging resource prefix");
+        assertTrue(!staging.contains("production-reference"), "staging must not use the production-reference state or tags");
+        assertTrue(!variables.contains("voicesecure-production"), "staging must not use production resource names");
+        for (String service : List.of("rds", "redis", "msk")) {
+            assertContains(values, "enable_" + service + " = false", "staging defaults " + service + " off");
+        }
+    }
+
+    private static void stagingWorkflowsAreScoped() throws IOException {
+        String deployment = Files.readString(Path.of("scripts", "aws-staging-deployment.sh"))
+                .replaceAll("\\s+", " ");
+        assertContains(deployment, "environment_dir=\"infra/aws/environments/staging\"", "staging deployment root");
+        assertTrue(!deployment.contains("environment_dir=\"infra/aws/environments/production-reference\""),
+                "staging workflow must never deploy the production reference");
+    }
+
     private static void githubOidcIsScoped() throws IOException {
         String oidc = read("bootstrap/github-oidc.tf");
         assertContains(oidc, "https://token.actions.githubusercontent.com", "GitHub OIDC issuer");
@@ -95,7 +120,7 @@ public final class TerraformAwsBaselineTests {
     }
 
     private static void productionControlsAreConfigurable() throws IOException {
-        for (String environment : List.of("demo", "production-reference")) {
+        for (String environment : List.of("demo", "staging", "production-reference")) {
             String variables = read("environments/" + environment + "/variables.tf");
             for (String name : List.of("enable_msk", "rds_multi_az", "rds_deletion_protection",
                     "rds_performance_insights_enabled", "redis_node_count", "redis_multi_az",
@@ -134,10 +159,12 @@ public final class TerraformAwsBaselineTests {
 
     private static void environmentsReuseModules() throws IOException {
         String demo = read("environments/demo/main.tf");
+        String staging = read("environments/staging/main.tf");
         String production = read("environments/production-reference/main.tf");
         for (String module : List.of("networking", "encryption", "database", "cache", "messaging", "audit-storage", "observability")) {
             String source = "../../modules/" + module;
             assertContains(demo, source, module + " demo composition");
+            assertContains(staging, source, module + " staging composition");
             assertContains(production, source, module + " production composition");
         }
     }
