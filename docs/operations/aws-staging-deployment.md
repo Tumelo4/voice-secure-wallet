@@ -9,7 +9,7 @@ account and confirmation guards below.
 - Use a dedicated staging AWS account.
 - Apply `infra/aws/bootstrap` first to create the remote-state S3 bucket and
   DynamoDB lock table. The bootstrap also creates the GitHub OIDC provider and
-  a plan-only role. These resources cannot be created by the same operation
+  the repository-scoped `voice-secure-wallet` role. These resources cannot be created by the same operation
   that consumes the remote backend.
 - Supply the Redis token through an environment variable or approved secret
   broker. Never store the real value in a tfvars file.
@@ -28,7 +28,7 @@ terraform -chdir=infra/aws/bootstrap apply
 
 Configure the repository secret `TF_VAR_REDIS_AUTH_TOKEN`. Both AWS workflows
 assume the existing
-`arn:aws:iam::296032707614:role/voice-secure-wallet-github-deploy` role.
+`arn:aws:iam::296032707614:role/voice-secure-wallet` role.
 
 Run the `AWS staging plan` workflow manually from `main`. Its trust policy
 accepts only the
@@ -40,11 +40,12 @@ The `AWS staging apply` workflow runs only from `main`, assumes the existing
 branch-scoped deployment role, verifies account `296032707614`, generates a
 fresh saved plan, and applies that exact plan.
 
-The deployment role is intentionally separate from the plan role. It has
-`PowerUserAccess` for staging resource lifecycle operations plus IAM access
-restricted to `voicesecure-*` and `voice-secure-wallet-*` service roles. Protect
-the `staging` environment with required reviewers because this role can create
-chargeable resources.
+The shared role has `ReadOnlyAccess`, encrypted Terraform-state access, ECR
+push permissions for `voice-secure-wallet-*`, ECS deployment permissions for
+project services, and `iam:PassRole` restricted to project ECS task roles. It
+does not have `PowerUserAccess` or permission to create the production-reference
+infrastructure. Expanding infrastructure-apply permissions requires a separate,
+reviewed least-privilege policy change.
 
 ### Local AWS SSO/profile
 
