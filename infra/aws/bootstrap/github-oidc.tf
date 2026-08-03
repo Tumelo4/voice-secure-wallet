@@ -130,6 +130,7 @@ data "aws_iam_policy_document" "github_actions_state" {
 }
 
 data "aws_iam_policy_document" "github_actions_deploy" {
+  # checkov:skip=CKV_AWS_356:AWS requires Resource="*" for ECR authorization and ECS register/list/describe APIs; all restrictable deploy actions remain scoped to project resources.
   statement {
     sid       = "GetECRAuthorizationToken"
     actions   = ["ecr:GetAuthorizationToken"]
