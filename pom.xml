@@ -37,10 +37,10 @@
     <testcontainers.version>2.0.5</testcontainers.version>
     <jackson.version>2.21.5</jackson.version>
     <jetty.version>12.1.11</jetty.version>
-    <kafka.version>4.1.2</kafka.version>
+    <kafka.version>4.3.1</kafka.version>
     <nimbus.version>10.9.1</nimbus.version>
     <postgresql.version>42.7.13</postgresql.version>
-    <flyway.version>11.20.3</flyway.version>
+    <flyway.version>13.1.0</flyway.version>
     <slf4j.version>2.0.17</slf4j.version>
     <httpcore.version>4.4.16</httpcore.version>
     <commons-codec.version>1.17.1</commons-codec.version>
@@ -111,7 +111,7 @@
         <plugin>
           <groupId>org.pitest</groupId>
           <artifactId>pitest-maven</artifactId>
-          <version>1.22.0</version>
+          <version>1.25.8</version>
           <configuration>
             <mutationThreshold>80</mutationThreshold>
             <coverageThreshold>90</coverageThreshold>
@@ -151,7 +151,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
-        <version>3.6.2</version>
+        <version>3.6.3</version>
         <executions>
           <execution>
             <id>enforce-build-contract</id>
