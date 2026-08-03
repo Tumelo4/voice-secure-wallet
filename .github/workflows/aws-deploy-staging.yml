@@ -1,0 +1,432 @@
+name: AWS deploy staging
+
+on:
+  workflow_run:
+    workflows:
+      - AWS staging plan
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+
+concurrency:
+  group: aws-deploy-staging
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: af-south-1
+  AWS_DEFAULT_REGION: af-south-1
+  EXPECTED_AWS_ACCOUNT_ID: "296032707614"
+  ECR_REPOSITORY: voice-secure-wallet-api
+  CONTAINER_NAME: voice-secure-wallet-api
+  PROJECT_TAG: voice-secure-wallet
+  ENVIRONMENT_TAG: staging
+
+jobs:
+  deploy:
+    name: Deploy tested commit to AWS staging
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 210
+    environment:
+      name: staging
+
+    steps:
+      - name: Wait for every required workflow gate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          required_workflows=(
+            "Quality gates"
+            "Security gates"
+            "Capability evidence"
+            "Container supply chain"
+          )
+
+          deadline=$(( $(date +%s) + 10800 ))
+
+          while true; do
+            runs_json="$(
+              gh api \
+                --method GET \
+                "repos/${GITHUB_REPOSITORY}/actions/runs" \
+                -f head_sha="$HEAD_SHA" \
+                -f per_page=100
+            )"
+
+            waiting=false
+
+            for workflow_name in "${required_workflows[@]}"; do
+              workflow_json="$(
+                jq -c \
+                  --arg name "$workflow_name" \
+                  --arg sha "$HEAD_SHA" \
+                  '[
+                    .workflow_runs[]
+                    | select(
+                        .name == $name and
+                        .head_sha == $sha and
+                        .event == "push"
+                      )
+                  ]
+                  | sort_by(.run_number, .run_attempt)
+                  | last // {}' \
+                  <<<"$runs_json"
+              )"
+
+              status="$(jq -r '.status // "missing"' <<<"$workflow_json")"
+              conclusion="$(jq -r '.conclusion // ""' <<<"$workflow_json")"
+              run_url="$(jq -r '.html_url // ""' <<<"$workflow_json")"
+
+              case "$status" in
+                completed)
+                  if [[ "$conclusion" != "success" ]]; then
+                    echo "Required workflow failed: $workflow_name ($conclusion)" >&2
+                    [[ -n "$run_url" ]] && echo "$run_url" >&2
+                    exit 1
+                  fi
+                  echo "PASS: $workflow_name"
+                  ;;
+                missing|queued|in_progress|pending|requested|waiting)
+                  echo "WAIT: $workflow_name ($status)"
+                  waiting=true
+                  ;;
+                *)
+                  echo "WAIT: $workflow_name ($status)"
+                  waiting=true
+                  ;;
+              esac
+            done
+
+            if [[ "$waiting" == "false" ]]; then
+              echo "All required workflow gates passed for $HEAD_SHA"
+              break
+            fi
+
+            if (( $(date +%s) >= deadline )); then
+              echo "Timed out waiting for required workflow gates" >&2
+              exit 1
+            fi
+
+            sleep 30
+          done
+
+      - name: Check out the exact tested commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Verify checked-out revision
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$EXPECTED_SHA"
+
+      - uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885 # v6.1.1
+        with:
+          role-to-assume: "arn:aws:iam::296032707614:role/voice-secure-wallet"
+          aws-region: "${{ env.AWS_REGION }}"
+          audience: sts.amazonaws.com
+          role-session-name: "voicesecure-app-deploy-${{ github.run_id }}"
+          allowed-account-ids: "${{ env.EXPECTED_AWS_ACCOUNT_ID }}"
+
+      - name: Verify AWS account
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_account="$(aws sts get-caller-identity --query Account --output text)"
+          test "$actual_account" = "$EXPECTED_AWS_ACCOUNT_ID"
+
+      - name: Resolve deployment target
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          aws ecr describe-repositories \
+            --repository-names "$ECR_REPOSITORY" \
+            --region "$AWS_REGION" \
+            >/dev/null
+
+          mapfile -t instances < <(
+            aws ec2 describe-instances \
+              --region "$AWS_REGION" \
+              --filters \
+                "Name=tag:Project,Values=$PROJECT_TAG" \
+                "Name=tag:Environment,Values=$ENVIRONMENT_TAG" \
+                "Name=instance-state-name,Values=running" \
+              --query 'Reservations[].Instances[].InstanceId' \
+              --output text \
+              | tr '\t' '\n' \
+              | sed '/^$/d'
+          )
+
+          if [[ "${#instances[@]}" -ne 1 ]]; then
+            echo "Expected exactly one running staging EC2 instance; found ${#instances[@]}" >&2
+            printf '%s\n' "${instances[@]:-}" >&2
+            exit 1
+          fi
+
+          instance_id="${instances[0]}"
+
+          ping_status="$(
+            aws ssm describe-instance-information \
+              --region "$AWS_REGION" \
+              --filters "Key=InstanceIds,Values=$instance_id" \
+              --query 'InstanceInformationList[0].PingStatus' \
+              --output text
+          )"
+
+          if [[ "$ping_status" != "Online" ]]; then
+            echo "Staging instance $instance_id is not online in Systems Manager" >&2
+            exit 1
+          fi
+
+          public_ip="$(
+            aws ec2 describe-instances \
+              --region "$AWS_REGION" \
+              --instance-ids "$instance_id" \
+              --query 'Reservations[0].Instances[0].PublicIpAddress' \
+              --output text
+          )"
+
+          if [[ -z "$public_ip" || "$public_ip" == "None" ]]; then
+            echo "The staging EC2 instance has no public IPv4 address" >&2
+            exit 1
+          fi
+
+          echo "instance-id=$instance_id" >> "$GITHUB_OUTPUT"
+          echo "public-ip=$public_ip" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push immutable API image
+        id: image
+        shell: bash
+        env:
+          COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          registry="${EXPECTED_AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+          tagged_image="${registry}/${ECR_REPOSITORY}:${COMMIT_SHA}"
+
+          aws ecr get-login-password --region "$AWS_REGION" \
+            | docker login --username AWS --password-stdin "$registry"
+
+          docker build \
+            --file services/api-adapter-service/Dockerfile \
+            --tag "$tagged_image" \
+            .
+
+          docker push "$tagged_image"
+
+          digest="$(
+            aws ecr describe-images \
+              --region "$AWS_REGION" \
+              --repository-name "$ECR_REPOSITORY" \
+              --image-ids imageTag="$COMMIT_SHA" \
+              --query 'imageDetails[0].imageDigest' \
+              --output text
+          )"
+
+          [[ "$digest" == sha256:* ]]
+
+          immutable_image="${registry}/${ECR_REPOSITORY}@${digest}"
+          echo "uri=$immutable_image" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare rollback-aware deployment script
+        id: command
+        shell: bash
+        env:
+          IMAGE_URI: ${{ steps.image.outputs.uri }}
+          INSTANCE_ID: ${{ steps.target.outputs.instance-id }}
+        run: |
+          set -euo pipefail
+
+          cat > /tmp/voicesecure-deploy.sh <<'SCRIPT'
+          #!/usr/bin/env bash
+          set -Eeuo pipefail
+
+          image_uri="$1"
+          aws_region="$2"
+          container_name="voice-secure-wallet-api"
+          registry="${image_uri%%/*}"
+          previous_image="$(docker inspect --format '{{.Config.Image}}' "$container_name" 2>/dev/null || true)"
+
+          start_container() {
+            local selected_image="$1"
+            docker run \
+              --detach \
+              --restart unless-stopped \
+              --name "$container_name" \
+              --publish 80:8080 \
+              --env PORT=8080 \
+              --env VSW_ENVIRONMENT=local \
+              --env 'JAVA_TOOL_OPTIONS=-Xms128m -Xmx512m' \
+              "$selected_image"
+          }
+
+          rollback() {
+            echo "Deployment health check failed; attempting rollback" >&2
+            docker logs --tail 200 "$container_name" >&2 || true
+            docker rm --force "$container_name" >/dev/null 2>&1 || true
+
+            if [[ -n "$previous_image" ]]; then
+              start_container "$previous_image"
+              echo "Rolled back to $previous_image" >&2
+            else
+              echo "No previous image was available for rollback" >&2
+            fi
+          }
+
+          aws ecr get-login-password --region "$aws_region" \
+            | docker login --username AWS --password-stdin "$registry"
+
+          docker pull "$image_uri"
+          docker rm --force "$container_name" >/dev/null 2>&1 || true
+          start_container "$image_uri"
+
+          healthy=false
+          for attempt in $(seq 1 24); do
+            if curl \
+              --fail \
+              --silent \
+              --show-error \
+              http://127.0.0.1/health/live >/dev/null \
+              && curl \
+                --fail \
+                --silent \
+                --show-error \
+                http://127.0.0.1/health/ready >/dev/null; then
+              healthy=true
+              break
+            fi
+
+            echo "Health check attempt $attempt/24 failed"
+            sleep 5
+          done
+
+          if [[ "$healthy" != "true" ]]; then
+            rollback
+            exit 1
+          fi
+
+          docker image prune --force >/dev/null
+          echo "Deployment succeeded: $image_uri"
+          SCRIPT
+
+          chmod 700 /tmp/voicesecure-deploy.sh
+          encoded_script="$(base64 -w 0 /tmp/voicesecure-deploy.sh)"
+
+          parameters="$(
+            jq -nc \
+              --arg script "$encoded_script" \
+              --arg image "$IMAGE_URI" \
+              --arg region "$AWS_REGION" \
+              '{
+                commands: [
+                  "echo " + $script + " | base64 --decode > /tmp/voicesecure-deploy.sh",
+                  "chmod 700 /tmp/voicesecure-deploy.sh",
+                  "/tmp/voicesecure-deploy.sh " + $image + " " + $region
+                ]
+              }'
+          )"
+
+          command_id="$(
+            aws ssm send-command \
+              --region "$AWS_REGION" \
+              --instance-ids "$INSTANCE_ID" \
+              --document-name AWS-RunShellScript \
+              --comment "Deploy VoiceSecure Wallet ${{ github.event.workflow_run.head_sha }}" \
+              --parameters "$parameters" \
+              --query 'Command.CommandId' \
+              --output text
+          )"
+
+          echo "command-id=$command_id" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for deployment and show remote output
+        shell: bash
+        env:
+          COMMAND_ID: ${{ steps.command.outputs.command-id }}
+          INSTANCE_ID: ${{ steps.target.outputs.instance-id }}
+        run: |
+          set -euo pipefail
+
+          wait_status=0
+          aws ssm wait command-executed \
+            --region "$AWS_REGION" \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" \
+            || wait_status=$?
+
+          invocation="$(
+            aws ssm get-command-invocation \
+              --region "$AWS_REGION" \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID"
+          )"
+
+          jq '{
+            Status,
+            StatusDetails,
+            StandardOutputContent,
+            StandardErrorContent
+          }' <<<"$invocation"
+
+          status="$(jq -r '.Status' <<<"$invocation")"
+          test "$wait_status" -eq 0
+          test "$status" = "Success"
+
+      - name: Verify public staging health
+        shell: bash
+        env:
+          PUBLIC_IP: ${{ steps.target.outputs.public-ip }}
+        run: |
+          set -euo pipefail
+
+          curl \
+            --fail \
+            --retry 6 \
+            --retry-delay 5 \
+            --retry-all-errors \
+            --silent \
+            --show-error \
+            "http://${PUBLIC_IP}/health/live"
+
+          curl \
+            --fail \
+            --retry 6 \
+            --retry-delay 5 \
+            --retry-all-errors \
+            --silent \
+            --show-error \
+            "http://${PUBLIC_IP}/health/ready"
+
+      - name: Deployment summary
+        shell: bash
+        env:
+          COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+          PUBLIC_IP: ${{ steps.target.outputs.public-ip }}
+        run: |
+          {
+            echo "## AWS staging deployment"
+            echo
+            echo "- Commit: \`$COMMIT_SHA\`"
+            echo "- Image digest: \`$IMAGE_DIGEST\`"
+            echo "- Health endpoint: \`http://${PUBLIC_IP}/health/ready\`"
+          } >> "$GITHUB_STEP_SUMMARY"

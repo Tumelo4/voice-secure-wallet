@@ -1,0 +1,114 @@
+name: Pull request lifecycle
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+      - ready_for_review
+  pull_request_review:
+    types:
+      - submitted
+      - edited
+      - dismissed
+  pull_request_review_comment:
+    types:
+      - created
+      - edited
+      - deleted
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-lifecycle-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  policy:
+    name: PR policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Validate pull request metadata
+        if: github.event.pull_request.draft == false
+        shell: bash
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+
+          test "$BASE_REF" = "main"
+          test -n "${PR_TITLE//[[:space:]]/}"
+
+          required_sections=(
+            "## Summary"
+            "## Verification"
+            "## Review notes"
+            "## Deployment impact"
+          )
+
+          for section in "${required_sections[@]}"; do
+            if ! grep -Fq "$section" <<<"${PR_BODY:-}"; then
+              echo "Missing required pull request section: $section" >&2
+              exit 1
+            fi
+          done
+
+      - name: Add or update delivery-path comment
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_DRAFT: ${{ github.event.pull_request.draft }}
+        run: |
+          set -euo pipefail
+
+          marker='<!-- voice-secure-wallet-pr-lifecycle -->'
+          body="$(cat <<'EOF'
+          <!-- voice-secure-wallet-pr-lifecycle -->
+          ## Pull request delivery path
+
+          This change follows the repository's review-before-deploy process:
+
+          1. Required PR checks run against this branch.
+          2. Reviewers leave comments or request changes.
+          3. The author updates the branch and resolves every review conversation.
+          4. The pull request is merged into `main` only after the configured rules pass.
+          5. The merge starts the `main` workflows, including the AWS staging plan.
+          6. AWS staging deployment runs only when every required workflow succeeds for the merged commit.
+
+          **Important:** Infrastructure apply remains manual. Application deployment to staging is automatic after a successful merge.
+          EOF
+          )"
+
+          comment_id="$(
+            gh api \
+              --method GET \
+              "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              --paginate \
+              --jq ".[] | select(.body | contains(\"$marker\")) | .id" \
+              | head -n 1
+          )"
+
+          payload="$(jq -nc --arg body "$body" '{body: $body}')"
+
+          if [[ -n "$comment_id" ]]; then
+            gh api \
+              --method PATCH \
+              "repos/${GITHUB_REPOSITORY}/issues/comments/${comment_id}" \
+              --input - <<<"$payload" \
+              >/dev/null
+          else
+            gh api \
+              --method POST \
+              "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              --input - <<<"$payload" \
+              >/dev/null
+          fi
