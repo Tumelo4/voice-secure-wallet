@@ -13,6 +13,7 @@ public final class TerraformAwsBaselineTests {
                 new TestCase("Terraform exposes reusable capability modules", TerraformAwsBaselineTests::modulesExist),
                 new TestCase("state bootstrap is independent from workloads", TerraformAwsBaselineTests::bootstrapIsIndependent),
                 new TestCase("GitHub OIDC is scoped to the main branch", TerraformAwsBaselineTests::githubOidcIsScoped),
+                new TestCase("GitHub OIDC can change only the staging foundation", TerraformAwsBaselineTests::githubOidcFoundationWritesAreScoped),
                 new TestCase("demo is explicitly cheap and disposable", TerraformAwsBaselineTests::demoIsDisposable),
                 new TestCase("staging is isolated from production", TerraformAwsBaselineTests::stagingIsIsolated),
                 new TestCase("staging workflows deploy only staging", TerraformAwsBaselineTests::stagingWorkflowsAreScoped),
@@ -99,6 +100,22 @@ public final class TerraformAwsBaselineTests {
         assertContains(oidc, "aws_kms_key.bootstrap.arn", "Terraform state KMS scope");
         assertTrue(!oidc.contains("PowerUserAccess"), "OIDC role must not have power-user access");
         assertTrue(!oidc.contains("AdministratorAccess"), "OIDC role must not have administrator access");
+    }
+
+    private static void githubOidcFoundationWritesAreScoped() throws IOException {
+        String oidc = read("bootstrap/github-oidc.tf");
+        assertContains(oidc, "staging-foundation-apply-access", "dedicated staging foundation policy");
+        assertContains(oidc, "aws:RequestTag/Environment", "staging create tag boundary");
+        assertContains(oidc, "ec2:ResourceTag/Environment", "staging EC2 resource boundary");
+        assertContains(oidc, "ec2:CreateAction", "tag-on-create boundary");
+        assertContains(oidc, "${local.staging_name}-default", "default security group bootstrap boundary");
+        assertContains(oidc, "alias/${local.staging_name}-platform", "staging KMS alias boundary");
+        assertContains(oidc, "${local.staging_name}-audit-evidence", "staging audit bucket boundary");
+        assertContains(oidc, "role/${local.staging_name}-vpc-flow", "staging flow-log role boundary");
+        assertContains(oidc, "vpc-flow-logs.amazonaws.com", "flow-log PassRole service boundary");
+        for (String forbidden : List.of("rds:", "elasticache:", "kafka:", "msk:", "AdministratorAccess", "PowerUserAccess")) {
+            assertTrue(!oidc.contains(forbidden), "foundation policy must not grant " + forbidden);
+        }
     }
 
     private static void productionIsHardened() throws IOException {

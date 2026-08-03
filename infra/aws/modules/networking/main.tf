@@ -46,6 +46,9 @@ resource "aws_default_security_group" "restricted" {
   vpc_id  = aws_vpc.this.id
   ingress = []
   egress  = []
+  tags = {
+    Name = "${var.name}-default"
+  }
 }
 
 resource "aws_subnet" "private" {
