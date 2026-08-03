@@ -2,7 +2,7 @@
 
 This slice adds a reviewable AWS Terraform baseline without applying it. The
 original single-root configuration has since been refactored into reusable
-capability modules with `demo` and `production-reference` compositions:
+capability modules with `demo`, `staging`, and `production-reference` compositions:
 
 - independent provider and variable files for each environment;
 - private VPC, private subnets, private route table, and S3 gateway endpoint;

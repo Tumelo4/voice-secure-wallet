@@ -19,7 +19,7 @@ authoritative capability claims remain in
 
 | Work | Accountable owner | Completion evidence |
 | --- | --- | --- |
-| Apply the production-reference Terraform in an approved AWS staging account. | Platform | Plan/apply logs, immutable revision, resource inventory, cost baseline, and teardown procedure. |
+| Apply the isolated staging Terraform in the approved AWS account. | Platform | Plan/apply logs, immutable revision, resource inventory, cost baseline, and teardown procedure. |
 | Validate MSK topics, including `notifications.dlq`, replication, authentication, encryption, producer acknowledgement, consumer restart, and DLQ replay. | Payments platform | Managed-cluster test report with broker/topic configuration, failure injection, offsets, and replay results. |
 | Validate RDS migrations, backup/restore, connection exhaustion, failover, and multi-instance payment/notification behavior. | Platform + payments | Migration log, failover timeline, reconciliation result, measured RPO/RTO, and clean restore evidence. |
 | Validate ElastiCache TLS/auth, shared rate-limit budgets, outage behavior, recovery, and exported metrics. | API platform | Configuration capture, two-instance load result, outage trace, dashboards, and alert delivery evidence. |
@@ -27,7 +27,7 @@ authoritative capability claims remain in
 
 Use [`aws-staging-deployment.md`](../operations/aws-staging-deployment.md),
 [`aws-staging-deployment.sh`](../../scripts/aws-staging-deployment.sh), and the
-[`production-reference`](../../infra/aws/environments/production-reference)
+[`staging`](../../infra/aws/environments/staging)
 configuration as the starting point.
 
 ## Next — prove customer and operational behavior

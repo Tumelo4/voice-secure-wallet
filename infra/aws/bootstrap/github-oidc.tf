@@ -99,7 +99,8 @@ data "aws_iam_policy_document" "github_actions_state" {
       "s3:PutObject"
     ]
     resources = [
-      "arn:${data.aws_partition.current.partition}:s3:::${var.state_bucket_name}/environments/production-reference.tfstate"
+      "arn:${data.aws_partition.current.partition}:s3:::${var.state_bucket_name}/environments/production-reference.tfstate",
+      "arn:${data.aws_partition.current.partition}:s3:::${var.state_bucket_name}/environments/staging.tfstate"
     ]
   }
 
@@ -114,6 +115,18 @@ data "aws_iam_policy_document" "github_actions_state" {
     ]
     resources = [
       "arn:${data.aws_partition.current.partition}:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${var.lock_table_name}"
+    ]
+  }
+
+  statement {
+    sid = "LockStagingTerraformState"
+    actions = [
+      "s3:DeleteObject",
+      "s3:GetObject",
+      "s3:PutObject"
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:s3:::${var.state_bucket_name}/environments/staging.tfstate.tflock"
     ]
   }
 
