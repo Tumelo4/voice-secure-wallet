@@ -1,87 +1,120 @@
 # Architecture and UML diagrams
 
-Status: **as implemented in the repository**. VoiceSecure Wallet is an
-engineering prototype, not an operationally validated production system.
+Status: **repository implementation plus explicitly labelled target state**.
+VoiceSecure Wallet is an engineering prototype, not an operationally validated
+production system.
 
-These views deliberately distinguish deployable processes from Java modules.
-The Java `*-service` modules are bounded contexts composed into one API
-application; the Python voice runtime is a separate process.
+Evidence last reviewed: 2026-07-24. Reverify these views whenever a composition
+root, module dependency, payment transition, or deployment boundary changes.
 
-## 1. System and deployment architecture
+## 1. Current production runtime composition
 
-This is the primary architecture view for design reviews, threat modelling,
-operations, and dependency ownership.
+Purpose: show process and protocol boundaries created by the checked-in
+production composition roots. A class or Terraform resource existing in the
+repository does not by itself establish a runtime connection.
 
 ```mermaid
 flowchart LR
     Customer["Customer"]
-    Operator["Support / finance operator"]
     Mobile["Mobile app<br/>Expo / React Native"]
+    Notify["Notification worker process<br/>Kafka consumer + Java module"]
+    Voice["Voice service process<br/>Python HTTP runtime"]
+    Fraud["Fraud service endpoint"]
+    Directory["Beneficiary directory endpoint"]
+    IdP["OIDC / JWKS provider"]
+    DB[("PostgreSQL<br/>ledger, sagas, wallet reads, outbox")]
+    Kafka[("Kafka<br/>payments, ledger, voice, DLQ")]
+    Redis[("Redis<br/>rate limits")]
 
-    subgraph Trust["AWS trust boundary (target deployment)"]
-        Edge["TLS ingress / WAF"]
-
-        subgraph Java["Java modular application"]
-            API["HTTP API + runtime guards<br/>OIDC, scopes, rate limits, trace logging"]
-            Identity["Identity"]
-            Payments["Payments"]
-            Ledger["Ledger"]
-            Wallet["Wallet projection"]
-            Risk["Fraud + compliance"]
-            Support["Support + recovery"]
-            Notify["Notifications"]
-            Outbox["Transactional outbox relay"]
-
-            API --> Identity
-            API --> Payments
-            API --> Wallet
-            API --> Support
-            Payments --> Risk
-            Payments --> Ledger
-            Ledger --> Wallet
-            Payments --> Outbox
-            Ledger --> Outbox
-        end
-
-        Voice["Python voice service<br/>liveness + verification"]
-        DB[("PostgreSQL<br/>sagas, ledger, projections, outbox")]
-        Kafka[("Kafka / MSK<br/>domain events + DLQs")]
-        Redis[("Redis<br/>distributed rate limits")]
-        Audit[("S3 / KMS<br/>audit evidence")]
-
-        Edge --> API
-        API --> Redis
-        Java --> DB
-        Outbox --> Kafka
-        API --> Voice
-        Kafka --> Notify
-        Kafka -. audit consumers .-> Audit
+    subgraph APIProcess["Production API process — Javalin + Java modules"]
+        HTTP["HTTP adapter boundary"]
+        Guards["Auth, scopes, trace, rate-limit guards"]
+        Payment["Payment saga service"]
+        Ledger["Ledger service"]
+        Wallet["Wallet read service"]
+        Beneficiary["Beneficiary service"]
+        Support["Support service"]
+        Outbox["Payment + ledger outbox workers"]
     end
 
-    IdP["OIDC / JWKS provider"]
-    Directory["Beneficiary account directory"]
-
     Customer --> Mobile
-    Mobile --> Edge
-    Operator --> Edge
-    API --> IdP
-    API --> Directory
+    Mobile -->|HTTPS| HTTP
+    HTTP --> Guards
+    Guards --> Payment
+    Guards --> Wallet
+    Guards --> Beneficiary
+    Guards --> Support
+    Payment --> Ledger
+    HTTP -->|HTTPS| Fraud
+    HTTP -->|HTTPS| Voice
+    HTTP -->|HTTPS| Directory
+    HTTP -->|JWKS / token verification| IdP
+    Guards -->|rate-limit script| Redis
+    Payment -->|JDBC saga + outbox| DB
+    Ledger -->|JDBC ledger + outbox| DB
+    Wallet -->|JDBC reads| DB
+    Beneficiary -->|JDBC| DB
+    Support -->|JDBC| DB
+    Outbox -->|claim pending rows| DB
+    Outbox -->|Kafka producer| Kafka
+    Kafka -->|payments + voice| Notify
+    Notify -->|JDBC inbox + deliveries| DB
 ```
 
-Key boundaries:
+Current-state qualifications:
 
-- The ledger is the source of financial truth; wallet balances are projections.
+- The production API uses the external `HttpFraudDecisionProvider` and
+  `HttpVoiceGatewayClient`; the repository's in-process fraud, compliance, and
+  identity domain modules are not composed into `ProductionApiRuntime`.
+- `ProductionNotificationRuntime` is a separate Kafka-consuming composition,
+  not part of the request-serving API process.
+- `WalletService` can apply ledger envelopes, but the checked-in production
+  composition does not establish a Kafka-to-wallet projection consumer.
 - The API derives customer identity from verified tokens. Request bodies are not
   trusted as an ownership source.
 - Voice is an authorisation signal, never a balance or settlement authority.
-- PostgreSQL transactions plus an outbox separate durable state change from
-  asynchronous Kafka publication.
 - `ops-service` and `launch-service` are policy/readiness validators, not
   production request-serving processes.
 
-## 2. Java module dependency architecture
+## 2. Target AWS deployment
 
-This view is useful for code ownership and architecture-boundary reviews.
+Purpose: record the intended infrastructure topology. Dashed relationships are
+planned or require deployment evidence; this view must not be cited as proof of
+a live environment.
+
+```mermaid
+flowchart LR
+    Customer["Customer"] --> Mobile["Mobile app"]
+    Operator["Authorised operator"] --> Edge["TLS ingress / WAF"]
+    Mobile --> Edge
+
+    subgraph AWS["Target AWS boundary"]
+        Edge --> API["API runtime"]
+        API --> Voice["Voice runtime"]
+        API --> RDS[("RDS PostgreSQL")]
+        API --> Redis[("ElastiCache Redis")]
+        API --> MSK[("MSK Kafka")]
+        MSK --> Notify["Notification runtime"]
+        KMS["KMS"] -. encrypts .-> RDS
+        KMS -. encrypts .-> MSK
+        KMS -. encrypts .-> Audit[("S3 audit evidence")]
+    end
+
+    API --> IdP["OIDC provider"]
+    API --> Fraud["Fraud endpoint"]
+    API --> Directory["Beneficiary directory"]
+    Notify -. approved audit export not yet composed .-> Audit
+```
+
+The S3 audit-export relationship remains explicitly unimplemented until a
+named producer/consumer, event contract, ownership boundary, and deployment
+evidence exist.
+
+## 3. Compile-time Java module dependencies
+
+Purpose: show selected direct Maven dependencies. Arrows mean “depends on at
+compile time”; they do not imply an HTTP call, process boundary, or production
+composition.
 
 ```mermaid
 flowchart TB
@@ -97,32 +130,36 @@ flowchart TB
     Recovery["recovery-service"]
     Notification["notification-service"]
     Events["event-core<br/>envelopes, outbox, Kafka ports"]
-    Ops["ops-service / launch-service<br/>build-time validation"]
+    Ops["ops-service"]
 
     App --> Payment
     App --> Ledger
     App --> Wallet
     App --> Identity
-    App --> Fraud
     App --> Beneficiary
     App --> Support
+    App --> Notification
+    App --> Events
     Payment --> Events
     Ledger --> Events
     Wallet --> Events
     Compliance --> Events
+    Fraud --> Events
     Recovery --> Events
+    Recovery --> Identity
     Notification --> Events
     Fraud --> Compliance
-    Ops -. validates .-> App
+    Support --> Ledger
+    Ops --> Events
 ```
 
-The dependency direction should remain inward toward domain modules and ports.
-Infrastructure adapters and runtime assembly belong at the application edge.
+`fraud-service` is not a direct compile-time dependency of
+`api-adapter-service`; production reaches the fraud boundary through
+`HttpFraudDecisionProvider`.
 
-## 3. UML class diagram — payment settlement core
+## 4. UML class diagram — payment settlement core
 
-This is the highest-value static UML view because payment orchestration is the
-system's consistency boundary.
+Purpose: document the classes that enforce the payment consistency boundary.
 
 ```mermaid
 classDiagram
@@ -135,7 +172,9 @@ classDiagram
         -long version
         +initiate(PaymentRequest) PaymentSaga
         +approveFraud(FraudDecision)
-        +recordVoiceOutcome(VoiceOutcome)
+        +voiceApproved()
+        +voiceRejected()
+        +voiceTimedOut()
         +fundsReserved()
         +ledgerCommitStarted()
         +ledgerCommitSucceeded()
@@ -200,10 +239,10 @@ classDiagram
     PaymentProductionRuntime --> PaymentSettlementCoordinator
 ```
 
-## 4. UML state machine — durable payment saga
+## 5. UML state machine — durable payment saga
 
-This view captures the legal lifecycle, terminal outcomes, compensation, and
-operator-driven recovery states.
+Purpose: capture the legal aggregate transitions, terminal outcomes,
+compensation, and operator-driven recovery states.
 
 ```mermaid
 stateDiagram-v2
@@ -247,10 +286,10 @@ stateDiagram-v2
     COMPENSATION_FAILED --> [*]
 ```
 
-## 5. UML sequence — authorised payment with outbox delivery
+## 6. UML sequence — authorised payment with outbox delivery
 
-This view highlights synchronous consistency decisions and the asynchronous
-event boundary.
+Purpose: distinguish customer calls, service-to-service trust, database
+transactions, and asynchronous event publication.
 
 ```mermaid
 sequenceDiagram
@@ -260,41 +299,61 @@ sequenceDiagram
     participant API as API runtime
     participant IdP as OIDC / JWKS
     participant Fraud
-    participant Voice
-    participant Saga as Payment saga
+    participant Voice as Voice service
+    participant Saga as Payment service
     participant Ledger
     participant DB as PostgreSQL
-    participant Relay as Outbox relay
+    participant Relay as Payment / ledger outbox relays
     participant Kafka
-    participant Consumer as Notification / projection
+    participant Consumer as Notification worker
 
     Customer->>Mobile: Submit payment
     Mobile->>API: POST /v1/payments<br/>Bearer + trace + idempotency key
-    API->>IdP: Verify token / resolve keys
-    IdP-->>API: Trusted claims and scopes
+    API->>IdP: Validate token against OIDC / JWKS policy
+    IdP-->>API: Verification material
+    API->>API: Enforce scopes, ownership, trace, and rate limit
     API->>Fraud: Assess amount, identity, velocity, compliance
     Fraud-->>API: Approved + voice policy
     API->>Saga: start(request, decision)
-    Saga->>DB: createIfAbsent(idempotency key)
-    DB-->>Saga: Durable saga
+    Saga->>DB: Transaction: create saga, events, and payment outbox rows
+    DB-->>Saga: Commit
     Saga-->>API: VOICE_VERIFICATION_PENDING
-    API-->>Mobile: Payment reference + challenge state
+    API-->>Mobile: Payment reference + pending state
 
-    Mobile->>API: Submit bound voice verification
-    API->>Voice: Verify challenge, liveness, replay, match
-    Voice-->>API: Approved outcome
+    Mobile->>API: POST payment voice-challenge
+    API->>Voice: Issue transaction-bound challenge
+    Voice-->>API: Challenge ID, phrase, and expiry
+    API-->>Mobile: Bound challenge
+    Mobile->>API: POST challenge verification + audio
+    API->>Voice: Verify liveness, replay, binding, and match
+
+    Voice->>API: POST internal voice outcome<br/>service token + voice:result scope
+    API->>API: Authenticate service and resolve payment reference
     API->>Saga: recordVoiceOutcome()
-    Saga->>DB: Persist FUNDS_RESERVING
+    Saga->>DB: Transaction: persist FUNDS_RESERVING + outbox rows
+    DB-->>Saga: Commit
 
     API->>Ledger: reserveFunds()
-    Ledger->>DB: Durable reservation
+    Ledger->>DB: Transaction: durable reservation
+    DB-->>Ledger: Commit
+    API->>Saga: markFundsReserved()
+    Saga->>DB: Transaction: persist FUNDS_RESERVED
+    DB-->>Saga: Commit
+    API->>Saga: startLedgerCommit()
+    Saga->>DB: Transaction: persist LEDGER_COMMITTING
+    DB-->>Saga: Commit
     API->>Ledger: commitReservedTransfer()
-    Ledger->>DB: Atomic balanced entries + outbox event
+    Ledger->>DB: Transaction: consume reservation,<br/>balanced entries, ledger outbox row
     DB-->>Ledger: Commit
     API->>Saga: completeLedgerCommit()
+    Saga->>DB: Transaction: persist COMPLETING + outbox rows
+    DB-->>Saga: Commit
     API->>Saga: complete()
-    Saga->>DB: Persist COMPLETED + payment outbox event
-    API-->>Mobile: Completed receipt
+    Saga->>DB: Transaction: persist COMPLETED
+    DB-->>Saga: Commit
+    API-->>Voice: Voice outcome accepted
+    Voice-->>API: Verification result
+    API-->>Mobile: Verification response
 
     loop Poll pending outbox rows
         Relay->>DB: Claim pending events
@@ -304,6 +363,10 @@ sequenceDiagram
     end
     Kafka-->>Consumer: Domain event
     Consumer->>Consumer: Idempotent handling by event ID
+    Consumer->>DB: Transaction: inbox receipt + notification delivery
+
+    Mobile->>API: GET payment status
+    API-->>Mobile: Completed state
 ```
 
 ## Review rules
@@ -316,3 +379,16 @@ sequenceDiagram
   pass `quality/architecture-tests`.
 - New asynchronous side effects must originate from durable outbox records and
   document retry, ordering, idempotency, and dead-letter behavior.
+
+## Evidence map
+
+| Claim | Authoritative repository evidence |
+| --- | --- |
+| Production API composition and remote dependencies | `ProductionApiRuntime`, `PaymentApiAdapter`, `VoiceGatewayApiAdapter` |
+| Separate notification process and Kafka topics | `ProductionNotificationRuntime`, `KafkaNotificationConsumer` |
+| Voice verification callback trust boundary | `voice_service/http_runtime.py`, `PaymentApiAdapter.requiredScopes` |
+| Direct Java module dependencies | Maven `pom.xml` files and `quality/architecture-tests` |
+| Payment transitions | `PaymentSaga`, `PaymentSagaService`, `PaymentSagaState` |
+| Saga/event/outbox atomic persistence | `PostgresPaymentSagaRepository` |
+| Ledger reservation and balanced transfer | `LedgerService`, production ledger repository |
+| Target AWS resources | `infra/aws` Terraform modules; deployment evidence remains separate |
