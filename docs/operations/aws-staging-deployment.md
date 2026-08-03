@@ -45,10 +45,15 @@ state or resource names.
 
 The shared role has `ReadOnlyAccess`, encrypted Terraform-state access, ECR
 push permissions for `voice-secure-wallet-*`, ECS deployment permissions for
-project services, and `iam:PassRole` restricted to project ECS task roles. It
-does not have `PowerUserAccess` or permission to create the staging
-infrastructure. Expanding infrastructure-apply permissions requires a separate,
-reviewed least-privilege policy change.
+project services, and `iam:PassRole` restricted to project ECS task roles. Its
+`staging-foundation-apply-access` inline policy permits writes only for the
+cost-controlled staging foundation: tagged VPC networking, the
+`alias/voicesecure-staging-platform` KMS key, the two
+`voicesecure-staging-*` audit buckets, `/voicesecure-staging/*` log groups, and
+the `voicesecure-staging-vpc-flow` service role. APIs that cannot be fully
+resource-scoped require both `Environment=staging` and `ManagedBy=terraform`
+request or resource tags. The role has no RDS, ElastiCache, or MSK write
+actions and does not have `PowerUserAccess` or `AdministratorAccess`.
 
 ### Local AWS SSO/profile
 
