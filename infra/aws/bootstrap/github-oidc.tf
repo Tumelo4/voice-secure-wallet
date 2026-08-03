@@ -13,11 +13,6 @@ variable "github_branch_name" {
   default = "main"
 }
 
-variable "github_deployment_environment_name" {
-  type    = string
-  default = "staging"
-}
-
 variable "github_oidc_provider_arn" {
   description = "Existing GitHub Actions OIDC provider ARN. Leave null to create it in this account."
   type        = string
@@ -32,6 +27,11 @@ resource "aws_iam_openid_connect_provider" "github" {
 
   url            = "https://token.actions.githubusercontent.com"
   client_id_list = ["sts.amazonaws.com"]
+
+  tags = {
+    Project   = "voice-secure-wallet"
+    ManagedBy = "Terraform"
+  }
 }
 
 locals {
@@ -39,11 +39,10 @@ locals {
     var.github_oidc_provider_arn,
     try(aws_iam_openid_connect_provider.github[0].arn, null)
   )
-  github_branch_subject                 = "repo:${var.github_repository_owner}/${var.github_repository_name}:ref:refs/heads/${var.github_branch_name}"
-  github_deployment_environment_subject = "repo:${var.github_repository_owner}/${var.github_repository_name}:environment:${var.github_deployment_environment_name}"
+  github_branch_subject = "repo:${var.github_repository_owner}/${var.github_repository_name}:ref:refs/heads/${var.github_branch_name}"
 }
 
-data "aws_iam_policy_document" "github_staging_plan_assume" {
+data "aws_iam_policy_document" "github_actions_assume" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
 
@@ -66,19 +65,24 @@ data "aws_iam_policy_document" "github_staging_plan_assume" {
   }
 }
 
-resource "aws_iam_role" "github_staging_plan" {
-  name                 = "voicesecure-github-staging-plan"
-  description          = "Short-lived GitHub Actions identity for Terraform staging plans"
-  assume_role_policy   = data.aws_iam_policy_document.github_staging_plan_assume.json
+resource "aws_iam_role" "github_actions" {
+  name                 = "voice-secure-wallet"
+  description          = "Short-lived GitHub Actions identity for voice-secure-wallet staging plans and applies"
+  assume_role_policy   = data.aws_iam_policy_document.github_actions_assume.json
   max_session_duration = 3600
+
+  tags = {
+    Project   = "voice-secure-wallet"
+    ManagedBy = "Terraform"
+  }
 }
 
-resource "aws_iam_role_policy_attachment" "github_staging_plan_read_only" {
-  role       = aws_iam_role.github_staging_plan.name
+resource "aws_iam_role_policy_attachment" "github_actions_read_only" {
+  role       = aws_iam_role.github_actions.name
   policy_arn = "arn:${data.aws_partition.current.partition}:iam::aws:policy/ReadOnlyAccess"
 }
 
-data "aws_iam_policy_document" "github_staging_plan_state" {
+data "aws_iam_policy_document" "github_actions_state" {
   statement {
     sid = "ListTerraformState"
     actions = [
@@ -112,117 +116,108 @@ data "aws_iam_policy_document" "github_staging_plan_state" {
       "arn:${data.aws_partition.current.partition}:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${var.lock_table_name}"
     ]
   }
-}
 
-resource "aws_iam_role_policy" "github_staging_plan_state" {
-  name   = "terraform-state-plan-access"
-  role   = aws_iam_role.github_staging_plan.id
-  policy = data.aws_iam_policy_document.github_staging_plan_state.json
-}
-
-data "aws_iam_policy_document" "github_staging_deploy_assume" {
   statement {
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-
-    principals {
-      type        = "Federated"
-      identifiers = [local.github_oidc_provider_arn]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "token.actions.githubusercontent.com:aud"
-      values   = ["sts.amazonaws.com"]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "token.actions.githubusercontent.com:sub"
-      values   = [local.github_deployment_environment_subject]
-    }
+    sid = "UseTerraformStateKmsKey"
+    actions = [
+      "kms:Decrypt",
+      "kms:DescribeKey",
+      "kms:Encrypt",
+      "kms:GenerateDataKey"
+    ]
+    resources = [aws_kms_key.bootstrap.arn]
   }
 }
 
-resource "aws_iam_role" "github_staging_deploy" {
-  name                 = "voicesecure-github-staging-deploy"
-  description          = "Approval-protected GitHub Actions identity for staging infrastructure and ECS deployments"
-  assume_role_policy   = data.aws_iam_policy_document.github_staging_deploy_assume.json
-  max_session_duration = 3600
-}
-
-resource "aws_iam_role_policy_attachment" "github_staging_deploy_power_user" {
-  role       = aws_iam_role.github_staging_deploy.name
-  policy_arn = "arn:${data.aws_partition.current.partition}:iam::aws:policy/PowerUserAccess"
-}
-
-data "aws_iam_policy_document" "github_staging_deploy_iam" {
+data "aws_iam_policy_document" "github_actions_deploy" {
   statement {
-    sid = "ManageVoiceSecureServiceRoles"
+    sid       = "GetECRAuthorizationToken"
+    actions   = ["ecr:GetAuthorizationToken"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid = "PushVoiceSecureWalletImages"
     actions = [
-      "iam:AttachRolePolicy",
-      "iam:CreateRole",
-      "iam:DeleteRole",
-      "iam:DeleteRolePolicy",
-      "iam:DetachRolePolicy",
-      "iam:GetRole",
-      "iam:GetRolePolicy",
-      "iam:ListAttachedRolePolicies",
-      "iam:ListRolePolicies",
-      "iam:PassRole",
-      "iam:PutRolePolicy",
-      "iam:TagRole",
-      "iam:UntagRole",
-      "iam:UpdateAssumeRolePolicy",
-      "iam:UpdateRoleDescription"
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:BatchGetImage",
+      "ecr:InitiateLayerUpload",
+      "ecr:UploadLayerPart",
+      "ecr:CompleteLayerUpload",
+      "ecr:PutImage",
+      "ecr:DescribeImages",
+      "ecr:DescribeRepositories"
     ]
     resources = [
-      "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/voicesecure-*",
-      "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/voice-secure-wallet-*"
+      "arn:${data.aws_partition.current.partition}:ecr:${var.aws_region}:${data.aws_caller_identity.current.account_id}:repository/voice-secure-wallet-*"
     ]
   }
 
   statement {
-    sid       = "CreateRequiredAWSServiceLinkedRoles"
-    actions   = ["iam:CreateServiceLinkedRole"]
+    sid = "RegisterECSTaskDefinitions"
+    actions = [
+      "ecs:RegisterTaskDefinition",
+      "ecs:DescribeTaskDefinition",
+      "ecs:ListTaskDefinitions",
+      "ecs:TagResource"
+    ]
     resources = ["*"]
+  }
+
+  statement {
+    sid = "DeployVoiceSecureWalletServices"
+    actions = [
+      "ecs:UpdateService",
+      "ecs:DescribeServices"
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:ecs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:service/voice-secure-wallet-*/voice-secure-wallet-*"
+    ]
+  }
+
+  statement {
+    sid = "ReadECSDeploymentState"
+    actions = [
+      "ecs:DescribeClusters",
+      "ecs:ListTasks",
+      "ecs:DescribeTasks"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid     = "PassOnlyVoiceSecureWalletTaskRoles"
+    actions = ["iam:PassRole"]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/voice-secure-wallet-*-task-role",
+      "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/voice-secure-wallet-*-execution-role"
+    ]
 
     condition {
       test     = "StringEquals"
-      variable = "iam:AWSServiceName"
-      values = [
-        "autoscaling.amazonaws.com",
-        "elasticache.amazonaws.com",
-        "kafka.amazonaws.com",
-        "rds.amazonaws.com"
-      ]
+      variable = "iam:PassedToService"
+      values   = ["ecs-tasks.amazonaws.com"]
     }
   }
 }
 
-resource "aws_iam_role_policy" "github_staging_deploy_iam" {
-  name   = "voicesecure-staging-iam"
-  role   = aws_iam_role.github_staging_deploy.id
-  policy = data.aws_iam_policy_document.github_staging_deploy_iam.json
+resource "aws_iam_role_policy" "github_actions_deploy" {
+  name   = "voice-secure-wallet-deploy"
+  role   = aws_iam_role.github_actions.id
+  policy = data.aws_iam_policy_document.github_actions_deploy.json
 }
 
-resource "aws_iam_role_policy" "github_staging_deploy_state" {
+resource "aws_iam_role_policy" "github_actions_state" {
   name   = "terraform-state-apply-access"
-  role   = aws_iam_role.github_staging_deploy.id
-  policy = data.aws_iam_policy_document.github_staging_plan_state.json
+  role   = aws_iam_role.github_actions.id
+  policy = data.aws_iam_policy_document.github_actions_state.json
 }
 
-output "github_staging_plan_role_arn" {
-  value = aws_iam_role.github_staging_plan.arn
-}
-
-output "github_staging_deploy_role_arn" {
-  value = aws_iam_role.github_staging_deploy.arn
+output "github_actions_role_arn" {
+  value = aws_iam_role.github_actions.arn
 }
 
 output "github_oidc_subject" {
   value = local.github_branch_subject
-}
-
-output "github_deployment_oidc_subject" {
-  value = local.github_deployment_environment_subject
 }

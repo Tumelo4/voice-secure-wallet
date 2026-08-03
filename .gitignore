@@ -21,3 +21,5 @@ dist/
 * 2.*
 **/.terraform/
 *.tfplan
+*.tfstate
+*.tfstate.*

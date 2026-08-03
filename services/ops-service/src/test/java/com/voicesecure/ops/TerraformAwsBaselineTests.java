@@ -66,13 +66,14 @@ public final class TerraformAwsBaselineTests {
                 "repo:${var.github_repository_owner}/${var.github_repository_name}:ref:refs/heads/${var.github_branch_name}",
                 "main branch subject");
         assertContains(oidc, "sts:AssumeRoleWithWebIdentity", "web identity trust action");
-        assertContains(oidc, "aws:policy/ReadOnlyAccess", "plan role read-only policy");
-        assertContains(oidc,
-                "repo:${var.github_repository_owner}/${var.github_repository_name}:environment:${var.github_deployment_environment_name}",
-                "protected deployment environment subject");
-        assertContains(oidc, "aws:policy/PowerUserAccess", "separate deployment role policy");
-        assertContains(oidc, "role/voicesecure-*", "deployment IAM resource scope");
-        assertTrue(!oidc.contains("AdministratorAccess"), "OIDC plan role must not have administrator access");
+        assertContains(oidc, "resource \"aws_iam_role\" \"github_actions\"", "shared GitHub Actions role");
+        assertContains(oidc, "\"voice-secure-wallet\"", "shared GitHub Actions role name");
+        assertContains(oidc, "aws:policy/ReadOnlyAccess", "read-only discovery policy");
+        assertContains(oidc, "repository/voice-secure-wallet-*", "project ECR scope");
+        assertContains(oidc, "iam:PassedToService", "task-role passing boundary");
+        assertContains(oidc, "aws_kms_key.bootstrap.arn", "Terraform state KMS scope");
+        assertTrue(!oidc.contains("PowerUserAccess"), "OIDC role must not have power-user access");
+        assertTrue(!oidc.contains("AdministratorAccess"), "OIDC role must not have administrator access");
     }
 
     private static void productionIsHardened() throws IOException {
