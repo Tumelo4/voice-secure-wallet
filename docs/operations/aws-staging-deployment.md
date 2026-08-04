@@ -36,16 +36,17 @@ accepts only the
 `sts.amazonaws.com` audience in AWS account `296032707614`. The workflow
 receives temporary credentials and cannot apply infrastructure.
 
-The `AWS staging apply` workflow runs only from `main`, assumes the existing
-branch-scoped deployment role, verifies account `296032707614`, generates a
-fresh saved plan from `infra/aws/environments/staging`, and applies that exact
-plan. Staging uses the `environments/staging.tfstate` state key and the
-`voicesecure-staging` resource prefix; it never targets the production-reference
-state or resource names.
+The `Staging application delivery` workflow runs only for `main`, assumes the
+existing environment-scoped deployment role, waits for every required commit
+gate, generates a fresh saved plan from `infra/aws/environments/staging`, and
+applies that exact plan before publishing and deploying the API image. Staging
+uses the `environments/staging.tfstate` state key and the `voicesecure-staging`
+resource prefix; it never targets production-reference state or resource names.
 
-The shared role has `ReadOnlyAccess`, encrypted Terraform-state access, ECR
-push permissions for `voice-secure-wallet-*`, ECS deployment permissions for
-project services, and `iam:PassRole` restricted to project ECS task roles. Its
+The shared role has `ReadOnlyAccess`, encrypted Terraform-state access,
+repository-scoped ECR push permissions, tagged EC2 application-host permissions,
+SSM deployment permissions, and `iam:PassRole` restricted to the staging EC2
+application-host role. Its
 `staging-foundation-apply-access` inline policy permits writes only for the
 cost-controlled staging foundation: tagged VPC networking, the
 `alias/voicesecure-staging-platform` KMS key, the two
