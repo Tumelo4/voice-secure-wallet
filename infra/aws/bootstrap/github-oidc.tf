@@ -39,8 +39,11 @@ locals {
     var.github_oidc_provider_arn,
     try(aws_iam_openid_connect_provider.github[0].arn, null)
   )
-  github_branch_subject = "repo:${var.github_repository_owner}/${var.github_repository_name}:ref:refs/heads/${var.github_branch_name}"
-  staging_name          = "voicesecure-staging"
+  github_branch_subject              = "repo:${var.github_repository_owner}/${var.github_repository_name}:ref:refs/heads/${var.github_branch_name}"
+  github_staging_environment_subject = "repo:${var.github_repository_owner}/${var.github_repository_name}:environment:staging"
+  staging_name                       = "voicesecure-staging"
+  application_host_role_name         = "voice-secure-wallet-staging-application-host"
+  application_repository_name        = "voice-secure-wallet-api"
   staging_bucket_arns = [
     "arn:${data.aws_partition.current.partition}:s3:::${local.staging_name}-access-logs",
     "arn:${data.aws_partition.current.partition}:s3:::${local.staging_name}-audit-evidence"
@@ -65,7 +68,10 @@ data "aws_iam_policy_document" "github_actions_assume" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = [local.github_branch_subject]
+      values = [
+        local.github_branch_subject,
+        local.github_staging_environment_subject
+      ]
     }
   }
 }
@@ -148,9 +154,9 @@ data "aws_iam_policy_document" "github_actions_state" {
 }
 
 data "aws_iam_policy_document" "github_actions_deploy" {
-  # checkov:skip=CKV_AWS_356:AWS requires Resource="*" for ECR authorization and ECS register/list/describe APIs; all restrictable deploy actions remain scoped to project resources.
+  # checkov:skip=CKV_AWS_356:ECR authorization and SSM command-result APIs require Resource="*"; all deployment mutations remain scoped to the project repository, command document, and tagged staging host.
   statement {
-    sid       = "GetECRAuthorizationToken"
+    sid       = "GetEcrAuthorizationToken"
     actions   = ["ecr:GetAuthorizationToken"]
     resources = ["*"]
   }
@@ -159,65 +165,51 @@ data "aws_iam_policy_document" "github_actions_deploy" {
     sid = "PushVoiceSecureWalletImages"
     actions = [
       "ecr:BatchCheckLayerAvailability",
-      "ecr:GetDownloadUrlForLayer",
       "ecr:BatchGetImage",
-      "ecr:InitiateLayerUpload",
-      "ecr:UploadLayerPart",
       "ecr:CompleteLayerUpload",
-      "ecr:PutImage",
       "ecr:DescribeImages",
-      "ecr:DescribeRepositories"
+      "ecr:DescribeRepositories",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:InitiateLayerUpload",
+      "ecr:PutImage",
+      "ecr:UploadLayerPart"
     ]
     resources = [
-      "arn:${data.aws_partition.current.partition}:ecr:${var.aws_region}:${data.aws_caller_identity.current.account_id}:repository/voice-secure-wallet-*"
+      "arn:${data.aws_partition.current.partition}:ecr:${var.aws_region}:${data.aws_caller_identity.current.account_id}:repository/${local.application_repository_name}"
     ]
   }
 
   statement {
-    sid = "RegisterECSTaskDefinitions"
-    actions = [
-      "ecs:RegisterTaskDefinition",
-      "ecs:DescribeTaskDefinition",
-      "ecs:ListTaskDefinitions",
-      "ecs:TagResource"
-    ]
-    resources = ["*"]
+    sid       = "UseAwsRunShellScript"
+    actions   = ["ssm:SendCommand"]
+    resources = ["arn:${data.aws_partition.current.partition}:ssm:${var.aws_region}::document/AWS-RunShellScript"]
   }
 
   statement {
-    sid = "DeployVoiceSecureWalletServices"
-    actions = [
-      "ecs:UpdateService",
-      "ecs:DescribeServices"
-    ]
-    resources = [
-      "arn:${data.aws_partition.current.partition}:ecs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:service/voice-secure-wallet-*/voice-secure-wallet-*"
-    ]
-  }
-
-  statement {
-    sid = "ReadECSDeploymentState"
-    actions = [
-      "ecs:DescribeClusters",
-      "ecs:ListTasks",
-      "ecs:DescribeTasks"
-    ]
-    resources = ["*"]
-  }
-
-  statement {
-    sid     = "PassOnlyVoiceSecureWalletTaskRoles"
-    actions = ["iam:PassRole"]
-    resources = [
-      "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/voice-secure-wallet-*-task-role",
-      "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/voice-secure-wallet-*-execution-role"
-    ]
+    sid       = "DeployOnlyToTaggedStagingHost"
+    actions   = ["ssm:SendCommand"]
+    resources = ["arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/*"]
 
     condition {
       test     = "StringEquals"
-      variable = "iam:PassedToService"
-      values   = ["ecs-tasks.amazonaws.com"]
+      variable = "ssm:resourceTag/Project"
+      values   = ["voice-secure-wallet"]
     }
+
+    condition {
+      test     = "StringEquals"
+      variable = "ssm:resourceTag/Environment"
+      values   = ["staging"]
+    }
+  }
+
+  statement {
+    sid = "ReadDeploymentCommandResult"
+    actions = [
+      "ssm:GetCommandInvocation",
+      "ssm:ListCommandInvocations"
+    ]
+    resources = ["*"]
   }
 }
 
@@ -231,6 +223,263 @@ resource "aws_iam_role_policy" "github_actions_state" {
   name   = "terraform-state-apply-access"
   role   = aws_iam_role.github_actions.id
   policy = data.aws_iam_policy_document.github_actions_state.json
+}
+
+data "aws_iam_policy_document" "github_actions_staging_application_infrastructure" {
+  # checkov:skip=CKV_AWS_356:Selected EC2 create and instance-profile association APIs require broad resource matching; request tags and deterministic names constrain staging creation.
+  statement {
+    sid = "ManageStagingApiRepository"
+    actions = [
+      "ecr:CreateRepository",
+      "ecr:DeleteLifecyclePolicy",
+      "ecr:DeleteRepository",
+      "ecr:PutImageScanningConfiguration",
+      "ecr:PutImageTagMutability",
+      "ecr:PutLifecyclePolicy",
+      "ecr:TagResource",
+      "ecr:UntagResource"
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:ecr:${var.aws_region}:${data.aws_caller_identity.current.account_id}:repository/${local.application_repository_name}"
+    ]
+  }
+
+  statement {
+    sid       = "CreateTaggedStagingInternetGateway"
+    actions   = ["ec2:CreateInternetGateway"]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Environment"
+      values   = ["staging"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/ManagedBy"
+      values   = ["terraform"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Project"
+      values   = ["voice-secure-wallet"]
+    }
+  }
+
+  statement {
+    sid = "ManageTaggedStagingInternetGateway"
+    actions = [
+      "ec2:AttachInternetGateway",
+      "ec2:DeleteInternetGateway",
+      "ec2:DetachInternetGateway"
+    ]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/Environment"
+      values   = ["staging"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/ManagedBy"
+      values   = ["terraform"]
+    }
+  }
+
+  statement {
+    sid = "ManageTaggedStagingPublicRoute"
+    actions = [
+      "ec2:CreateRoute",
+      "ec2:DeleteRoute",
+      "ec2:ReplaceRoute"
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:route-table/*"
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/Environment"
+      values   = ["staging"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/ManagedBy"
+      values   = ["terraform"]
+    }
+  }
+
+  statement {
+    sid     = "UseApplicationLaunchDependencies"
+    actions = ["ec2:RunInstances"]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}::image/ami-*",
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:network-interface/*",
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:security-group/*",
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:subnet/*"
+    ]
+  }
+
+  statement {
+    sid     = "LaunchTaggedStagingApplicationHost"
+    actions = ["ec2:RunInstances"]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/*",
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:volume/*"
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Environment"
+      values   = ["staging"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/ManagedBy"
+      values   = ["terraform"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Project"
+      values   = ["voice-secure-wallet"]
+    }
+  }
+
+  statement {
+    sid = "ManageTaggedStagingApplicationHost"
+    actions = [
+      "ec2:AssociateIamInstanceProfile",
+      "ec2:DisassociateIamInstanceProfile",
+      "ec2:ModifyInstanceAttribute",
+      "ec2:ModifyInstanceMetadataOptions",
+      "ec2:RebootInstances",
+      "ec2:ReplaceIamInstanceProfileAssociation",
+      "ec2:StartInstances",
+      "ec2:StopInstances",
+      "ec2:TerminateInstances"
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/*"
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/Environment"
+      values   = ["staging"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/Project"
+      values   = ["voice-secure-wallet"]
+    }
+  }
+
+  statement {
+    sid       = "ManageTaggedStagingApplicationVolumes"
+    actions   = ["ec2:ModifyVolume"]
+    resources = ["arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:volume/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/Environment"
+      values   = ["staging"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/Project"
+      values   = ["voice-secure-wallet"]
+    }
+  }
+
+  statement {
+    sid     = "TagApplicationResourcesOnCreate"
+    actions = ["ec2:CreateTags"]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/*",
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:internet-gateway/*",
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:network-interface/*",
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:volume/*"
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:CreateAction"
+      values   = ["CreateInternetGateway", "RunInstances"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Environment"
+      values   = ["staging"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/ManagedBy"
+      values   = ["terraform"]
+    }
+  }
+
+  statement {
+    sid = "ManageApplicationHostRole"
+    actions = [
+      "iam:AttachRolePolicy",
+      "iam:CreateRole",
+      "iam:DeleteRole",
+      "iam:DeleteRolePolicy",
+      "iam:DetachRolePolicy",
+      "iam:PutRolePolicy",
+      "iam:TagRole",
+      "iam:UntagRole",
+      "iam:UpdateAssumeRolePolicy"
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/${local.application_host_role_name}"
+    ]
+  }
+
+  statement {
+    sid = "ManageApplicationHostInstanceProfile"
+    actions = [
+      "iam:AddRoleToInstanceProfile",
+      "iam:CreateInstanceProfile",
+      "iam:DeleteInstanceProfile",
+      "iam:RemoveRoleFromInstanceProfile",
+      "iam:TagInstanceProfile",
+      "iam:UntagInstanceProfile"
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:instance-profile/${local.application_host_role_name}",
+      "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/${local.application_host_role_name}"
+    ]
+  }
+
+  statement {
+    sid       = "PassOnlyApplicationHostRole"
+    actions   = ["iam:PassRole"]
+    resources = ["arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/${local.application_host_role_name}"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "iam:PassedToService"
+      values   = ["ec2.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "github_actions_staging_application_infrastructure" {
+  name   = "staging-application-infrastructure-access"
+  role   = aws_iam_role.github_actions.id
+  policy = data.aws_iam_policy_document.github_actions_staging_application_infrastructure.json
 }
 
 data "aws_iam_policy_document" "github_actions_staging_foundation" {
@@ -524,4 +773,11 @@ output "github_actions_role_arn" {
 
 output "github_oidc_subject" {
   value = local.github_branch_subject
+}
+
+output "github_oidc_subjects" {
+  value = [
+    local.github_branch_subject,
+    local.github_staging_environment_subject
+  ]
 }

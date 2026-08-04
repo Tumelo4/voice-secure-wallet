@@ -43,9 +43,18 @@ print(json.dumps(safe_claims, indent=2, sort_keys=True))
 expected = {
     "iss": "https://token.actions.githubusercontent.com",
     "aud": "sts.amazonaws.com",
+    "repository": "Tumelo4/voice-secure-wallet",
 }
 invalid = [key for key, value in expected.items() if claims.get(key) != value]
 if invalid:
     print(f"Unexpected OIDC claim(s): {', '.join(invalid)}", file=sys.stderr)
+    raise SystemExit(1)
+
+allowed_subjects = {
+    "repo:Tumelo4/voice-secure-wallet:ref:refs/heads/main",
+    "repo:Tumelo4/voice-secure-wallet:environment:staging",
+}
+if claims.get("sub") not in allowed_subjects:
+    print("Unexpected OIDC subject", file=sys.stderr)
     raise SystemExit(1)
 PY
