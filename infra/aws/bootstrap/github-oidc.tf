@@ -153,80 +153,28 @@ data "aws_iam_policy_document" "github_actions_state" {
   }
 }
 
-data "aws_iam_policy_document" "github_actions_deploy" {
-  # checkov:skip=CKV_AWS_356:ECR authorization and SSM command-result APIs require Resource="*"; all deployment mutations remain scoped to the project repository, command document, and tagged staging host.
-  statement {
-    sid       = "GetEcrAuthorizationToken"
-    actions   = ["ecr:GetAuthorizationToken"]
-    resources = ["*"]
-  }
+resource "aws_iam_policy" "github_actions_state" {
+  name        = "voice-secure-wallet-terraform-state"
+  description = "Terraform state and locking access for voice-secure-wallet"
+  policy      = data.aws_iam_policy_document.github_actions_state.json
 
-  statement {
-    sid = "PushVoiceSecureWalletImages"
-    actions = [
-      "ecr:BatchCheckLayerAvailability",
-      "ecr:BatchGetImage",
-      "ecr:CompleteLayerUpload",
-      "ecr:DescribeImages",
-      "ecr:DescribeRepositories",
-      "ecr:GetDownloadUrlForLayer",
-      "ecr:InitiateLayerUpload",
-      "ecr:PutImage",
-      "ecr:UploadLayerPart"
-    ]
-    resources = [
-      "arn:${data.aws_partition.current.partition}:ecr:${var.aws_region}:${data.aws_caller_identity.current.account_id}:repository/${local.application_repository_name}"
-    ]
-  }
-
-  statement {
-    sid       = "UseAwsRunShellScript"
-    actions   = ["ssm:SendCommand"]
-    resources = ["arn:${data.aws_partition.current.partition}:ssm:${var.aws_region}::document/AWS-RunShellScript"]
-  }
-
-  statement {
-    sid       = "DeployOnlyToTaggedStagingHost"
-    actions   = ["ssm:SendCommand"]
-    resources = ["arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/*"]
-
-    condition {
-      test     = "StringEquals"
-      variable = "ssm:resourceTag/Project"
-      values   = ["voice-secure-wallet"]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "ssm:resourceTag/Environment"
-      values   = ["staging"]
-    }
-  }
-
-  statement {
-    sid = "ReadDeploymentCommandResult"
-    actions = [
-      "ssm:GetCommandInvocation",
-      "ssm:ListCommandInvocations"
-    ]
-    resources = ["*"]
+  tags = {
+    Project   = "voice-secure-wallet"
+    ManagedBy = "Terraform"
   }
 }
 
-resource "aws_iam_role_policy" "github_actions_deploy" {
-  name   = "voice-secure-wallet-deploy"
-  role   = aws_iam_role.github_actions.id
-  policy = data.aws_iam_policy_document.github_actions_deploy.json
+resource "aws_iam_role_policy_attachment" "github_actions_state" {
+  role       = aws_iam_role.github_actions.name
+  policy_arn = aws_iam_policy.github_actions_state.arn
 }
 
-resource "aws_iam_role_policy" "github_actions_state" {
-  name   = "terraform-state-apply-access"
-  role   = aws_iam_role.github_actions.id
-  policy = data.aws_iam_policy_document.github_actions_state.json
-}
+# Large staging permission sets use customer-managed policies so the GitHub
+# Actions role does not exceed IAM's aggregate inline-policy size limit.
 
-data "aws_iam_policy_document" "github_actions_staging_application_infrastructure" {
-  # checkov:skip=CKV_AWS_356:Selected EC2 create and instance-profile association APIs require broad resource matching; request tags and deterministic names constrain staging creation.
+data "aws_iam_policy_document" "staging_application" {
+  # checkov:skip=CKV_AWS_356:Selected EC2 create APIs require broad resource matching; request tags and deterministic names constrain staging creation.
+  # Application runtime infrastructure: ECR, internet gateway, routes, EC2 launch and lifecycle permissions.
   statement {
     sid       = "CreateTaggedStagingApiRepository"
     actions   = ["ecr:CreateRepository"]
@@ -451,7 +399,27 @@ data "aws_iam_policy_document" "github_actions_staging_application_infrastructur
       values   = ["terraform"]
     }
   }
+}
 
+resource "aws_iam_policy" "staging_application" {
+  name        = "voice-secure-wallet-staging-application"
+  description = "Application infrastructure provisioning permissions for staging"
+  policy      = data.aws_iam_policy_document.staging_application.json
+
+  tags = {
+    Project     = "voice-secure-wallet"
+    Environment = "staging"
+    ManagedBy   = "Terraform"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "staging_application" {
+  role       = aws_iam_role.github_actions.name
+  policy_arn = aws_iam_policy.staging_application.arn
+}
+
+data "aws_iam_policy_document" "staging_host_iam" {
+  # Application-host IAM role, instance profile, and iam:PassRole permissions.
   statement {
     sid = "ManageApplicationHostRole"
     actions = [
@@ -499,32 +467,124 @@ data "aws_iam_policy_document" "github_actions_staging_application_infrastructur
   }
 }
 
-resource "aws_iam_role_policy" "github_actions_staging_application_infrastructure" {
-  name   = "staging-application-infrastructure-access"
-  role   = aws_iam_role.github_actions.id
-  policy = data.aws_iam_policy_document.github_actions_staging_application_infrastructure.json
+resource "aws_iam_policy" "staging_host_iam" {
+  name        = "voice-secure-wallet-staging-host-iam"
+  description = "Application host IAM and instance-profile permissions for staging"
+  policy      = data.aws_iam_policy_document.staging_host_iam.json
+
+  tags = {
+    Project     = "voice-secure-wallet"
+    Environment = "staging"
+    ManagedBy   = "Terraform"
+  }
 }
 
-data "aws_iam_policy_document" "github_actions_staging_foundation" {
-  # checkov:skip=CKV_AWS_356:EC2, VPC Flow Logs, and KMS creation APIs require Resource="*"; request and resource tag conditions isolate staging.
+resource "aws_iam_role_policy_attachment" "staging_host_iam" {
+  role       = aws_iam_role.github_actions.name
+  policy_arn = aws_iam_policy.staging_host_iam.arn
+}
+
+data "aws_iam_policy_document" "staging_network" {
+  # checkov:skip=CKV_AWS_356:EC2 and VPC Flow Logs creation APIs require broad resource matching; request and resource tag conditions isolate staging.
+  # Network foundation: VPC, subnets, route tables, security groups, flow logs, and the S3 gateway endpoint.
   statement {
-    sid = "CreateTaggedStagingNetwork"
-    actions = [
-      "ec2:CreateFlowLogs",
-      "ec2:CreateRouteTable",
-      "ec2:CreateSecurityGroup",
-      "ec2:CreateSubnet",
-      "ec2:CreateVpc"
-    ]
-    resources = ["*"]
+    sid       = "CreateTaggedStagingVpc"
+    actions   = ["ec2:CreateVpc"]
+    resources = ["arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:vpc/*"]
+
     condition {
       test     = "StringEquals"
       variable = "aws:RequestTag/Environment"
       values   = ["staging"]
     }
+
     condition {
       test     = "StringEquals"
       variable = "aws:RequestTag/ManagedBy"
+      values   = ["terraform"]
+    }
+  }
+
+  statement {
+    sid = "CreateTaggedStagingVpcResources"
+    actions = [
+      "ec2:CreateRouteTable",
+      "ec2:CreateSecurityGroup",
+      "ec2:CreateSubnet"
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:route-table/*",
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:security-group/*",
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:subnet/*"
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Environment"
+      values   = ["staging"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/ManagedBy"
+      values   = ["terraform"]
+    }
+  }
+
+  statement {
+    sid = "UseTaggedStagingVpcForNetworkCreation"
+    actions = [
+      "ec2:CreateRouteTable",
+      "ec2:CreateSecurityGroup",
+      "ec2:CreateSubnet"
+    ]
+    resources = ["arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:vpc/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/Environment"
+      values   = ["staging"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/ManagedBy"
+      values   = ["terraform"]
+    }
+  }
+
+  statement {
+    sid       = "CreateTaggedStagingFlowLog"
+    actions   = ["ec2:CreateFlowLogs"]
+    resources = ["arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:vpc-flow-log/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Environment"
+      values   = ["staging"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/ManagedBy"
+      values   = ["terraform"]
+    }
+  }
+
+  statement {
+    sid       = "UseTaggedStagingVpcForFlowLogs"
+    actions   = ["ec2:CreateFlowLogs"]
+    resources = ["arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:vpc/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/Environment"
+      values   = ["staging"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/ManagedBy"
       values   = ["terraform"]
     }
   }
@@ -553,7 +613,7 @@ data "aws_iam_policy_document" "github_actions_staging_foundation" {
     sid     = "TagStagingNetworkOnCreate"
     actions = ["ec2:CreateTags"]
     resources = [
-      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:flow-log/*",
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:vpc-flow-log/*",
       "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:route-table/*",
       "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:security-group/*",
       "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:security-group-rule/*",
@@ -638,9 +698,6 @@ data "aws_iam_policy_document" "github_actions_staging_foundation" {
     }
   }
 
-  # A VPC's default security group predates Terraform and therefore cannot be
-  # protected by create-time tags. Only the deterministic staging Name tag may
-  # bootstrap that one resource into the normal resource-tag boundary above.
   statement {
     sid       = "TagStagingDefaultSecurityGroup"
     actions   = ["ec2:CreateTags"]
@@ -665,17 +722,47 @@ data "aws_iam_policy_document" "github_actions_staging_foundation" {
   statement {
     sid       = "CreateTaggedStagingGatewayEndpoint"
     actions   = ["ec2:CreateVpcEndpoint"]
-    resources = ["*"]
+    resources = ["arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:vpc-endpoint/*"]
+
     condition {
       test     = "StringEquals"
       variable = "aws:RequestTag/Environment"
       values   = ["staging"]
     }
+
     condition {
       test     = "StringEquals"
       variable = "aws:RequestTag/ManagedBy"
       values   = ["terraform"]
     }
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:VpceServiceName"
+      values   = ["com.amazonaws.${var.aws_region}.s3"]
+    }
+  }
+
+  statement {
+    sid     = "UseTaggedStagingNetworkForGatewayEndpoint"
+    actions = ["ec2:CreateVpcEndpoint"]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:route-table/*",
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:vpc/*"
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/Environment"
+      values   = ["staging"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/ManagedBy"
+      values   = ["terraform"]
+    }
+
     condition {
       test     = "StringEquals"
       variable = "ec2:VpceServiceName"
@@ -698,7 +785,28 @@ data "aws_iam_policy_document" "github_actions_staging_foundation" {
       values   = ["terraform"]
     }
   }
+}
 
+resource "aws_iam_policy" "staging_network" {
+  name        = "voice-secure-wallet-staging-network"
+  description = "Network foundation provisioning permissions for staging"
+  policy      = data.aws_iam_policy_document.staging_network.json
+
+  tags = {
+    Project     = "voice-secure-wallet"
+    Environment = "staging"
+    ManagedBy   = "Terraform"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "staging_network" {
+  role       = aws_iam_role.github_actions.name
+  policy_arn = aws_iam_policy.staging_network.arn
+}
+
+data "aws_iam_policy_document" "staging_security" {
+  # checkov:skip=CKV_AWS_356:KMS key creation requires Resource="*"; request and resource tag conditions isolate staging.
+  # Security foundation: KMS, audit buckets, CloudWatch logs, and the VPC flow-log IAM role.
   statement {
     sid       = "CreateTaggedStagingKmsKey"
     actions   = ["kms:CreateKey"]
@@ -727,6 +835,51 @@ data "aws_iam_policy_document" "github_actions_staging_foundation" {
       variable = "aws:ResourceTag/Environment"
       values   = ["staging"]
     }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/ManagedBy"
+      values   = ["terraform"]
+    }
+  }
+
+  statement {
+    sid       = "CreateGrantForTaggedStagingKmsKey"
+    actions   = ["kms:CreateGrant"]
+    resources = ["arn:${data.aws_partition.current.partition}:kms:${var.aws_region}:${data.aws_caller_identity.current.account_id}:key/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/Environment"
+      values   = ["staging"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/ManagedBy"
+      values   = ["terraform"]
+    }
+
+    condition {
+      test     = "Bool"
+      variable = "kms:GrantIsForAWSResource"
+      values   = ["true"]
+    }
+  }
+
+  statement {
+    sid = "UseTaggedStagingKmsKeyForEcr"
+    actions = [
+      "kms:DescribeKey",
+      "kms:RetireGrant"
+    ]
+    resources = ["arn:${data.aws_partition.current.partition}:kms:${var.aws_region}:${data.aws_caller_identity.current.account_id}:key/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:ResourceTag/Environment"
+      values   = ["staging"]
+    }
+
     condition {
       test     = "StringEquals"
       variable = "aws:ResourceTag/ManagedBy"
@@ -784,10 +937,21 @@ data "aws_iam_policy_document" "github_actions_staging_foundation" {
   }
 }
 
-resource "aws_iam_role_policy" "github_actions_staging_foundation" {
-  name   = "staging-foundation-apply-access"
-  role   = aws_iam_role.github_actions.id
-  policy = data.aws_iam_policy_document.github_actions_staging_foundation.json
+resource "aws_iam_policy" "staging_security" {
+  name        = "voice-secure-wallet-staging-security"
+  description = "Security and audit infrastructure permissions for staging"
+  policy      = data.aws_iam_policy_document.staging_security.json
+
+  tags = {
+    Project     = "voice-secure-wallet"
+    Environment = "staging"
+    ManagedBy   = "Terraform"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "staging_security" {
+  role       = aws_iam_role.github_actions.name
+  policy_arn = aws_iam_policy.staging_security.arn
 }
 
 output "github_actions_role_arn" {
