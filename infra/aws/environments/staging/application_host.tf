@@ -30,6 +30,7 @@ locals {
 
 resource "aws_instance" "application_host" {
   # checkov:skip=CKV_AWS_88:The low-cost staging runtime is intentionally public because this environment has no NAT gateway or load balancer.
+  # checkov:skip=CKV_AWS_126:Detailed monitoring is intentionally disabled for the low-cost staging environment; basic monitoring is sufficient.
   ami                                  = local.application_ami_id
   instance_type                        = var.application_instance_type
   subnet_id                            = aws_subnet.application_public.id
