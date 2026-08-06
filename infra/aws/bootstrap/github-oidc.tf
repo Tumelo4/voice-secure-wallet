@@ -372,19 +372,69 @@ data "aws_iam_policy_document" "staging_application" {
   }
 
   statement {
+    sid       = "CreateTaggedStagingVpcEndpoint"
+    actions   = ["ec2:CreateVpcEndpoint"]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Environment"
+      values   = ["staging"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/ManagedBy"
+      values   = ["terraform"]
+    }
+  }
+
+  statement {
+    sid = "ManageTaggedStagingVpcEndpoints"
+    actions = [
+      "ec2:DeleteVpcEndpoints",
+      "ec2:ModifyVpcEndpoint"
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:vpc-endpoint/*"
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/Environment"
+      values   = ["staging"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/ManagedBy"
+      values   = ["terraform"]
+    }
+  }
+
+  statement {
     sid     = "TagApplicationResourcesOnCreate"
     actions = ["ec2:CreateTags"]
     resources = [
       "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/*",
       "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:internet-gateway/*",
       "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:network-interface/*",
-      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:volume/*"
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:volume/*",
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:vpc-endpoint/*",
     ]
 
     condition {
       test     = "StringEquals"
       variable = "ec2:CreateAction"
-      values   = ["CreateInternetGateway", "RunInstances"]
+      values = [
+
+        "CreateInternetGateway",
+
+        "CreateVpcEndpoint",
+
+        "RunInstances",
+
+      ]
     }
 
     condition {

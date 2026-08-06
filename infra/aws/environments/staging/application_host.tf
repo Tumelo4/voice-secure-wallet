@@ -36,7 +36,7 @@ resource "aws_instance" "application_host" {
   vpc_security_group_ids               = [aws_security_group.application_host.id]
   iam_instance_profile                 = aws_iam_instance_profile.application_host.name
   associate_public_ip_address          = true
-  monitoring                           = true
+  monitoring                           = false
   ebs_optimized                        = true
   source_dest_check                    = true
   instance_initiated_shutdown_behavior = "stop"
