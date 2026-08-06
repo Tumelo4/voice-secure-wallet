@@ -60,7 +60,11 @@ jobs:
       - run: ruff check services/voice-service
       - run: mypy services/voice-service/src
       - run: bandit -q -r services/voice-service/src
-      - run: pip-audit
+      - name: Export installed third-party packages
+        run: python -m pip freeze --exclude-editable > /tmp/third-party-requirements.txt
+
+      - name: Audit installed third-party packages
+        run: pip-audit -r /tmp/third-party-requirements.txt
 
   java-security:
     runs-on: ubuntu-latest

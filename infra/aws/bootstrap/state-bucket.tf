@@ -39,6 +39,7 @@ resource "aws_kms_alias" "bootstrap" {
 resource "aws_s3_bucket" "state_access_logs" {
   # checkov:skip=CKV_AWS_18:This is the terminal access-log sink and cannot recursively log to itself.
   # checkov:skip=CKV_AWS_144:Terraform access logs must remain in the South African data-residency region.
+  # checkov:skip=CKV_AWS_145:S3 server access-log delivery requires SSE-S3 on the destination bucket; the bucket remains encrypted at rest.
   bucket = "${var.state_bucket_name}-access-logs"
 }
 resource "aws_s3_bucket_logging" "state" {

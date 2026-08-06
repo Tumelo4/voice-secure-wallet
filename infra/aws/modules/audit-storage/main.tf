@@ -16,6 +16,7 @@ data "aws_caller_identity" "current" {}
 resource "aws_s3_bucket" "access_logs" {
   # checkov:skip=CKV_AWS_18:This is the terminal access-log sink and cannot recursively log to itself.
   # checkov:skip=CKV_AWS_144:Regulated audit data must remain in the configured data-residency region.
+  # checkov:skip=CKV_AWS_145:S3 server access-log delivery requires SSE-S3 on the destination bucket; the bucket remains encrypted at rest.
   bucket = "${var.name}-access-logs"
 }
 resource "aws_s3_bucket_notification" "access_logs" {

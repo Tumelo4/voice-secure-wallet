@@ -16,6 +16,7 @@ resource "aws_internet_gateway" "staging" {
 }
 
 resource "aws_subnet" "application_public" {
+  # checkov:skip=CKV_AWS_130:This dedicated staging edge subnet intentionally assigns public addresses to the single public application host.
   vpc_id                  = module.networking.vpc_id
   cidr_block              = var.application_public_subnet_cidr
   availability_zone       = data.aws_availability_zones.staging.names[0]
@@ -74,6 +75,7 @@ resource "aws_security_group" "application_host" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "application_http" {
+  # checkov:skip=CKV_AWS_260:Port 80 is intentionally public for the temporary staging API and health checks; production uses the private application tier behind an ALB.
   for_each = var.application_ingress_cidrs
 
   security_group_id = aws_security_group.application_host.id
