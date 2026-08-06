@@ -30,13 +30,14 @@ locals {
 
 resource "aws_instance" "application_host" {
   # checkov:skip=CKV_AWS_88:The low-cost staging runtime is intentionally public because this environment has no NAT gateway or load balancer.
+  # checkov:skip=CKV_AWS_126:Detailed monitoring is intentionally disabled for the low-cost staging environment; basic monitoring is sufficient.
   ami                                  = local.application_ami_id
   instance_type                        = var.application_instance_type
   subnet_id                            = aws_subnet.application_public.id
   vpc_security_group_ids               = [aws_security_group.application_host.id]
   iam_instance_profile                 = aws_iam_instance_profile.application_host.name
   associate_public_ip_address          = true
-  monitoring                           = true
+  monitoring                           = false
   ebs_optimized                        = true
   source_dest_check                    = true
   instance_initiated_shutdown_behavior = "stop"

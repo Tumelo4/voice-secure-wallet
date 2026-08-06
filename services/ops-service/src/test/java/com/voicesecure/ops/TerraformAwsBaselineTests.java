@@ -112,7 +112,14 @@ public final class TerraformAwsBaselineTests {
 
     private static void githubOidcFoundationWritesAreScoped() throws IOException {
         String oidc = read("bootstrap/github-oidc.tf");
-        assertContains(oidc, "staging-foundation-apply-access", "dedicated staging foundation policy");
+        assertContains(
+                oidc,
+                "voice-secure-wallet-staging-network",
+                "dedicated staging network policy");
+        assertContains(
+                oidc,
+                "voice-secure-wallet-staging-security",
+                "dedicated staging security policy");
         assertContains(oidc, "aws:RequestTag/Environment", "staging create tag boundary");
         assertContains(oidc, "ec2:ResourceTag/Environment", "staging EC2 resource boundary");
         assertContains(oidc, "ec2:CreateAction", "tag-on-create boundary");
