@@ -95,7 +95,15 @@ public final class TerraformAwsBaselineTests {
         assertContains(oidc, "resource \"aws_iam_role\" \"github_actions\"", "shared GitHub Actions role");
         assertContains(oidc, "\"voice-secure-wallet\"", "shared GitHub Actions role name");
         assertContains(oidc, "aws:policy/ReadOnlyAccess", "read-only discovery policy");
-        assertContains(oidc, "repository/voice-secure-wallet-*", "project ECR scope");
+        assertContains(oidc, "CreateTaggedStagingApiRepository", "tagged ECR repository creation");
+        assertContains(oidc, "actions = [\"ecr:CreateRepository\"]", "ECR repository create permission");
+        assertContains(oidc, "aws:RequestTag/Environment", "ECR environment request tag");
+        assertContains(oidc, "aws:RequestTag/ManagedBy", "ECR managed-by request tag");
+        assertContains(oidc, "aws:RequestTag/Project", "ECR project request tag");
+        assertContains(
+            oidc,
+            "repository/${local.application_repository_name}",
+            "exact staging ECR repository scope");
         assertContains(oidc, "iam:PassedToService", "task-role passing boundary");
         assertContains(oidc, "aws_kms_key.bootstrap.arn", "Terraform state KMS scope");
         assertTrue(!oidc.contains("PowerUserAccess"), "OIDC role must not have power-user access");
