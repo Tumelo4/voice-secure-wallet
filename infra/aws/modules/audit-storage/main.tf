@@ -11,9 +11,12 @@ variable "retention_days" {
   type = number
 }
 
+data "aws_caller_identity" "current" {}
+
 resource "aws_s3_bucket" "access_logs" {
   # checkov:skip=CKV_AWS_18:This is the terminal access-log sink and cannot recursively log to itself.
   # checkov:skip=CKV_AWS_144:Regulated audit data must remain in the configured data-residency region.
+  # checkov:skip=CKV_AWS_145:S3 server access-log delivery requires SSE-S3 on the destination bucket; the bucket remains encrypted at rest.
   bucket = "${var.name}-access-logs"
 }
 resource "aws_s3_bucket_notification" "access_logs" {
@@ -45,11 +48,41 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "access_logs" {
   bucket = aws_s3_bucket.access_logs.id
   rule {
     apply_server_side_encryption_by_default {
-      kms_master_key_id = var.kms_key_arn
-      sse_algorithm     = "aws:kms"
+      sse_algorithm = "AES256"
     }
   }
 }
+
+data "aws_iam_policy_document" "access_logs" {
+  statement {
+    sid       = "AllowS3ServerAccessLogDelivery"
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.access_logs.arn}/audit-evidence/*"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["logging.s3.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+
+    condition {
+      test     = "ArnLike"
+      variable = "aws:SourceArn"
+      values   = [aws_s3_bucket.audit.arn]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+  policy = data.aws_iam_policy_document.access_logs.json
+}
+
 resource "aws_s3_bucket_versioning" "access_logs" {
   bucket = aws_s3_bucket.access_logs.id
   versioning_configuration {
@@ -66,6 +99,8 @@ resource "aws_s3_bucket_logging" "audit" {
   bucket        = aws_s3_bucket.audit.id
   target_bucket = aws_s3_bucket.access_logs.id
   target_prefix = "audit-evidence/"
+
+  depends_on = [aws_s3_bucket_policy.access_logs]
 }
 resource "aws_s3_bucket_notification" "audit" {
   bucket      = aws_s3_bucket.audit.id

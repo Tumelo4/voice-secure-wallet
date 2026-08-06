@@ -26,9 +26,7 @@ terraform -chdir=infra/aws/bootstrap init
 terraform -chdir=infra/aws/bootstrap apply
 ```
 
-Configure the repository secret `TF_VAR_REDIS_AUTH_TOKEN`. Both AWS workflows
-assume the existing
-`arn:aws:iam::296032707614:role/voice-secure-wallet` role.
+Configure `TF_VAR_REDIS_AUTH_TOKEN` only when Redis is enabled. Both AWS workflows continue to assume the existing `arn:aws:iam::296032707614:role/voice-secure-wallet` role.
 
 Run the `AWS staging plan` workflow manually from `main`. Its trust policy
 accepts only the
