@@ -228,9 +228,32 @@ resource "aws_iam_role_policy" "github_actions_state" {
 data "aws_iam_policy_document" "github_actions_staging_application_infrastructure" {
   # checkov:skip=CKV_AWS_356:Selected EC2 create and instance-profile association APIs require broad resource matching; request tags and deterministic names constrain staging creation.
   statement {
+    sid       = "CreateTaggedStagingApiRepository"
+    actions   = ["ecr:CreateRepository"]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Environment"
+      values   = ["staging"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/ManagedBy"
+      values   = ["terraform"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/Project"
+      values   = ["voice-secure-wallet"]
+    }
+  }
+
+  statement {
     sid = "ManageStagingApiRepository"
     actions = [
-      "ecr:CreateRepository",
       "ecr:DeleteLifecyclePolicy",
       "ecr:DeleteRepository",
       "ecr:PutImageScanningConfiguration",

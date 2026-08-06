@@ -10,6 +10,7 @@ terraform {
 provider "aws" {
   region = var.aws_region
 }
+
 variable "aws_region" {
   type    = string
   default = "af-south-1"
@@ -44,7 +45,40 @@ resource "aws_s3_bucket_logging" "state" {
   bucket        = aws_s3_bucket.state.id
   target_bucket = aws_s3_bucket.state_access_logs.id
   target_prefix = "state/"
+
+  depends_on = [aws_s3_bucket_policy.state_access_logs]
 }
+
+data "aws_iam_policy_document" "state_access_logs" {
+  statement {
+    sid       = "AllowS3ServerAccessLogDelivery"
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.state_access_logs.arn}/state/*"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["logging.s3.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+
+    condition {
+      test     = "ArnLike"
+      variable = "aws:SourceArn"
+      values   = [aws_s3_bucket.state.arn]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "state_access_logs" {
+  bucket = aws_s3_bucket.state_access_logs.id
+  policy = data.aws_iam_policy_document.state_access_logs.json
+}
+
 resource "aws_s3_bucket_versioning" "state_access_logs" {
   bucket = aws_s3_bucket.state_access_logs.id
   versioning_configuration {
@@ -55,8 +89,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "state_access_logs
   bucket = aws_s3_bucket.state_access_logs.id
   rule {
     apply_server_side_encryption_by_default {
-      kms_master_key_id = aws_kms_key.bootstrap.arn
-      sse_algorithm     = "aws:kms"
+      sse_algorithm = "AES256"
     }
   }
 }

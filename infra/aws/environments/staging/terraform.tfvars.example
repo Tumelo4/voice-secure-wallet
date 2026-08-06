@@ -1,6 +1,7 @@
 aws_region       = "af-south-1"
 name             = "voicesecure-staging"
-redis_auth_token = "supply-through-TF_VAR-not-source-control"
+# Only set when enable_redis = true:
+# redis_auth_token = "supply-through-TF_VAR-not-source-control"
 
 # Cost-bearing managed data services are opt-in for staging.
 enable_msk                       = false

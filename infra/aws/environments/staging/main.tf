@@ -69,6 +69,15 @@ module "database" {
   skip_final_snapshot          = true
 }
 
+resource "terraform_data" "validate_staging_inputs" {
+  lifecycle {
+    precondition {
+      condition     = !var.enable_redis || var.redis_auth_token != null
+      error_message = "redis_auth_token is required when enable_redis is true."
+    }
+  }
+}
+
 module "cache" {
   count             = var.enable_redis ? 1 : 0
   source            = "../../modules/cache"
@@ -80,6 +89,7 @@ module "cache" {
   node_count        = var.redis_node_count
   multi_az          = var.redis_multi_az
   auth_token        = var.redis_auth_token
+  depends_on        = [terraform_data.validate_staging_inputs]
 }
 
 module "messaging" {

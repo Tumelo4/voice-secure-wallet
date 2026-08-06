@@ -22,7 +22,6 @@ jobs:
       AWS_REGION: af-south-1
       AWS_DEFAULT_REGION: af-south-1
       EXPECTED_AWS_ACCOUNT_ID: "296032707614"
-      TF_VAR_redis_auth_token: "${{ secrets.TF_VAR_REDIS_AUTH_TOKEN }}"
       CONFIRM_STAGING_APPLY: "staging:296032707614"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -43,7 +42,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$TF_VAR_redis_auth_token"
           test "$CONFIRM_STAGING_APPLY" = "staging:$EXPECTED_AWS_ACCOUNT_ID"
           actual_account="$(aws sts get-caller-identity --query Account --output text)"
           test "$actual_account" = "$EXPECTED_AWS_ACCOUNT_ID"

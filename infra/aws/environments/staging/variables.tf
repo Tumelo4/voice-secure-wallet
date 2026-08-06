@@ -9,12 +9,15 @@ variable "name" {
 }
 
 variable "redis_auth_token" {
-  type      = string
-  sensitive = true
+  description = "Redis AUTH token. Required only when enable_redis is true."
+  type        = string
+  sensitive   = true
+  default     = null
+  nullable    = true
 
   validation {
-    condition     = length(var.redis_auth_token) >= 32
-    error_message = "redis_auth_token must be at least 32 characters."
+    condition     = var.redis_auth_token == null || length(var.redis_auth_token) >= 32
+    error_message = "redis_auth_token must be null or at least 32 characters."
   }
 }
 

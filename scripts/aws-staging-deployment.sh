@@ -7,7 +7,7 @@ if [[ "$action" != "plan" && "$action" != "apply" ]]; then
   exit 64
 fi
 
-required=(EXPECTED_AWS_ACCOUNT_ID TF_VAR_redis_auth_token)
+required=(EXPECTED_AWS_ACCOUNT_ID)
 for name in "${required[@]}"; do
   if [[ -z "${!name:-}" ]]; then
     echo "$name must be set" >&2

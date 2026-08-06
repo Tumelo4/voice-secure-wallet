@@ -80,11 +80,8 @@ jobs:
 
       - name: Create or update staging infrastructure
         shell: bash
-        env:
-          TF_VAR_redis_auth_token: ${{ secrets.TF_VAR_REDIS_AUTH_TOKEN }}
         run: |
           set -euo pipefail
-          test -n "$TF_VAR_redis_auth_token"
           terraform -chdir="$TERRAFORM_DIR" init -input=false
           terraform -chdir="$TERRAFORM_DIR" validate
           terraform -chdir="$TERRAFORM_DIR" plan -input=false -out=staging.tfplan
