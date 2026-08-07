@@ -1,0 +1,168 @@
+name: Staging mobile delivery
+
+on:
+  workflow_run:
+    workflows:
+      - Staging application delivery
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+
+concurrency:
+  group: staging-mobile-delivery
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: af-south-1
+  AWS_DEFAULT_REGION: af-south-1
+  EXPECTED_AWS_ACCOUNT_ID: "296032707614"
+  TERRAFORM_DIR: infra/aws/environments/staging
+  NODE_VERSION: "24"
+  JAVA_VERSION: "17"
+
+jobs:
+  android-staging:
+    name: Build Android staging APK
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: staging
+
+    steps:
+      - name: Resolve commit to build
+        id: revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_run" ]]; then
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out deployed commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ steps.revision.outputs.sha }}
+
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "~1.13.0"
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885 # v6.1.1
+        with:
+          role-to-assume: arn:aws:iam::296032707614:role/voice-secure-wallet
+          aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
+          role-session-name: voicesecure-staging-mobile-${{ github.run_id }}
+          allowed-account-ids: ${{ env.EXPECTED_AWS_ACCOUNT_ID }}
+
+      - name: Verify AWS account
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_account="$(aws sts get-caller-identity --query Account --output text)"
+          test "$actual_account" = "$EXPECTED_AWS_ACCOUNT_ID"
+
+      - name: Resolve staging API URL
+        id: api
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir="$TERRAFORM_DIR" init -input=false
+          public_ip="$(terraform -chdir="$TERRAFORM_DIR" output -raw application_public_ip)"
+          test -n "$public_ip"
+          api_base_url="http://${public_ip}"
+          curl --fail --retry 12 --retry-delay 5 --retry-all-errors \
+            --silent --show-error "${api_base_url}/health/ready" >/dev/null
+          echo "base-url=${api_base_url}" >> "$GITHUB_OUTPUT"
+
+      - name: Install mobile dependencies
+        working-directory: apps/mobile
+        run: npm ci --no-fund --no-audit
+
+      - name: Audit mobile dependencies
+        working-directory: apps/mobile
+        run: npm audit --audit-level=high
+
+      - name: Validate mobile application
+        working-directory: apps/mobile
+        run: npm run validate
+
+      - name: Generate Android project
+        working-directory: apps/mobile
+        env:
+          CI: "1"
+          EXPO_PUBLIC_API_BASE_URL: ${{ steps.api.outputs.base-url }}
+        run: npx expo prebuild --platform android --clean --no-install
+
+      - name: Build installable staging APK
+        working-directory: apps/mobile/android
+        env:
+          CI: "1"
+          EXPO_PUBLIC_API_BASE_URL: ${{ steps.api.outputs.base-url }}
+        run: ./gradlew --no-daemon assembleDebug
+
+      - name: Package staging APK
+        id: apk
+        shell: bash
+        env:
+          COMMIT_SHA: ${{ steps.revision.outputs.sha }}
+        run: |
+          set -euo pipefail
+          source_apk="apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$source_apk"
+          output_apk="apps/mobile/voicesecure-wallet-staging-${COMMIT_SHA}.apk"
+          cp "$source_apk" "$output_apk"
+          echo "path=$output_apk" >> "$GITHUB_OUTPUT"
+
+      - name: Upload staging APK
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: voicesecure-wallet-staging-${{ steps.revision.outputs.sha }}
+          path: ${{ steps.apk.outputs.path }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Mobile deployment summary
+        shell: bash
+        env:
+          COMMIT_SHA: ${{ steps.revision.outputs.sha }}
+          API_BASE_URL: ${{ steps.api.outputs.base-url }}
+        run: |
+          {
+            echo "## Staging mobile delivery"
+            echo
+            echo "- Commit: \`$COMMIT_SHA\`"
+            echo "- Backend API: \`$API_BASE_URL\`"
+            echo "- Android: installable debug-signed staging APK uploaded as a workflow artifact"
+            echo "- Store publication: not performed; release signing/store credentials are intentionally separate"
+          } >> "$GITHUB_STEP_SUMMARY"
+

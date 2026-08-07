@@ -17,6 +17,10 @@
         }
       ],
       "expo-audio"
-    ]
+    ],
+    "android": {
+      "package": "com.voicesecure.wallet",
+      "versionCode": 1
+    }
   }
 }
