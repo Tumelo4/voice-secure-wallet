@@ -122,21 +122,35 @@ jobs:
           aws ecr get-login-password --region "$AWS_REGION" \
             | docker login --username AWS --password-stdin "$registry"
 
-          docker build \
-            --file services/api-adapter-service/Dockerfile \
-            --tag "$tagged_image" \
-            .
-
-          docker push "$tagged_image"
-
-          digest="$(
+          existing_digest="$(
             aws ecr describe-images \
               --region "$AWS_REGION" \
               --repository-name "$REPOSITORY_NAME" \
               --image-ids imageTag="$COMMIT_SHA" \
               --query 'imageDetails[0].imageDigest' \
-              --output text
+              --output text 2>/dev/null || true
           )"
+
+          if [[ "$existing_digest" == sha256:* ]]; then
+            echo "Immutable ECR tag already exists for $COMMIT_SHA; reusing $existing_digest"
+            digest="$existing_digest"
+          else
+            docker build \
+              --file services/api-adapter-service/Dockerfile \
+              --tag "$tagged_image" \
+              .
+
+            docker push "$tagged_image"
+
+            digest="$(
+              aws ecr describe-images \
+                --region "$AWS_REGION" \
+                --repository-name "$REPOSITORY_NAME" \
+                --image-ids imageTag="$COMMIT_SHA" \
+                --query 'imageDetails[0].imageDigest' \
+                --output text
+            )"
+          fi
 
           [[ "$digest" == sha256:* ]]
           echo "uri=${REPOSITORY_URL}@${digest}" >> "$GITHUB_OUTPUT"
@@ -258,19 +272,58 @@ jobs:
           INSTANCE_ID: ${{ steps.target.outputs.instance-id }}
         run: |
           set -euo pipefail
-          aws ssm wait command-executed \
-            --region "$AWS_REGION" \
-            --command-id "$COMMAND_ID" \
-            --instance-id "$INSTANCE_ID"
 
-          invocation="$(
-            aws ssm get-command-invocation \
-              --region "$AWS_REGION" \
-              --command-id "$COMMAND_ID" \
-              --instance-id "$INSTANCE_ID"
-          )"
-          jq '{Status,StatusDetails,StandardOutputContent,StandardErrorContent}' <<<"$invocation"
-          test "$(jq -r '.Status' <<<"$invocation")" = "Success"
+          invocation=""
+          for attempt in $(seq 1 120); do
+            set +e
+            invocation="$(
+              aws ssm get-command-invocation \
+                --region "$AWS_REGION" \
+                --command-id "$COMMAND_ID" \
+                --instance-id "$INSTANCE_ID" 2>/tmp/ssm-invocation-error
+            )"
+            rc=$?
+            set -e
+
+            if [[ $rc -ne 0 ]]; then
+              error_text="$(cat /tmp/ssm-invocation-error 2>/dev/null || true)"
+              if grep -q "InvocationDoesNotExist" <<<"$error_text"; then
+                echo "Remote deployment invocation not visible yet ($attempt/120)"
+                sleep 5
+                continue
+              fi
+              echo "$error_text" >&2
+              exit $rc
+            fi
+
+            status="$(jq -r '.Status' <<<"$invocation")"
+            echo "Remote deployment status ($attempt/120): $status"
+
+            case "$status" in
+              Success)
+                jq '{Status,StatusDetails,ResponseCode,StandardOutputContent,StandardErrorContent}' <<<"$invocation"
+                exit 0
+                ;;
+              Failed|Cancelled|TimedOut)
+                jq '{Status,StatusDetails,ResponseCode,StandardOutputContent,StandardErrorContent}' <<<"$invocation"
+                exit 1
+                ;;
+              Pending|InProgress|Delayed|Cancelling)
+                sleep 5
+                ;;
+              *)
+                echo "Unexpected SSM command status: $status" >&2
+                jq '{Status,StatusDetails,ResponseCode,StandardOutputContent,StandardErrorContent}' <<<"$invocation"
+                exit 1
+                ;;
+            esac
+          done
+
+          echo "Remote deployment did not finish within 10 minutes" >&2
+          if [[ -n "$invocation" ]]; then
+            jq '{Status,StatusDetails,ResponseCode,StandardOutputContent,StandardErrorContent}' <<<"$invocation" || true
+          fi
+          exit 1
 
       - name: Verify public staging health
         shell: bash

@@ -87,8 +87,6 @@ resource "aws_security_group" "interface_endpoints" {
   description            = "HTTPS from private application workloads to AWS interface endpoints"
   vpc_id                 = aws_vpc.this.id
   revoke_rules_on_delete = true
-  ingress                = []
-  egress                 = []
 }
 
 resource "aws_vpc_security_group_ingress_rule" "interface_endpoints_from_app" {
@@ -130,8 +128,6 @@ resource "aws_security_group" "alb" {
   description            = "HTTPS edge"
   vpc_id                 = aws_vpc.this.id
   revoke_rules_on_delete = true
-  ingress                = []
-  egress                 = []
 }
 resource "aws_security_group" "app" {
   # checkov:skip=CKV2_AWS_5:This security group is attached to ECS services in the compute module.
@@ -139,8 +135,6 @@ resource "aws_security_group" "app" {
   description            = "Private application tier"
   vpc_id                 = aws_vpc.this.id
   revoke_rules_on_delete = true
-  ingress                = []
-  egress                 = []
 }
 resource "aws_security_group" "database" {
   # checkov:skip=CKV2_AWS_5:This security group is attached to the RDS instance in the database module.
@@ -148,8 +142,6 @@ resource "aws_security_group" "database" {
   description            = "PostgreSQL"
   vpc_id                 = aws_vpc.this.id
   revoke_rules_on_delete = true
-  ingress                = []
-  egress                 = []
 }
 resource "aws_security_group" "redis" {
   # checkov:skip=CKV2_AWS_5:This security group is attached to the replication group in the cache module.
@@ -157,8 +149,6 @@ resource "aws_security_group" "redis" {
   description            = "Redis TLS"
   vpc_id                 = aws_vpc.this.id
   revoke_rules_on_delete = true
-  ingress                = []
-  egress                 = []
 }
 resource "aws_security_group" "msk" {
   # checkov:skip=CKV2_AWS_5:This security group is attached to the cluster in the messaging module.
@@ -166,8 +156,6 @@ resource "aws_security_group" "msk" {
   description            = "MSK IAM TLS"
   vpc_id                 = aws_vpc.this.id
   revoke_rules_on_delete = true
-  ingress                = []
-  egress                 = []
 }
 
 resource "aws_vpc_security_group_ingress_rule" "alb_https" {

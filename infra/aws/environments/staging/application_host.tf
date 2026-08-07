@@ -76,7 +76,7 @@ resource "aws_instance" "application_host" {
 
     exec > >(tee /var/log/voicesecure-bootstrap.log | logger -t voicesecure-bootstrap -s 2>/dev/console) 2>&1
 
-    dnf install -y docker curl
+    dnf install -y docker
     systemctl enable --now docker
     systemctl enable --now amazon-ssm-agent
     usermod -aG docker ec2-user
@@ -98,10 +98,11 @@ resource "aws_instance" "application_host" {
     # New Amazon Linux images are discovered for replacement hosts, but routine
     # application delivery must not replace a healthy instance just because a
     # newer AMI was published. Replace deliberately to adopt a new base image.
-    ignore_changes = [ami]
+    ignore_changes = [ami, user_data]
   }
 
   depends_on = [
+    aws_vpc_security_group_egress_rule.application_outbound,
     aws_route.application_internet,
     aws_route_table_association.application_public,
     aws_iam_role_policy_attachment.application_host_ssm,

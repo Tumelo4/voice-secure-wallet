@@ -61,8 +61,6 @@ resource "aws_security_group" "application_host" {
   description            = "HTTP ingress for the staging application runtime"
   vpc_id                 = module.networking.vpc_id
   revoke_rules_on_delete = true
-  ingress                = []
-  egress                 = []
 
   tags = {
     Name        = "${var.name}-application-host"

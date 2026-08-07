@@ -813,11 +813,6 @@ data "aws_iam_policy_document" "staging_network" {
       values   = ["terraform"]
     }
 
-    condition {
-      test     = "StringEquals"
-      variable = "ec2:VpceServiceName"
-      values   = ["com.amazonaws.${var.aws_region}.s3"]
-    }
   }
 
   statement {
