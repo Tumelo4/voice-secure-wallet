@@ -1004,6 +1004,87 @@ resource "aws_iam_role_policy_attachment" "staging_security" {
   policy_arn = aws_iam_policy.staging_security.arn
 }
 
+data "aws_iam_policy_document" "staging_delivery" {
+  # checkov:skip=CKV_AWS_356:ECR authorization and SSM command-result APIs require Resource="*"; image mutation is scoped to the staging repository and deployment is scoped to the tagged staging host.
+  statement {
+    sid       = "GetEcrAuthorizationToken"
+    actions   = ["ecr:GetAuthorizationToken"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid = "PushStagingApiImage"
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:BatchGetImage",
+      "ecr:CompleteLayerUpload",
+      "ecr:DescribeImages",
+      "ecr:DescribeRepositories",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:InitiateLayerUpload",
+      "ecr:PutImage",
+      "ecr:UploadLayerPart"
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:ecr:${var.aws_region}:${data.aws_caller_identity.current.account_id}:repository/${local.application_repository_name}"
+    ]
+  }
+
+  statement {
+    sid     = "UseAwsRunShellScript"
+    actions = ["ssm:SendCommand"]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:ssm:${var.aws_region}::document/AWS-RunShellScript"
+    ]
+  }
+
+  statement {
+    sid     = "DeployOnlyToTaggedStagingHost"
+    actions = ["ssm:SendCommand"]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/*"
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ssm:resourceTag/Project"
+      values   = ["voice-secure-wallet"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "ssm:resourceTag/Environment"
+      values   = ["staging"]
+    }
+  }
+
+  statement {
+    sid = "ReadDeploymentCommandResult"
+    actions = [
+      "ssm:GetCommandInvocation",
+      "ssm:ListCommandInvocations"
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_policy" "staging_delivery" {
+  name        = "voice-secure-wallet-staging-delivery"
+  description = "ECR image publishing and SSM deployment permissions for staging"
+  policy      = data.aws_iam_policy_document.staging_delivery.json
+
+  tags = {
+    Project     = "voice-secure-wallet"
+    Environment = "staging"
+    ManagedBy   = "Terraform"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "staging_delivery" {
+  role       = aws_iam_role.github_actions.name
+  policy_arn = aws_iam_policy.staging_delivery.arn
+}
+
 output "github_actions_role_arn" {
   value = aws_iam_role.github_actions.arn
 }
