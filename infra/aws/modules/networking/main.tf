@@ -89,6 +89,10 @@ resource "aws_security_group" "interface_endpoints" {
   revoke_rules_on_delete = true
   ingress                = []
   egress                 = []
+
+  lifecycle {
+    ignore_changes = [ingress, egress]
+  }
 }
 
 resource "aws_vpc_security_group_ingress_rule" "interface_endpoints_from_app" {
@@ -132,6 +136,10 @@ resource "aws_security_group" "alb" {
   revoke_rules_on_delete = true
   ingress                = []
   egress                 = []
+
+  lifecycle {
+    ignore_changes = [ingress, egress]
+  }
 }
 resource "aws_security_group" "app" {
   # checkov:skip=CKV2_AWS_5:This security group is attached to ECS services in the compute module.
@@ -141,6 +149,10 @@ resource "aws_security_group" "app" {
   revoke_rules_on_delete = true
   ingress                = []
   egress                 = []
+
+  lifecycle {
+    ignore_changes = [ingress, egress]
+  }
 }
 resource "aws_security_group" "database" {
   # checkov:skip=CKV2_AWS_5:This security group is attached to the RDS instance in the database module.
@@ -150,6 +162,10 @@ resource "aws_security_group" "database" {
   revoke_rules_on_delete = true
   ingress                = []
   egress                 = []
+
+  lifecycle {
+    ignore_changes = [ingress, egress]
+  }
 }
 resource "aws_security_group" "redis" {
   # checkov:skip=CKV2_AWS_5:This security group is attached to the replication group in the cache module.
@@ -159,6 +175,10 @@ resource "aws_security_group" "redis" {
   revoke_rules_on_delete = true
   ingress                = []
   egress                 = []
+
+  lifecycle {
+    ignore_changes = [ingress, egress]
+  }
 }
 resource "aws_security_group" "msk" {
   # checkov:skip=CKV2_AWS_5:This security group is attached to the cluster in the messaging module.
@@ -168,6 +188,10 @@ resource "aws_security_group" "msk" {
   revoke_rules_on_delete = true
   ingress                = []
   egress                 = []
+
+  lifecycle {
+    ignore_changes = [ingress, egress]
+  }
 }
 
 resource "aws_vpc_security_group_ingress_rule" "alb_https" {
