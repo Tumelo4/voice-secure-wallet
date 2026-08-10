@@ -35,7 +35,9 @@ jobs:
           push: false
           tags: "voicesecure/${{ matrix.component }}:ci"
           provenance: false
-      - uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+      - id: trivy
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
           image-ref: "voicesecure/${{ matrix.component }}:ci"
           format: sarif
@@ -50,11 +52,26 @@ jobs:
           output-file: "${{ matrix.component }}.cdx.json"
           upload-artifact: false
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
         with:
           name: "${{ matrix.component }}-supply-chain-evidence"
           path: |
             ${{ matrix.component }}.cdx.json
             ${{ matrix.component }}-trivy.sarif
+      - name: Enforce vulnerability gate
+        if: always()
+        env:
+          TRIVY_OUTCOME: "${{ steps.trivy.outcome }}"
+          TRIVY_REPORT: "${{ matrix.component }}-trivy.sarif"
+        shell: bash
+        run: |
+          if [[ -f "$TRIVY_REPORT" ]]; then
+            jq -r '.runs[].results[]? | [.ruleId, .level, .message.text] | @tsv' "$TRIVY_REPORT"
+          fi
+          if [[ "$TRIVY_OUTCOME" != "success" ]]; then
+            echo "Trivy found a fixed HIGH or CRITICAL vulnerability."
+            exit 1
+          fi
 
   publish-by-digest:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

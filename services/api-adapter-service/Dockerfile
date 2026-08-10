@@ -8,7 +8,7 @@ RUN mvn --batch-mode --no-transfer-progress -pl services/api-adapter-service -am
       -DincludeScope=runtime \
       -DoutputDirectory=/out/lib
 
-FROM eclipse-temurin:17.0.16_8-jre-noble
+FROM eclipse-temurin:17.0.17_10-jre-noble
 RUN apt-get update \
     && apt-get upgrade --yes \
     && rm -rf /var/lib/apt/lists/*
