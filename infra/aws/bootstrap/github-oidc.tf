@@ -1085,6 +1085,78 @@ resource "aws_iam_role_policy_attachment" "staging_delivery" {
   policy_arn = aws_iam_policy.staging_delivery.arn
 }
 
+data "aws_iam_policy_document" "staging_frontend" {
+  # checkov:skip=CKV_AWS_356:CloudFront create APIs do not support resource-level permissions; S3 mutations are restricted to the deterministic staging frontend bucket.
+  # checkov:skip=CKV_AWS_111:CloudFront control-plane writes require Resource="*"; the OIDC trust limits this policy to the protected staging environment on main.
+  statement {
+    sid = "ManageStagingApplicationEdge"
+    actions = [
+      "cloudfront:CreateDistribution",
+      "cloudfront:CreateInvalidation",
+      "cloudfront:CreateOriginAccessControl",
+      "cloudfront:CreateResponseHeadersPolicy",
+      "cloudfront:DeleteDistribution",
+      "cloudfront:DeleteOriginAccessControl",
+      "cloudfront:DeleteResponseHeadersPolicy",
+      "cloudfront:TagResource",
+      "cloudfront:UntagResource",
+      "cloudfront:UpdateDistribution",
+      "cloudfront:UpdateOriginAccessControl",
+      "cloudfront:UpdateResponseHeadersPolicy"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid = "ManageStagingFrontendBucket"
+    actions = [
+      "s3:CreateBucket",
+      "s3:DeleteBucket",
+      "s3:DeleteBucketPolicy",
+      "s3:GetBucketPolicy",
+      "s3:ListBucket",
+      "s3:PutBucketPolicy",
+      "s3:PutBucketPublicAccessBlock",
+      "s3:PutBucketTagging",
+      "s3:PutBucketVersioning",
+      "s3:PutEncryptionConfiguration",
+      "s3:PutLifecycleConfiguration"
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:s3:::${local.staging_name}-frontend-${data.aws_caller_identity.current.account_id}"
+    ]
+  }
+
+  statement {
+    sid = "PublishStagingFrontend"
+    actions = [
+      "s3:DeleteObject",
+      "s3:GetObject",
+      "s3:PutObject"
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:s3:::${local.staging_name}-frontend-${data.aws_caller_identity.current.account_id}/*"
+    ]
+  }
+}
+
+resource "aws_iam_policy" "staging_frontend" {
+  name        = "voice-secure-wallet-staging-frontend"
+  description = "Manage and publish the private staging frontend and CloudFront application edge"
+  policy      = data.aws_iam_policy_document.staging_frontend.json
+
+  tags = {
+    Project     = "voice-secure-wallet"
+    Environment = "staging"
+    ManagedBy   = "Terraform"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "staging_frontend" {
+  role       = aws_iam_role.github_actions.name
+  policy_arn = aws_iam_policy.staging_frontend.arn
+}
+
 output "github_actions_role_arn" {
   value = aws_iam_role.github_actions.arn
 }

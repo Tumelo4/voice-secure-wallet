@@ -1,9 +1,9 @@
-name: Staging application delivery
+name: Staging backend deployment
 
 on:
   workflow_run:
     workflows:
-      - AWS staging plan
+      - Security gates
     types:
       - completed
   workflow_dispatch:
@@ -14,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: staging-application-delivery
+  group: staging-backend-deployment
   cancel-in-progress: false
 
 env:
@@ -26,7 +26,7 @@ env:
 
 jobs:
   deploy:
-    name: Reconcile staging infrastructure and deploy API
+    name: Reconcile AWS infrastructure and deploy backend
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (
@@ -95,19 +95,19 @@ jobs:
           repository_name="$(terraform -chdir="$TERRAFORM_DIR" output -raw api_repository_name)"
           repository_url="$(terraform -chdir="$TERRAFORM_DIR" output -raw api_repository_url)"
           instance_id="$(terraform -chdir="$TERRAFORM_DIR" output -raw application_instance_id)"
-          public_ip="$(terraform -chdir="$TERRAFORM_DIR" output -raw application_public_ip)"
+          application_url="$(terraform -chdir="$TERRAFORM_DIR" output -raw application_base_url)"
 
           test -n "$repository_name"
           test -n "$repository_url"
           test -n "$instance_id"
-          test -n "$public_ip"
+          [[ "$application_url" == https://* ]]
 
           echo "repository-name=$repository_name" >> "$GITHUB_OUTPUT"
           echo "repository-url=$repository_url" >> "$GITHUB_OUTPUT"
           echo "instance-id=$instance_id" >> "$GITHUB_OUTPUT"
-          echo "public-ip=$public_ip" >> "$GITHUB_OUTPUT"
+          echo "application-url=$application_url" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push immutable API image
+      - name: Resolve immutable API image
         id: image
         shell: bash
         env:
@@ -116,27 +116,36 @@ jobs:
           REPOSITORY_URL: ${{ steps.target.outputs.repository-url }}
         run: |
           set -euo pipefail
-          registry="${REPOSITORY_URL%%/*}"
           tagged_image="${REPOSITORY_URL}:${COMMIT_SHA}"
-
-          aws ecr get-login-password --region "$AWS_REGION" \
-            | docker login --username AWS --password-stdin "$registry"
-
-          docker build \
-            --file services/api-adapter-service/Dockerfile \
-            --tag "$tagged_image" \
-            .
-
-          docker push "$tagged_image"
-
           digest="$(
             aws ecr describe-images \
               --region "$AWS_REGION" \
               --repository-name "$REPOSITORY_NAME" \
               --image-ids imageTag="$COMMIT_SHA" \
               --query 'imageDetails[0].imageDigest' \
-              --output text
+              --output text 2>/dev/null || true
           )"
+
+          if [[ "$digest" != sha256:* ]]; then
+            registry="${REPOSITORY_URL%%/*}"
+            aws ecr get-login-password --region "$AWS_REGION" \
+              | docker login --username AWS --password-stdin "$registry"
+
+            docker build \
+              --file services/api-adapter-service/Dockerfile \
+              --tag "$tagged_image" \
+              .
+            docker push "$tagged_image"
+
+            digest="$(
+              aws ecr describe-images \
+                --region "$AWS_REGION" \
+                --repository-name "$REPOSITORY_NAME" \
+                --image-ids imageTag="$COMMIT_SHA" \
+                --query 'imageDetails[0].imageDigest' \
+                --output text
+            )"
+          fi
 
           [[ "$digest" == sha256:* ]]
           echo "uri=${REPOSITORY_URL}@${digest}" >> "$GITHUB_OUTPUT"
@@ -275,25 +284,26 @@ jobs:
       - name: Verify public staging health
         shell: bash
         env:
-          PUBLIC_IP: ${{ steps.target.outputs.public-ip }}
+          APPLICATION_URL: ${{ steps.target.outputs.application-url }}
         run: |
           set -euo pipefail
           curl --fail --retry 12 --retry-delay 5 --retry-all-errors \
-            --silent --show-error "http://${PUBLIC_IP}/health/live"
+            --silent --show-error "${APPLICATION_URL}/health/live"
           curl --fail --retry 12 --retry-delay 5 --retry-all-errors \
-            --silent --show-error "http://${PUBLIC_IP}/health/ready"
+            --silent --show-error "${APPLICATION_URL}/health/ready"
 
       - name: Deployment summary
         shell: bash
         env:
           COMMIT_SHA: ${{ steps.revision.outputs.sha }}
           IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
-          PUBLIC_IP: ${{ steps.target.outputs.public-ip }}
+          APPLICATION_URL: ${{ steps.target.outputs.application-url }}
         run: |
           {
-            echo "## Staging application delivery"
+            echo "## Staging backend deployment"
             echo
             echo "- Commit: \`$COMMIT_SHA\`"
             echo "- Image digest: \`$IMAGE_DIGEST\`"
-            echo "- Health endpoint: \`http://${PUBLIC_IP}/health/ready\`"
+            echo "- HTTPS endpoint: \`${APPLICATION_URL}\`"
+            echo "- Health endpoint: \`${APPLICATION_URL}/health/ready\`"
           } >> "$GITHUB_STEP_SUMMARY"

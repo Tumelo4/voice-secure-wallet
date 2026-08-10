@@ -34,16 +34,21 @@ accepts only the
 `sts.amazonaws.com` audience in AWS account `296032707614`. The workflow
 receives temporary credentials and cannot apply infrastructure.
 
-The `Staging application delivery` workflow runs only for `main`, assumes the
-existing environment-scoped deployment role, waits for every required commit
-gate, generates a fresh saved plan from `infra/aws/environments/staging`, and
+The `Staging backend deployment` workflow runs only for `main`, assumes the
+existing environment-scoped deployment role after the same commit passes the
+`Security gates` workflow, generates a fresh saved plan from `infra/aws/environments/staging`, and
 applies that exact plan before publishing and deploying the API image. Staging
 uses the `environments/staging.tfstate` state key and the `voicesecure-staging`
 resource prefix; it never targets production-reference state or resource names.
+After it succeeds, `Staging frontend deployment` checks out the same commit,
+builds the Expo web application with the Terraform HTTPS URL, synchronizes it
+to the private frontend bucket, invalidates CloudFront, and verifies both the UI
+and backend readiness through the shared application edge.
 
 The shared role has `ReadOnlyAccess`, encrypted Terraform-state access,
 repository-scoped ECR push permissions, tagged EC2 application-host permissions,
-SSM deployment permissions, and `iam:PassRole` restricted to the staging EC2
+SSM deployment permissions, private frontend-bucket publication, CloudFront
+invalidation, and `iam:PassRole` restricted to the staging EC2
 application-host role. Its
 `staging-foundation-apply-access` inline policy permits writes only for the
 cost-controlled staging foundation: tagged VPC networking, the

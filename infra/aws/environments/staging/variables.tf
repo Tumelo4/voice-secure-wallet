@@ -110,17 +110,6 @@ variable "application_public_subnet_cidr" {
   }
 }
 
-variable "application_ingress_cidrs" {
-  description = "IPv4 CIDRs allowed to reach the staging API on port 80. Narrow this list when public access is not required."
-  type        = set(string)
-  default     = ["0.0.0.0/0"]
-
-  validation {
-    condition     = length(var.application_ingress_cidrs) > 0 && alltrue([for cidr in var.application_ingress_cidrs : can(cidrnetmask(cidr))])
-    error_message = "application_ingress_cidrs must contain at least one valid IPv4 CIDR."
-  }
-}
-
 variable "application_root_volume_size_gb" {
   description = "Encrypted gp3 root volume size for the staging application host."
   type        = number
