@@ -90,6 +90,10 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
 resource "aws_cloudfront_response_headers_policy" "security" {
   name = "${var.name}-security-headers"
   security_headers_config {
+    content_security_policy {
+      content_security_policy = "default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self' data:; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: blob:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:"
+      override                = true
+    }
     content_type_options {
       override = true
     }
@@ -114,11 +118,6 @@ resource "aws_cloudfront_response_headers_policy" "security" {
     }
   }
   custom_headers_config {
-    items {
-      header   = "Content-Security-Policy"
-      value    = "default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self' data:; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: blob:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:"
-      override = true
-    }
     items {
       header   = "Permissions-Policy"
       value    = "camera=(), geolocation=(), microphone=(self), payment=(), usb=()"
