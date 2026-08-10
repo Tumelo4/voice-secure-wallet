@@ -7,7 +7,7 @@ const acceptedAdvisories = new Set([
 ]);
 
 const lock = JSON.parse(readFileSync("apps/mobile/package-lock.json", "utf8"));
-const imageSizeVersion = lock.packages?.["node_modules/image-size"]?.version;
+const imageSizeVersion = lock.packages?.["node_modules/metro/node_modules/image-size"]?.version;
 if (imageSizeVersion !== "1.2.1") {
   throw new Error(`Expected the reviewed Metro image-size dependency at 1.2.1, found ${imageSizeVersion ?? "nothing"}`);
 }
