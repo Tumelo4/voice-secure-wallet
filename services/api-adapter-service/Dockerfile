@@ -1,7 +1,7 @@
 FROM maven:3.9.11-eclipse-temurin-17 AS build
 WORKDIR /src
 COPY . .
-RUN mvn --batch-mode --no-transfer-progress -pl services/api-adapter-service -am package -DskipTests \
+RUN mvn --batch-mode --no-transfer-progress -pl services/api-adapter-service -am install -DskipTests \
     && mkdir -p /out/lib \
     && find services -path '*/target/*.jar' -type f ! -name '*-sources.jar' ! -name '*-javadoc.jar' -exec cp {} /out/lib/ \; \
     && mvn --batch-mode --no-transfer-progress -pl services/api-adapter-service dependency:copy-dependencies \
