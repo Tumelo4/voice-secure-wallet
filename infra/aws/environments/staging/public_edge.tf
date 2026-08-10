@@ -64,6 +64,10 @@ resource "aws_security_group" "application_host" {
   ingress                = []
   egress                 = []
 
+  lifecycle {
+    ignore_changes = [ingress, egress]
+  }
+
   tags = {
     Name        = "${var.name}-application-host"
     Project     = "voice-secure-wallet"
