@@ -3,7 +3,10 @@ WORKDIR /src
 COPY . .
 RUN mvn --batch-mode --no-transfer-progress -pl services/api-adapter-service -am package -DskipTests \
     && mkdir -p /out/lib \
-    && find services -path '*/target/*.jar' -type f ! -name '*-sources.jar' ! -name '*-javadoc.jar' -exec cp {} /out/lib/ \;
+    && find services -path '*/target/*.jar' -type f ! -name '*-sources.jar' ! -name '*-javadoc.jar' -exec cp {} /out/lib/ \; \
+    && mvn --batch-mode --no-transfer-progress -pl services/api-adapter-service dependency:copy-dependencies \
+      -DincludeScope=runtime \
+      -DoutputDirectory=/out/lib
 
 FROM eclipse-temurin:17.0.16_8-jre-noble
 RUN apt-get update \
