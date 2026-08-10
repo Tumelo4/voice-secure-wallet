@@ -8,8 +8,8 @@ const acceptedAdvisories = new Set([
 
 const lock = JSON.parse(readFileSync("apps/mobile/package-lock.json", "utf8"));
 const imageSizeVersion = lock.packages?.["node_modules/image-size"]?.version;
-if (imageSizeVersion !== "2.0.2") {
-  throw new Error(`Expected the reviewed image-size override at 2.0.2, found ${imageSizeVersion ?? "nothing"}`);
+if (imageSizeVersion !== "1.2.1") {
+  throw new Error(`Expected the reviewed Metro image-size dependency at 1.2.1, found ${imageSizeVersion ?? "nothing"}`);
 }
 
 const audit = spawnSync("npm", ["audit", "--json", "--audit-level=high"], {
