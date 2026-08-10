@@ -129,7 +129,9 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail --retry 12 --retry-delay 5 --retry-all-errors --silent --show-error "$APPLICATION_URL/" >/dev/null
-          curl --fail --retry 12 --retry-delay 5 --retry-all-errors --silent --show-error "$APPLICATION_URL/health/ready" >/dev/null
+          curl --fail --retry 12 --retry-delay 5 --retry-all-errors \
+            --header 'X-Trace-Id: staging-frontend-integration-ready' \
+            --silent --show-error "$APPLICATION_URL/health/ready" >/dev/null
 
       - name: Deployment summary
         env:
