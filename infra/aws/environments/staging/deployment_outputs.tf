@@ -24,6 +24,6 @@ output "application_public_ip" {
 }
 
 output "application_base_url" {
-  description = "HTTP base URL for the low-cost staging deployment."
-  value       = "http://${aws_instance.application_host.public_ip}"
+  description = "HTTPS base URL shared by the frontend and API routes."
+  value       = "https://${aws_cloudfront_distribution.application.domain_name}"
 }

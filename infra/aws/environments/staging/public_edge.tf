@@ -75,12 +75,10 @@ resource "aws_security_group" "application_host" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "application_http" {
-  # checkov:skip=CKV_AWS_260:Port 80 is intentionally public for the temporary staging API and health checks; production uses the private application tier behind an ALB.
-  for_each = var.application_ingress_cidrs
-
+  # checkov:skip=CKV_AWS_260:The rule uses the AWS-managed CloudFront origin-facing prefix list, not an unrestricted IPv4 CIDR; Checkov does not resolve the data-source value.
   security_group_id = aws_security_group.application_host.id
-  description       = "Staging API and health-check traffic from ${each.value}"
-  cidr_ipv4         = each.value
+  description       = "HTTP origin traffic from the AWS-managed CloudFront origin network"
+  prefix_list_id    = data.aws_ec2_managed_prefix_list.cloudfront_origin_facing.id
   from_port         = 80
   to_port           = 80
   ip_protocol       = "tcp"

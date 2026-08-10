@@ -96,8 +96,7 @@ jobs:
         with: { node-version: "24", cache: npm, cache-dependency-path: apps/mobile/package-lock.json }
       - working-directory: apps/mobile
         run: npm ci --no-fund --no-audit
-      - working-directory: apps/mobile
-        run: npm audit --audit-level=high
+      - run: node scripts/audit-mobile-dependencies.mjs
 
   infrastructure-security:
     runs-on: ubuntu-latest
