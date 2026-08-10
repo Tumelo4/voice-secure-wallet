@@ -267,19 +267,33 @@ jobs:
           INSTANCE_ID: ${{ steps.target.outputs.instance-id }}
         run: |
           set -euo pipefail
-          aws ssm wait command-executed \
-            --region "$AWS_REGION" \
-            --command-id "$COMMAND_ID" \
-            --instance-id "$INSTANCE_ID"
+          invocation=""
+          status="Pending"
+          for attempt in $(seq 1 60); do
+            invocation="$(
+              aws ssm get-command-invocation \
+                --region "$AWS_REGION" \
+                --command-id "$COMMAND_ID" \
+                --instance-id "$INSTANCE_ID"
+            )"
+            status="$(jq -r '.Status' <<<"$invocation")"
 
-          invocation="$(
-            aws ssm get-command-invocation \
-              --region "$AWS_REGION" \
-              --command-id "$COMMAND_ID" \
-              --instance-id "$INSTANCE_ID"
-          )"
+            case "$status" in
+              Success|Cancelled|TimedOut|Failed|Cancelling)
+                break
+                ;;
+            esac
+
+            echo "Remote deployment is $status ($attempt/60)"
+            sleep 10
+          done
+
           jq '{Status,StatusDetails,StandardOutputContent,StandardErrorContent}' <<<"$invocation"
-          test "$(jq -r '.Status' <<<"$invocation")" = "Success"
+          if [[ "$status" == "Pending" || "$status" == "InProgress" || "$status" == "Delayed" ]]; then
+            echo "Remote deployment did not finish within 10 minutes" >&2
+            exit 1
+          fi
+          test "$status" = "Success"
 
       - name: Verify public staging health
         shell: bash
