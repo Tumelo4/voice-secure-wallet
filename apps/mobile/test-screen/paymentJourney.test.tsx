@@ -1,6 +1,6 @@
 import { render, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { ReadinessDashboard } from "../src/components/ReadinessDashboard";
-import type { VoiceSecureApiClient } from "../src/api/voiceSecureApiClient";
+import type { PaymentJourneyApi } from "../src/api/voiceSecureApiPort";
 import type { VoiceRecorder } from "../src/voice/voiceCaptureSession";
 
 jest.mock("react-native-safe-area-context", () => ({
@@ -30,7 +30,7 @@ describe("customer payment journey", () => {
         authPolicy: "VOICE_OR_MFA",
         message: "Payment completed",
       }),
-    } as unknown as VoiceSecureApiClient;
+    } as PaymentJourneyApi;
     const user = userEvent.setup();
 
     await render(<ReadinessDashboard apiClient={apiClient} voiceRecorder={recorder()} />);
@@ -77,7 +77,7 @@ describe("customer payment journey", () => {
         authPolicy: "VOICE_OR_MFA",
         message: "Payment processing",
       }),
-    } as unknown as VoiceSecureApiClient;
+    } as PaymentJourneyApi;
     const user = userEvent.setup();
 
     await render(<ReadinessDashboard apiClient={apiClient} voiceRecorder={recorder()} />);
@@ -112,7 +112,7 @@ describe("customer payment journey", () => {
         .mockRejectedValueOnce(new Error("offline"))
         .mockResolvedValueOnce({ paymentReference: "pay_retry_123", state: "AUTHORISATION_REQUIRED", authPolicy: "VOICE_OR_MFA", message: "Payment created" }),
       issueVoiceChallenge: jest.fn().mockResolvedValue({ paymentReference: "pay_retry_123", challengeId: "challenge-retry", phrase: "Confirm payment", expiresAt: "2099-01-01T00:00:00Z", authPolicy: "VOICE_OTP", transactionAmountMinor: 75000, transactionBindingHash: "binding" }),
-    } as unknown as VoiceSecureApiClient;
+    } as PaymentJourneyApi;
     const user = userEvent.setup();
 
     await render(<ReadinessDashboard apiClient={apiClient} voiceRecorder={recorder()} />);

@@ -1,4 +1,5 @@
-import { ApiClientError, type VoiceChallengeResult, type VoiceSecureApiClient } from "../api/voiceSecureApiClient.ts";
+import { ApiClientError, type VoiceChallengeResult } from "../api/voiceSecureApiClient.ts";
+import type { VoiceVerificationApi } from "../api/voiceSecureApiPort.ts";
 
 export interface CapturedVoiceAudio {
   contentBase64: string;
@@ -26,13 +27,13 @@ export type VoiceCaptureState =
 export class VoiceCaptureSession {
   state: VoiceCaptureState = { status: "idle" };
   private captured?: CapturedVoiceAudio;
-  private readonly api: VoiceSecureApiClient;
+  private readonly api: VoiceVerificationApi;
   private readonly recorder: VoiceRecorder;
   private readonly challenge: VoiceChallengeResult;
   private readonly now: () => Date;
 
   constructor(
-    api: VoiceSecureApiClient,
+    api: VoiceVerificationApi,
     recorder: VoiceRecorder,
     challenge: VoiceChallengeResult,
     now: () => Date = () => new Date(),

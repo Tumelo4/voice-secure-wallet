@@ -1,21 +1,9 @@
 import { StaticAccessTokenProvider, type AccessTokenProvider } from "../auth/tokenProvider.ts";
+import { AuthenticatedJsonApi } from "./authenticatedJsonApi.ts";
+import { ApiClientError, type ApiTransport, type ApiTransportRequest } from "./apiTransport.ts";
 
-export interface ApiTransportRequest {
-  method: "GET" | "POST";
-  path: string;
-  headers: Record<string, string>;
-  body?: string;
-}
-
-export interface ApiTransportResponse {
-  status: number;
-  headers?: Record<string, string>;
-  body: string;
-}
-
-export interface ApiTransport {
-  send(request: ApiTransportRequest): Promise<ApiTransportResponse>;
-}
+export { ApiClientError } from "./apiTransport.ts";
+export type { ApiTransport, ApiTransportRequest, ApiTransportResponse } from "./apiTransport.ts";
 
 export interface VoiceSecureApiClientConfig {
   token?: string;
@@ -106,36 +94,17 @@ export interface VoiceVerificationResult {
   reason: string;
 }
 
-interface ApiErrorBody {
-  code?: string;
-  message?: string;
-}
-
-export class ApiClientError extends Error {
-  readonly status: number;
-  readonly code: string;
-  readonly retryAfter?: string;
-
-  constructor(status: number, code: string, message: string, retryAfter?: string) {
-    super(message);
-    this.name = "ApiClientError";
-    this.status = status;
-    this.code = code;
-    this.retryAfter = retryAfter;
-  }
-}
-
 export class VoiceSecureApiClient {
   private readonly paymentAttemptKeys = new Map<string, string>();
   private readonly voiceAttemptKeys = new Map<string, string>();
-  private readonly tokenProvider: AccessTokenProvider;
-  private readonly traceIdFactory: () => string;
-  private readonly transport: ApiTransport;
+  private readonly api: AuthenticatedJsonApi;
 
   constructor(config: VoiceSecureApiClientConfig) {
-    this.tokenProvider = resolveTokenProvider(config);
-    this.traceIdFactory = config.traceIdFactory;
-    this.transport = config.transport;
+    this.api = new AuthenticatedJsonApi({
+      tokenProvider: resolveTokenProvider(config),
+      traceIdFactory: config.traceIdFactory,
+      transport: config.transport,
+    });
   }
 
   async startPayment(command: StartPaymentCommand): Promise<PaymentStartResult> {
@@ -165,7 +134,7 @@ export class VoiceSecureApiClient {
   async getWalletBalance(accountId: string): Promise<WalletBalanceResult> {
     return this.sendJson<WalletBalanceResult>({
       method: "GET",
-      path: `/wallets/${encodeURIComponent(requireNonBlank(accountId, "accountId"))}/balance`,
+      path: `/v1/wallets/${encodeURIComponent(requireNonBlank(accountId, "accountId"))}/balance`,
       headers: {},
     });
   }
@@ -235,21 +204,7 @@ export class VoiceSecureApiClient {
   }
 
   private async sendJson<T>(request: Omit<ApiTransportRequest, "headers"> & { headers: Record<string, string> }): Promise<T> {
-    const traceId = requireNonBlank(this.traceIdFactory(), "traceId");
-    const token = requireNonBlank(await this.tokenProvider.getAccessToken(), "token");
-    const response = await this.transport.send({
-      ...request,
-      headers: {
-        ...request.headers,
-        Authorization: `Bearer ${token}`,
-        "X-Trace-Id": traceId,
-      },
-    });
-
-    if (response.status < 200 || response.status >= 300) {
-      throw errorFromResponse(response);
-    }
-    return parseJson<T>(response.body, "response body");
+    return this.api.send<T>(request);
   }
 }
 
@@ -270,22 +225,6 @@ function resolveTokenProvider(config: VoiceSecureApiClientConfig): AccessTokenPr
     return config.tokenProvider;
   }
   return new StaticAccessTokenProvider(requireNonBlank(config.token, "token"));
-}
-
-function errorFromResponse(response: ApiTransportResponse): ApiClientError {
-  const body = parseJson<ApiErrorBody>(response.body, "error body");
-  const code = body.code ?? "API_ERROR";
-  const message = body.message ?? `request failed with status ${response.status}`;
-  const retryAfter = response.headers?.["Retry-After"] ?? response.headers?.["retry-after"];
-  return new ApiClientError(response.status, code, message, retryAfter);
-}
-
-function parseJson<T>(body: string, label: string): T {
-  try {
-    return JSON.parse(body) as T;
-  } catch (error) {
-    throw new ApiClientError(502, "INVALID_JSON", `invalid ${label}`);
-  }
 }
 
 function requireNonBlank(value: string | null | undefined, field: string): string {

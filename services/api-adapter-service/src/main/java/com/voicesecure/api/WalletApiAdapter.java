@@ -10,6 +10,8 @@ import java.util.UUID;
 import java.util.Set;
 
 public final class WalletApiAdapter implements ApiEndpoint {
+    private static final String BALANCE_PATH_PREFIX = "/v1/wallets/";
+    private static final String BALANCE_PATH_SUFFIX = "/balance";
     private static final Set<String> REQUIRED_SCOPES = Set.of("wallet:balance");
 
     private final WalletService walletService;
@@ -48,10 +50,10 @@ public final class WalletApiAdapter implements ApiEndpoint {
     }
 
     private static String accountIdPath(String path) {
-        if (!path.startsWith("/wallets/") || !path.endsWith("/balance")) {
+        if (!path.startsWith(BALANCE_PATH_PREFIX) || !path.endsWith(BALANCE_PATH_SUFFIX)) {
             return null;
         }
-        String accountId = path.substring("/wallets/".length(), path.length() - "/balance".length());
+        String accountId = path.substring(BALANCE_PATH_PREFIX.length(), path.length() - BALANCE_PATH_SUFFIX.length());
         return accountId.isBlank() ? null : accountId;
     }
 

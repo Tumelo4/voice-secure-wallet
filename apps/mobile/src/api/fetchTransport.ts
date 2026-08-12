@@ -3,7 +3,7 @@ import {
   type ApiTransport,
   type ApiTransportRequest,
   type ApiTransportResponse,
-} from "./voiceSecureApiClient.ts";
+} from "./apiTransport.ts";
 
 export interface FetchTransportInit {
   method?: string;

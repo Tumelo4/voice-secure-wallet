@@ -91,7 +91,7 @@ public final class ApiAdapterTests {
 
         ApiResponse response = fixture.router.handle(new ApiRequest(
                 "GET",
-                "/wallets/" + accountId + "/balance",
+                "/v1/wallets/" + accountId + "/balance",
                 authenticatedHeaders(USER_ID, "trace-wallet-api"),
                 ""
         ));
@@ -108,7 +108,7 @@ public final class ApiAdapterTests {
         fixture.walletService.openWallet(USER_ID, accountId, "Everyday wallet", "ZAR");
         ApiResponse response = fixture.router.handle(new ApiRequest(
                 "GET",
-                "/wallets/" + accountId + "/balance",
+                "/v1/wallets/" + accountId + "/balance",
                 authenticatedHeaders(UUID.fromString("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"), "trace-idor"),
                 ""
         ));

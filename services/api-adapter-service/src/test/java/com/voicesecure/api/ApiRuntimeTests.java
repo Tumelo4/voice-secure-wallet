@@ -62,7 +62,7 @@ public final class ApiRuntimeTests {
 
         ApiResponse response = fixture.runtime.handle(new ApiRequest(
                 "GET",
-                "/wallets/" + fixture.accountId + "/balance",
+                "/v1/wallets/" + fixture.accountId + "/balance",
                 Map.of("X-Trace-Id", "trace-runtime-2", "Authorization", "Bearer wrong-token"),
                 ""
         ));
@@ -76,7 +76,7 @@ public final class ApiRuntimeTests {
 
         ApiResponse response = fixture.runtime.handle(new ApiRequest(
                 "GET",
-                "/wallets/" + fixture.accountId + "/balance",
+                "/v1/wallets/" + fixture.accountId + "/balance",
                 java.util.Map.of("Authorization", "Bearer " + fixture.tokenUser1),
                 ""
         ));
@@ -109,7 +109,7 @@ public final class ApiRuntimeTests {
 
         ApiResponse response = fixture.runtime.handle(new ApiRequest(
                 "GET",
-                "/wallets/" + fixture.accountId + "/balance",
+                "/v1/wallets/" + fixture.accountId + "/balance",
                 java.util.Map.of("Authorization", "Bearer " + fixture.tokenUser2, "X-Trace-Id", "trace-runtime-2b"),
                 ""
         ));
@@ -143,9 +143,9 @@ public final class ApiRuntimeTests {
         Fixture fixture = fixture();
         java.util.Map<String, String> headers = java.util.Map.of("Authorization", "Bearer " + fixture.tokenUser1, "X-Trace-Id", "trace-runtime-3");
 
-        fixture.runtime.handle(new ApiRequest("GET", "/wallets/" + fixture.accountId + "/balance", headers, ""));
-        fixture.runtime.handle(new ApiRequest("GET", "/wallets/" + fixture.accountId + "/balance", headers, ""));
-        ApiResponse limited = fixture.runtime.handle(new ApiRequest("GET", "/wallets/" + fixture.accountId + "/balance", headers, ""));
+        fixture.runtime.handle(new ApiRequest("GET", "/v1/wallets/" + fixture.accountId + "/balance", headers, ""));
+        fixture.runtime.handle(new ApiRequest("GET", "/v1/wallets/" + fixture.accountId + "/balance", headers, ""));
+        ApiResponse limited = fixture.runtime.handle(new ApiRequest("GET", "/v1/wallets/" + fixture.accountId + "/balance", headers, ""));
 
         assertEquals(429, limited.status(), "rate limit status");
         assertContains(limited.body(), "\"code\":\"RATE_LIMITED\"", "rate limit code");

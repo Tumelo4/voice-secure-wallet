@@ -39,12 +39,12 @@ import {
 import type {
   BeneficiarySummary,
   CustomerAccount,
-  VoiceSecureApiClient,
 } from "../api/voiceSecureApiClient";
+import type { PaymentJourneyApi } from "../api/voiceSecureApiPort";
 import type { VoiceRecorder } from "../voice/voiceCaptureSession";
 import { usePaymentJourney } from "../state/usePaymentJourney";
 
-export function ReadinessDashboard({ apiClient, voiceRecorder }: { apiClient: VoiceSecureApiClient; voiceRecorder: VoiceRecorder }) {
+export function ReadinessDashboard({ apiClient, voiceRecorder }: { apiClient: PaymentJourneyApi; voiceRecorder: VoiceRecorder }) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const layoutMode = bankingLayoutModeForWidth(width);
