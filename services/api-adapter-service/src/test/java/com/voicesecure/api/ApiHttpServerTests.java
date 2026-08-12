@@ -49,7 +49,7 @@ public final class ApiHttpServerTests {
     private static void forwardsWalletGet() throws Exception {
         Fixture fixture = fixture(10);
         try (ApiHttpServer server = ApiHttpServer.start(fixture.runtime)) {
-            HttpResponse<String> response = send(HttpRequest.newBuilder(server.uri("/wallets/" + fixture.accountId + "/balance"))
+            HttpResponse<String> response = send(HttpRequest.newBuilder(server.uri("/v1/wallets/" + fixture.accountId + "/balance"))
                     .header("Authorization", "Bearer " + fixture.tokenUser1)
                     .header("X-Trace-Id", "trace-http-1")
                     .GET()
@@ -125,14 +125,14 @@ public final class ApiHttpServerTests {
     private static void preservesRateLimitHeaders() throws Exception {
         Fixture fixture = fixture(1);
         try (ApiHttpServer server = ApiHttpServer.start(fixture.runtime)) {
-            HttpRequest first = HttpRequest.newBuilder(server.uri("/wallets/" + fixture.accountId + "/balance"))
+            HttpRequest first = HttpRequest.newBuilder(server.uri("/v1/wallets/" + fixture.accountId + "/balance"))
                     .header("Authorization", "Bearer " + fixture.tokenUser1)
                     .header("X-Trace-Id", "trace-http-3")
                     .GET()
                     .build();
             send(first);
 
-            HttpResponse<String> limited = send(HttpRequest.newBuilder(server.uri("/wallets/" + fixture.accountId + "/balance"))
+            HttpResponse<String> limited = send(HttpRequest.newBuilder(server.uri("/v1/wallets/" + fixture.accountId + "/balance"))
                     .header("Authorization", "Bearer " + fixture.tokenUser1)
                     .header("X-Trace-Id", "trace-http-4")
                     .GET()
@@ -151,7 +151,7 @@ public final class ApiHttpServerTests {
         try (ApiHttpServer server = ApiHttpServer.start(fixture.runtime)) {
             List<CompletableFuture<HttpResponse<String>>> requests = new ArrayList<>();
             for (int index = 0; index < 24; index++) {
-                HttpRequest request = HttpRequest.newBuilder(server.uri("/wallets/" + fixture.accountId + "/balance"))
+                HttpRequest request = HttpRequest.newBuilder(server.uri("/v1/wallets/" + fixture.accountId + "/balance"))
                         .header("Authorization", "Bearer " + fixture.tokenUser1)
                         .header("X-Trace-Id", "trace-concurrent-" + index)
                         .GET().build();

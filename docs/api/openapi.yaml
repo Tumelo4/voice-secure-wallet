@@ -28,6 +28,26 @@ paths:
                     items: { $ref: '#/components/schemas/Account' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
+  /v1/wallets/{accountId}/balance:
+    parameters:
+      - name: accountId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: Read the balance of an account owned by the authenticated customer
+      operationId: getWalletBalance
+      security: [{ oidc: [wallet:balance] }]
+      responses:
+        '200':
+          description: Current balance for the owned account.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WalletBalance' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
   /v1/me/beneficiaries:
     get:
       summary: List the authenticated customer's beneficiaries
@@ -235,6 +255,16 @@ components:
         displayName: { type: string }
         maskedAccountNumber: { type: string }
         currency: { type: string, enum: [ZAR] }
+    WalletBalance:
+      type: object
+      additionalProperties: false
+      required: [accountId, currency, balance, version, updatedAt]
+      properties:
+        accountId: { type: string, format: uuid }
+        currency: { type: string, enum: [ZAR] }
+        balance: { type: integer }
+        version: { type: integer, minimum: 0 }
+        updatedAt: { type: string, format: date-time }
     CreateBeneficiary:
       type: object
       additionalProperties: false

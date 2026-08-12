@@ -155,7 +155,7 @@ ApiResponse guardedResponse = runtime.handle(new ApiRequest(
 ));
 
 try (ApiHttpServer server = ApiHttpServer.start(runtime)) {
-    // server.uri("/wallets/{accountId}/balance") returns a localhost URL for
+    // server.uri("/v1/wallets/{accountId}/balance") returns a localhost URL for
     // local smoke tests or development clients.
     // server.uri("/support/repairs") returns the repair route for justified
     // support escalations.

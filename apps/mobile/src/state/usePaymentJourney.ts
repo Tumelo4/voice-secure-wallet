@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { BeneficiarySummary, CustomerAccount, VoiceSecureApiClient } from "../api/voiceSecureApiClient";
+import type { BeneficiarySummary, CustomerAccount } from "../api/voiceSecureApiClient";
+import type { PaymentJourneyApi } from "../api/voiceSecureApiPort";
 import { VoiceCaptureSession, type VoiceRecorder } from "../voice/voiceCaptureSession";
 import {
   advanceVoiceSecureFlow,
@@ -11,7 +12,7 @@ import {
 } from "./bankingVoiceSecure";
 import type { BankingTabKey } from "../components/bankingDashboardContent";
 
-export function usePaymentJourney(apiClient: VoiceSecureApiClient, voiceRecorder: VoiceRecorder) {
+export function usePaymentJourney(apiClient: PaymentJourneyApi, voiceRecorder: VoiceRecorder) {
   const [activeTab, setActiveTab] = useState<BankingTabKey>("home");
   const [draft, setDraft] = useState<TransactionDraft>(() => createTransactionDraft("pay"));
   const [flow, setFlow] = useState<VoiceSecureFlow | null>(null);

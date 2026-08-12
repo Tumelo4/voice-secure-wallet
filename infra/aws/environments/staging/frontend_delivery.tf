@@ -168,7 +168,7 @@ resource "aws_cloudfront_distribution" "application" {
   }
 
   dynamic "ordered_cache_behavior" {
-    for_each = toset(["/v1/*", "/wallets/*", "/health/*"])
+    for_each = toset(["/v1/*", "/health/*"])
     content {
       path_pattern               = ordered_cache_behavior.value
       allowed_methods            = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]

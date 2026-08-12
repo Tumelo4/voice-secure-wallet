@@ -74,7 +74,7 @@ test("getWalletBalance maps wallet runtime response", async () => {
   assert.equal(balance.balance, 1250);
   assert.equal(balance.currency, "ZAR");
   assert.equal(transport.requests[0].method, "GET");
-  assert.equal(transport.requests[0].path, "/wallets/wallet-1/balance");
+  assert.equal(transport.requests[0].path, "/v1/wallets/wallet-1/balance");
   assert.equal(transport.requests[0].headers.Authorization, "Bearer token-user-1");
   assert.equal(transport.requests[0].headers["X-Trace-Id"], "trace-wallet-1");
 });

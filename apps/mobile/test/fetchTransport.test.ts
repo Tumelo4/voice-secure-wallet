@@ -44,9 +44,9 @@ test("fetch transport joins base URLs and paths without duplicate slashes", asyn
   };
   const transport = new FetchApiTransport({ baseUrl: "https://api.voice.local/", fetcher });
 
-  await transport.send({ method: "GET", path: "wallets/wallet-1/balance", headers: {} });
+  await transport.send({ method: "GET", path: "v1/wallets/wallet-1/balance", headers: {} });
 
-  assert.equal(requestedUrl, "https://api.voice.local/wallets/wallet-1/balance");
+  assert.equal(requestedUrl, "https://api.voice.local/v1/wallets/wallet-1/balance");
 });
 
 test("fetch transport maps network failures to deterministic API errors", async () => {
@@ -58,7 +58,7 @@ test("fetch transport maps network failures to deterministic API errors", async 
   });
 
   await assert.rejects(
-    () => transport.send({ method: "GET", path: "/wallets/wallet-1/balance", headers: {} }),
+    () => transport.send({ method: "GET", path: "/v1/wallets/wallet-1/balance", headers: {} }),
     (error) => {
       assert.ok(error instanceof ApiClientError);
       assert.equal(error.status, 503);
