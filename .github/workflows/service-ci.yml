@@ -18,24 +18,24 @@ jobs:
   java-unit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with: { distribution: temurin, java-version: "17", cache: maven }
       - run: mvn --batch-mode --no-transfer-progress test -DskipTests=false
 
   architecture-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with: { distribution: temurin, java-version: "17", cache: maven }
       - run: mvn --batch-mode --no-transfer-progress -pl quality/architecture-tests -am test
 
   financial-mutation-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with: { distribution: temurin, java-version: "17", cache: maven }
       - run: mvn --batch-mode --no-transfer-progress -pl services/ledger-service -am install -DskipTests
       - run: mvn --batch-mode --no-transfer-progress -pl services/ledger-service test-compile org.pitest:pitest-maven:mutationCoverage -DtargetClasses=com.voicesecure.ledger.application.LedgerService -DtargetTests=com.voicesecure.ledger.LedgerMutationTest
@@ -43,7 +43,7 @@ jobs:
       - run: mvn --batch-mode --no-transfer-progress -pl services/payment-service test-compile org.pitest:pitest-maven:mutationCoverage -DtargetClasses=com.voicesecure.payments.Money -DtargetTests=com.voicesecure.payments.MoneyMutationTest
       - run: mvn --batch-mode --no-transfer-progress -pl services/identity-service -am install -DskipTests
       - run: mvn --batch-mode --no-transfer-progress -pl services/identity-service test-compile org.pitest:pitest-maven:mutationCoverage '-DtargetClasses=com.voicesecure.identity.JwtCodec,com.voicesecure.identity.RefreshTokenFamilyState' -DtargetTests=com.voicesecure.identity.IdentityMutationTest
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: financial-mutation-reports
@@ -59,22 +59,22 @@ jobs:
           --health-cmd "rpk cluster health --exit-when-healthy"
           --health-interval 10s --health-timeout 5s --health-retries 10
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: docker exec ${{ job.services.redpanda.id }} rpk topic create payment-events --partitions 3 --replicas 1
       - run: docker exec --interactive ${{ job.services.redpanda.id }} rpk topic produce payment-events --key payment-1 <<< '{"eventId":"event-1","type":"payment.started"}'
       - run: timeout 30s docker exec ${{ job.services.redpanda.id }} rpk topic consume payment-events --offset start --num 1 --format '%k:%v\n' | grep 'payment-1:.*event-1'
-      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with: { distribution: temurin, java-version: "17", cache: maven }
       - run: mvn --batch-mode --no-transfer-progress -pl tests/contract-tests -am test
 
   testcontainers-integration:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with: { distribution: temurin, java-version: "17", cache: maven }
       - run: mvn --batch-mode --no-transfer-progress -Pintegration -pl tests/integration-tests -am verify
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: testcontainers-integration-evidence
@@ -83,13 +83,13 @@ jobs:
   performance-resilience-evidence:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with: { distribution: temurin, java-version: "17", cache: maven }
       - run: mvn --batch-mode --no-transfer-progress -pl services/payment-service -am test-compile
       - run: java -cp services/payment-service/target/classes:services/payment-service/target/test-classes com.voicesecure.payments.PaymentLoadProbe services/payment-service/target/performance/payment-load.json
       - run: mvn --batch-mode --no-transfer-progress -pl services/payment-service,services/ledger-service -am test
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: performance-resilience-evidence
@@ -101,32 +101,32 @@ jobs:
   contract-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with: { distribution: temurin, java-version: "17", cache: maven }
       - run: mvn --batch-mode --no-transfer-progress -pl tests/contract-tests -am verify
 
   openapi-contract:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: "24" }
       - run: npx --yes @redocly/cli@2.11.0 lint docs/api/openapi.yaml
 
   acceptance-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with: { distribution: temurin, java-version: "17", cache: maven }
       - run: mvn --batch-mode --no-transfer-progress -pl tests/acceptance-tests -am verify
 
   voice-quality:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: { python-version: "3.11", cache: pip }
       - working-directory: services/voice-service
         run: python -m pip install -e ".[test]"
@@ -139,14 +139,14 @@ jobs:
           test "$mutation_status" -le 1
           survivors=$(mutmut results | awk '/🙁.*VoiceService.*verify/ { count++ } END { print count+0 }')
           test "$survivors" -le 35
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with: { name: voice-test-results, path: services/voice-service/voice-test-results.xml }
 
   mobile-quality:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: "24", cache: npm, cache-dependency-path: apps/mobile/package-lock.json }
       - working-directory: apps/mobile
         run: npm ci --no-fund --no-audit
@@ -169,13 +169,13 @@ jobs:
       PGUSER: postgres
       PGPASSWORD: postgres
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: bash scripts/test-postgres-migrations.sh
 
   terraform-validation:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
       - run: terraform -chdir=infra/aws fmt -check
       - run: terraform -chdir=infra/aws init -backend=false
@@ -184,5 +184,5 @@ jobs:
   repository-hygiene:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: git diff --check
